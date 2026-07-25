@@ -136,3 +136,26 @@ Workigom Marketing (Next.js) uygulamasının sayfa akışı şu şekildedir:
 - **İzolasyon:** Flow ve Ledger gibi tamamen zıt renk paletlerine sahip projelerin aynı repoda çakışmaması için, sayfaya özgü renkler (`#d0bcff` vb.) doğrudan satır içi (arbitrary values) veya sadece o sayfanın `[sayfa].css` dosyasında tanımlanır.
 
 **Not:** Bu dosya proje standartlarını korumak için oluşturulmuştur. Yeni bir "Wow" efekti eklendiğinde lütfen formülünü buraya not etmeyi unutmayın.
+
+## 🤖 İŞLEYİCİ Aİ ve AI Ekosistemi Görev Dağılımı (Mimari Yapı)
+
+Sistem, bir "Muhasebeci - Müşteri Ekosistemi" üzerine kuruludur. Her muhasebecinin sisteme özel bir kod ile bağlanan birden fazla (örn: 20-30) müşterisi/mükellefi bulunur. Sistemdeki Yapay Zeka (AI) asistanları doğrudan muhasebeciye bağlı olarak çalışır ve bu ekosistemdeki müşterileri yönetir.
+
+Görev çakışmalarını önlemek ve veri bütünlüğünü sağlamak amacıyla AI mimarisi **İşleyici AI** ve **Flow AI** olmak üzere iki ana kola ayrılmıştır.
+
+### 1. İşleyici AI (Arka Ofis / Ledger)
+İşleyici AI, doğrudan muhasebecinin komutası altında çalışan ve ağır analitik süreçleri yöneten ana sistemdir.
+
+* **Resmi Evrak İşleme:** Sisteme yüklenen resmi faturaları sadece Ledger arayüzünde işler.
+* **Finansal Hafıza ve Raporlama:** Flow arayüzündeki AI Muhasebe ekranından erişilen "İşletmem" sayfasındaki toplam işlenen gelir-gideri ve geçmiş dönem kayıtlarını tutar/raporlar.
+* **Ledger İletişim Kontrolü:** Ledger içerisindeki chat kutusunun yönetiminden sorumludur.
+* **Muhasebeci Yönlendirmeli İletişim:** Muhasebecinin direktifleri doğrultusunda ekosisteme bağlı müşterilerle iletişime geçer. Muhasebecinin talebiyle belirli bir müşteriye soru sorabilir, bildirim iletebilir veya tüm müşterilere toplu mesaj/bildirim gönderebilir.
+* **Veri Sınırı:** Sadece resmi faturaları Ledger'da işler; sözlü veya manuel girilen kayıtları işlemez, bunları Flow tarafında bırakır.
+
+### 2. Flow AI (Ön Büro / Arayüz)
+Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşteri iletişimini yürüten ön yüz (front-office) modülüdür.
+
+* **Manuel Finansal Takip:** AI Muhasebe ekranında bulunan "Gelir Gir / Gider Gir" ekranları üzerinden girilen tüm cari veya resmi bilgileri tutar. Muhasebeciye bağlı tüm müşterilerin manuel gelir ve giderlerini kontrol eder.
+* **Dinamik UI Güncellemesi:** Kullanıcının girdiği verilere dayanarak; AI Muhasebe ekranındaki "Bu Ay Gelir / Bu Ay Gider" kutularını, ödeme takvimini ve Dashboard'da yer alan genel gelir-gider özet kutularını anlık olarak günceller.
+* **Müşteri İletişimi:** AI Muhasebe ekranındaki AI Asistan butonu üzerinden (sosyal medya/WhatsApp entegrasyonlarıyla) müşteriler ile günlük iletişimi kurar.
+* **Veri Sınırı:** Sözlü olarak veya manuel olarak kaydedilen tüm işlemleri sadece Flow arayüzü tabanlı olarak kendi bünyesinde (transactions) tutar.

@@ -55,8 +55,51 @@ serve(async (req) => {
       let recentContext = "";
 
       try {
+        // Fetch Customers (Müşteri Rehberi)
+        let customersListContext = "";
+        try {
+          const { data: links } = await supabaseClient
+            .from('shared_accountant_taxpayer_links')
+            .select('taxpayer_id')
+            .eq('accountant_id', profile_id)
+            .eq('status', 'active');
+            
+          if (links && links.length > 0) {
+            const taxpayerIds = links.map(l => l.taxpayer_id);
+            const { data: profiles } = await supabaseClient
+              .from('profiles')
+              .select('id, business_name, phone_number')
+              .in('id', taxpayerIds);
+              
+            if (profiles && profiles.length > 0) {
+              customersListContext = "MÜŞTERİ REHBERİ (Sana Bağlı Mükellefler):\n" + 
+                profiles.map(p => `- İsim: ${p.business_name || 'İsimsiz'}, Telefon: ${p.phone_number || 'Yok'}, Müşteri ID: ${p.id}`).join('\n') + 
+                "\n\n";
+            }
+          }
+        } catch(e) { console.warn("Error fetching customer context", e); }
+
+        // Fetch Chat History
+        let chatHistoryContext = "";
+        try {
+          const { data: history } = await supabaseClient
+            .from('ledger_chat_history')
+            .select('*')
+            .eq('accountant_id', profile_id)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (history && history.length > 0) {
+            // Reverse to get chronological order for the prompt
+            const chronologicalHistory = history.reverse();
+            chatHistoryContext = "SOHBET GEÇMİŞİ (Son 20 Mesaj):\n" + 
+              chronologicalHistory.map(h => `${h.role === 'user' ? 'Kullanıcı' : 'AI'}: ${h.content}`).join('\n\n') + 
+              "\n\n";
+          }
+        } catch(e) { console.warn("Error fetching chat history", e); }
+
         // Transactions
-        const { data: trans } = await supabaseClient.from('transactions').select('*').eq('profile_id', profile_id).order('date', { ascending: false }).limit(15);
+        const { data: trans } = await supabaseClient.from('transactions').select('*').eq('profile_id', profile_id).order('date', { ascending: false }).limit(30);
         if (trans) {
           trans.forEach(t => {
             if (t.type === 'income') totals.income += Number(t.amount);
@@ -67,7 +110,7 @@ serve(async (req) => {
 
         // Documents
         if (organization_id) {
-          const { data: docs } = await supabaseClient.from('finance_documents').select('*').eq('organization_id', organization_id).order('created_at', { ascending: false }).limit(15);
+          const { data: docs } = await supabaseClient.from('finance_documents').select('*').eq('organization_id', organization_id).order('created_at', { ascending: false }).limit(30);
           if (docs) {
             docs.forEach(d => {
               const amount = Number(d.amount_minor) / 100;
@@ -89,19 +132,19 @@ serve(async (req) => {
       const systemInstruction = `Sen mukellefin finansal denetcisi ve kisisel muhasebecisisin (AI Muhasebe Asistani).
 Sana mukellefin sordugu sorulara VEYA girdigi manuel gelir/gider islemine yanit vereceksin.
 
-MUKELLEFIN ANLIK DURUMU (Özet):
+${chatHistoryContext}MUKELLEFIN ANLIK DURUMU (Özet):
 - Toplam Odenmis Gelir: ${totals.income} TL
 - Toplam Odenmis Gider: ${totals.expense} TL
 - Toplam Bekleyen Alacak: ${totals.receivable} TL
 - Toplam Bekleyen Borc: ${totals.payable} TL
 
-MUKELLEFIN SON ISLEMLERI:
+${customersListContext}MUKELLEFIN SON ISLEMLERI:
 ${recentContext}
 
 GOREV:
 Kullanici yeni bir manuel harcama, odeme veya gelir girdiyse (orn: "Yarin Ahmet'e 500 TL odemem var"), bunu algila ve JSON'daki 'manual_entry' objesini doldur.
 Eger sadece bir soru soruyorsa veya islem yoksa 'manual_entry' kismini null birak.
-Kullaniciya samimi, guven veren, profesyonel bir metinle (markdown destekli) yanit ver. Yaniti 'message' alanina yaz.
+Kullaniciya samimi, guven veren, profesyonel bir metinle (markdown destekli) yanit ver. Yaniti 'message' alanina yaz. Geçmiş sohbete atıfta bulunursa onu anladığını belli et.
 
 SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
 
@@ -118,7 +161,8 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
               amount: { type: "number", description: "Tutar (orn: 500)" },
               type: { type: "string", description: "'income' veya 'expense'" },
               date: { type: "string", description: "YYYY-MM-DD formatinda islem tarihi." },
-              status: { type: "string", description: "Gelecek tarihliyse 'pending', bugun/gecmisse 'paid'" }
+              status: { type: "string", description: "Gelecek tarihliyse 'pending', bugun/gecmisse 'paid'" },
+              customer_id: { type: "string", description: "Müşteri Rehberi'nden eşleşen kişinin Müşteri ID'si. Eşleşme yoksa boş bırakılabilir." }
             },
             required: ["title", "amount", "type", "date", "status"]
           }
@@ -140,7 +184,7 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
       if (extractedData.manual_entry) {
         // Insert into transactions
         const { error: insertError } = await supabaseClient.from('transactions').insert({
-          profile_id: profile_id,
+          profile_id: extractedData.manual_entry.customer_id || profile_id,
           title: extractedData.manual_entry.title,
           amount: extractedData.manual_entry.amount,
           type: extractedData.manual_entry.type,
@@ -149,6 +193,14 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
         });
         if (insertError) console.error("Transaction insert error:", insertError);
       }
+
+      // Save to chat history
+      try {
+        await supabaseClient.from('ledger_chat_history').insert([
+          { accountant_id: profile_id, role: 'user', content: prompt },
+          { accountant_id: profile_id, role: 'model', content: extractedData.message }
+        ]);
+      } catch(e) { console.warn("Error saving chat history", e); }
 
       return new Response(JSON.stringify({ success: true, message: extractedData.message }), {
         status: 200,

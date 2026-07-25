@@ -1,4 +1,5 @@
 -- Allow accountants to view the organizations of their linked taxpayers
+DROP POLICY IF EXISTS "Accountants can view linked taxpayer orgs" ON public.organizations;
 CREATE POLICY "Accountants can view linked taxpayer orgs"
 ON public.organizations FOR SELECT
 USING (
