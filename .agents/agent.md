@@ -68,3 +68,9 @@ ull\ veya boş string dönülmeyecek.
 - **CSV Dışa Aktarımı:** Türkçe Excel'de sütunların düzgün ayrışması için ayrıştırıcı (delimiter) olarak `,` yerine noktalı virgül (`;`) kullanıldı.
 - **Excel Dışa Aktarımı (SpreadsheetML):** `\t` (Tab) ayrımıyla oluşturulan sahte `.xls` dosyaları, bölgesel ayarlara bağlı olarak bazı bilgisayarlarda tüm sütunları A hücresine sıkıştırdığı için, HTML tablo `<table>...</table>` formatına geçildi. Excel'in HTML tablolarını doğal olarak `.xls` olarak mükemmel şekilde sütunlara bölebilme yeteneği kullanıldı.
 - **XML ve PDF Eksikleri:** XML dışa aktarım kodunda eksik olan `ALIŞ/SATIŞ` fallbacks'leri (varsayılan değerleri) ve tarih atamaları Excel çıktısıyla birebir aynı formata getirilerek XML'in muhasebe programlarıyla %100 uyumu sağlandı.
+
+### [26.07.2026] Yapılan Son Güncellemeler
+- **Veritabanı Uyumsuzlukları Giderildi:** `transactions` tablosundaki geçersiz `name` sütunu kod bazında temizlendi. AI Asistanın döndürdüğü `title`, `type` ve `status` alanlarının `SupabaseTransactionRepository` ve `TransactionMapper` tarafından sorunsuz işlenip veritabanına eklenmesi sağlandı. Veritabanındaki eski migration çakışmaları temizlendi.
+- **OdemeTakvimiScreen Yeni Tasarım:** `OdemeTakvimiScreen`, grid yapısından "Neo-Fintech Noir" tarzı, dikey listeli ve Gelir/Gider olarak ikiye bölünmüş kart tasarımına geçirildi. Giderler kırmızı (`#ff3b30`), gelirler yeşil (`#22c55e`) olarak renklendirildi.
+- **Filtreleme Mantığı Düzeltildi:** Takvim ekranında işlemlerin hem gelir hem gidere düşmesine neden olan `t.amount > 0` şartı kaldırılarak; `t.type === 'income'` / `'sales'` (gelir) ve `t.type === 'expense'` / `'ALIS'` (gider) kurallarıyla kesin bir ayrım yapıldı.
+- **Gerçek Zamanlı Güncelleme:** `AiMuhasebeScreen` (Dashboard), `transactions` tablosuna yapılan eklemeleri de dinleyecek (realtime subscription) şekilde genişletildi ve `useFocusEffect` ile ekran açıldıkça verilerin anında güncellenmesi garantilendi.
