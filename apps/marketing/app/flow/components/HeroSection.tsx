@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 export default function HeroSection() {
   const [activeSignal, setActiveSignal] = useState<number>(0);
@@ -76,13 +77,12 @@ export default function HeroSection() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex flex-wrap items-center gap-4 mb-12"
         >
-          <motion.button 
-            whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0,240,255,0.4)" }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-gradient-to-r from-[#00F0FF] to-[#0080FF] text-white font-bold px-8 py-3.5 rounded-full transition-all text-[14px] flex items-center gap-2"
+          <Link 
+            href="https://flow.workigom.com/login"
+            className="bg-gradient-to-r from-[#00F0FF] to-[#0080FF] text-white font-bold px-8 py-3.5 rounded-full transition-all text-[14px] flex items-center gap-2 hover:scale-105 hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
           >
             Ücretsiz Deneyin <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-          </motion.button>
+          </Link>
           
           <motion.button 
             whileHover={{ backgroundColor: "rgba(17, 20, 36, 1)" }}

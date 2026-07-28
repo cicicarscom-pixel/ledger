@@ -29,13 +29,13 @@ export default function Navbar() {
       {/* Right Buttons */}
       <div className="flex items-center gap-4">
         <Link 
-          href="/login" 
+          href="https://flow.workigom.com/login" 
           className="px-5 py-2 rounded-full border border-white/10 text-white text-[14px] font-medium hover:bg-white/5 transition-colors"
         >
           Giriş Yap
         </Link>
         <Link 
-          href="#" 
+          href="https://flow.workigom.com/login" 
           className="px-5 py-2 rounded-full bg-gradient-to-r from-[#8A2BE2] to-[#00F0FF] text-white text-[14px] font-bold shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:shadow-[0_0_25px_rgba(0,240,255,0.6)] transition-all"
         >
           Ücretsiz Dene

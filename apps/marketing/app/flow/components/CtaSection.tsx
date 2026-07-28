@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function CtaSection() {
   return (
@@ -34,10 +35,9 @@ export default function CtaSection() {
              <span className="text-white">Workigom</span> <span className="text-[#00F0FF]">Flow</span> ile tanışın, işlerinizi kolaylaştırın ve büyümenize odaklanın.
            </p>
            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-             <motion.button 
-               whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0,240,255,0.5)" }}
-               whileTap={{ scale: 0.95 }}
-               className="w-full md:w-auto bg-gradient-to-r from-[#00F0FF] to-[#0080FF] text-white font-bold px-8 py-3.5 rounded-full transition-all text-[14px] relative overflow-hidden"
+             <Link
+               href="https://flow.workigom.com/login?mode=signup"
+               className="w-full md:w-auto bg-gradient-to-r from-[#00F0FF] to-[#0080FF] text-white font-bold px-8 py-3.5 rounded-full transition-all text-[14px] relative overflow-hidden block text-center hover:scale-105 hover:shadow-[0_0_25px_rgba(0,240,255,0.5)]"
              >
                <span className="relative z-10">Ücretsiz Hesap Oluştur</span>
                <span className="material-symbols-outlined text-[16px] align-middle ml-1 relative z-10">arrow_forward</span>
@@ -48,7 +48,7 @@ export default function CtaSection() {
                  animate={{ x: "200%" }}
                  transition={{ repeat: Infinity, duration: 2, repeatDelay: 3 }}
                />
-             </motion.button>
+             </Link>
              <motion.button 
                whileHover={{ backgroundColor: "rgba(17, 20, 36, 1)", borderColor: "rgba(255,255,255,0.2)" }}
                whileTap={{ scale: 0.95 }}
