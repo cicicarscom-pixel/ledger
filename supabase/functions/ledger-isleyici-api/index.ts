@@ -202,7 +202,7 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
         ]);
       } catch(e) { console.warn("Error saving chat history", e); }
 
-      return new Response(JSON.stringify({ success: true, message: extractedData.message }), {
+      return new Response(JSON.stringify({ success: true, message: extractedData.message, manual_entry: extractedData.manual_entry }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -1,13 +1,13 @@
 import Zernio from "npm:@zernio/node";
-import { ZernioApiContext } from "./types.ts";
-import { ZernioError } from "./ZernioError.ts";
-import { ProfileApi } from "./ProfileApi.ts";
-import { AccountApi } from "./AccountApi.ts";
-import { PostApi } from "./PostApi.ts";
-import { MediaApi } from "./MediaApi.ts";
-import { InboxApi } from "./InboxApi.ts";
-import { CommentApi } from "./CommentApi.ts";
-import { AnalyticsApi } from "./AnalyticsApi.ts";
+import { ZernioApiContext } from "../zernio/types.ts";
+import { ZernioError } from "../zernio/ZernioError.ts";
+import { ProfileApi } from "../zernio/ProfileApi.ts";
+import { AccountApi } from "../zernio/AccountApi.ts";
+import { PostApi } from "../zernio/PostApi.ts";
+import { MediaApi } from "../zernio/MediaApi.ts";
+import { InboxApi } from "../zernio/InboxApi.ts";
+import { CommentApi } from "../zernio/CommentApi.ts";
+import { AnalyticsApi } from "../zernio/AnalyticsApi.ts";
 
 /**
  * ZernioClient Facade

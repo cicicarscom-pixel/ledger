@@ -391,7 +391,7 @@ serve(async (req) => {
       }
 
       case 'create-post': {
-        const finalMediaItems = [];
+        const finalMediaIds = [];
         if (payload.mediaItems && payload.mediaItems.length > 0) {
           for (const item of payload.mediaItems) {
             if (item.url && item.url.startsWith('data:')) {
@@ -413,19 +413,37 @@ serve(async (req) => {
                    throw new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError)));
                  }
                  
-                 if (uploadRes?.data?.url || uploadRes?.url) {
-                    finalMediaItems.push({
-                       ...item,
-                       url: uploadRes.data?.url || uploadRes.url
-                    });
+                 // Zernio'nun dondurdugu benzersiz mediaId'yi al (Upload Once, Reference Everywhere optimization)
+                 const mediaId = uploadRes?.data?.id || uploadRes?.id;
+                 if (mediaId) {
+                    finalMediaIds.push(mediaId);
                  } else {
-                    throw new Error("Resim yüklenemedi, Zernio'dan URL dönmedi: " + JSON.stringify(uploadRes));
+                    throw new Error("Resim yüklenemedi, Zernio'dan mediaId dönmedi: " + JSON.stringify(uploadRes));
                  }
-               } else {
-                 finalMediaItems.push(item);
                }
-            } else {
-               finalMediaItems.push(item);
+            } else if (item.url) {
+               // Eger base64 degil de normal bir http url geldiyse Zernio Media API'ye external URL upload istegi atiyoruz
+               let uploadRes: any;
+               try {
+                 // Guncel Zernio API ile URL tabanli upload (varsayimsal veya sdk destegi)
+                 const formData = new FormData();
+                 formData.append('url', item.url);
+                 
+                 // Zernio backend'ine istek
+                 const zernioReq = await fetch('https://api.zernio.com/v1/media/upload', {
+                   method: 'POST',
+                   headers: { 'Authorization': `Bearer ${Deno.env.get("ZERNIO_API_KEY")}` },
+                   body: formData
+                 });
+                 uploadRes = await zernioReq.json();
+               } catch (uploadError: any) {
+                 console.error("URL upload error:", uploadError);
+               }
+               
+               const mediaId = uploadRes?.data?.id || uploadRes?.id;
+               if (mediaId) {
+                 finalMediaIds.push(mediaId);
+               }
             }
           }
         }
@@ -436,7 +454,8 @@ serve(async (req) => {
           platforms: payload.platforms,
           scheduledFor: payload.scheduledFor,
           publishNow: payload.publishNow,
-          mediaItems: finalMediaItems.length > 0 ? finalMediaItems : undefined,
+          // Artik URL listesi degil, dogrudan ID listesi gonderiyoruz
+          mediaIds: finalMediaIds.length > 0 ? finalMediaIds : undefined,
           tags: payload.tags
         };
 
