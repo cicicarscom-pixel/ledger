@@ -3,10 +3,34 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+    } else {
+      router.push("/flow"); // or wherever the dashboard is
+    }
+  };
 
   return (
     <main className="min-h-screen w-full bg-[#05070A] flex items-center justify-center relative overflow-hidden selection:bg-[#00F0FF]/30">
@@ -40,6 +64,11 @@ export default function LoginPage() {
         <motion.button 
           whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" }}
           whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            const supabase = createClient();
+            supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/flow' } });
+          }}
+          type="button"
           className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 flex items-center justify-center gap-3 transition-colors mb-6"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -58,8 +87,14 @@ export default function LoginPage() {
           <div className="flex-1 h-px bg-white/5"></div>
         </div>
 
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center mb-4">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
-        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-4">
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label className="text-[#8E95B3] text-[13px] font-medium mb-1.5 block">E-posta Adresi</label>
             <input 
@@ -67,6 +102,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ornek@sirket.com"
+              required
               className="w-full bg-[#07090E] border border-white/10 rounded-xl px-4 py-3.5 text-white text-[14px] outline-none focus:border-[#00F0FF]/50 focus:ring-1 focus:ring-[#00F0FF]/50 transition-all placeholder:text-[#8E95B3]/50"
             />
           </div>
@@ -80,16 +116,23 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              required
               className="w-full bg-[#07090E] border border-white/10 rounded-xl px-4 py-3.5 text-white text-[14px] outline-none focus:border-[#00F0FF]/50 focus:ring-1 focus:ring-[#00F0FF]/50 transition-all placeholder:text-[#8E95B3]/50 tracking-widest"
             />
           </div>
 
           <motion.button 
+            type="submit"
+            disabled={loading}
             whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(0,240,255,0.4)" }}
             whileTap={{ scale: 0.98 }}
-            className="w-full bg-gradient-to-r from-[#00F0FF] to-[#8A2BE2] text-white font-bold py-3.5 rounded-xl mt-4 transition-all text-[15px]"
+            className="w-full bg-gradient-to-r from-[#00F0FF] to-[#8A2BE2] text-white font-bold py-3.5 rounded-xl mt-4 transition-all text-[15px] disabled:opacity-50 flex justify-center items-center h-[52px]"
           >
-            Giriş Yap
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              "Giriş Yap"
+            )}
           </motion.button>
         </form>
 
