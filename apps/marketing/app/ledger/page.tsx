@@ -183,68 +183,16 @@ export default function LedgerMarketingPage() {
                 </ul>
               </div>
               
-              {/* VIDEO 2 (GREEN AREA) */}
-              <div className="w-full lg:w-1/3 flex justify-center">
-                <div className="relative w-full max-w-[300px] aspect-square rounded-full overflow-hidden border-4 border-[#8C3FE8]/50 shadow-[0_0_50px_rgba(140,63,232,0.3)]">
-                  <video 
-                    src="/video2.mp4" 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline 
-                    className="w-full h-full object-cover" 
-                  />
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#0B0F19] px-3 py-1 rounded border border-white/10 font-bold text-white tracking-widest text-xl shadow-lg z-10">W</div>
-                </div>
-              </div>
-
-              <div className="w-full lg:w-1/3">
-                <div className="space-y-4">
-                  {/* Chat Message 1 */}
-                  <div>
-                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">person</span> Mükellef Sorusu</p>
-                    <div className="bg-gray-800 rounded-lg p-3 text-sm flex justify-between items-end border border-white/5">
-                      <p>Merhaba, Mayıs ayı toplam borcum nedir?</p>
-                      <span className="text-[10px] text-gray-500">10:30</span>
-                    </div>
-                  </div>
-                  {/* Chat Message 2 */}
-                  <div>
-                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">smart_toy</span> AI Asistan Yanıtı</p>
-                    <div className="bg-[#8C3FE8] rounded-lg p-3 text-sm border border-purple-500">
-                      <p>Merhaba Ahmet Bey,<br/>Mayıs ayı toplam borcunuz 24.750 TL'dir.<br/>Detayları sizinle paylaşabilirim.</p>
-                      <div className="flex justify-end items-center gap-1 mt-1">
-                        <span className="text-[10px] text-purple-200">10:30</span>
-                        <span className="material-symbols-outlined text-[12px] text-white">done_all</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Chat Message 3 */}
-                  <div>
-                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">support_agent</span> Sizden Gelen Bildirim</p>
-                    <div className="bg-[#0B0F19] border border-green-500/30 rounded-lg p-3 text-sm flex justify-between items-end">
-                      <p className="text-green-400">XYZ A.Ş. ödemesi eksik olanları bilgilendir ve bana rapor ver.</p>
-                      <div className="flex gap-1 items-center">
-                        <span className="text-[10px] text-gray-500">10:31</span>
-                        <span className="material-symbols-outlined text-[12px] text-green-500">done_all</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Chat Message 4 */}
-                  <div>
-                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">smart_toy</span> AI Asistan</p>
-                    <div className="bg-gray-800 rounded-lg p-3 text-sm border border-white/5">
-                      <p>Görev tamamlandı. 8 mükellefe bilgilendirme gönderildi. Raporunuz hazır.</p>
-                      <div className="flex justify-end items-center gap-1 mt-1">
-                        <span className="text-[10px] text-gray-500">10:32</span>
-                        <span className="material-symbols-outlined text-[12px] text-blue-400">done_all</span>
-                      </div>
-                      <button className="mt-2 w-full bg-[#0B0F19] hover:bg-gray-700 border border-white/10 rounded py-1.5 text-xs flex items-center justify-center gap-1 transition-colors">
-                        <span className="material-symbols-outlined text-sm">description</span> Raporu Görüntüle
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              {/* VIDEO 2 (RED AREA) */}
+              <div className="w-full lg:w-2/3 relative flex justify-center">
+                <video 
+                  src="/video2.mp4" 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline 
+                  className="w-full h-auto object-cover rounded-xl shadow-[0_0_50px_rgba(140,63,232,0.3)] border border-[#8C3FE8]/30 aspect-video bg-black/20" 
+                />
               </div>
             </div>
           </div>
