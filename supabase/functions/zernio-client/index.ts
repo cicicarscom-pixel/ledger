@@ -118,32 +118,25 @@ serve(async (req) => {
       }
 
       case 'sync-accounts': {
-        const { userId, profileId: requestedProfileId } = payload;
-        
         const listRes: any = await zernio.profiles.listProfiles();
         const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
+        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
         
-        let targetProfileId = requestedProfileId;
-        if (!targetProfileId) {
-          const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
-          if (existing) {
-             targetProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
-          }
-        }
-        
-        if (!targetProfileId) {
+        if (!existing) {
           result = { accounts: [] };
           break;
         }
         
-        const accRes: any = await zernio.accounts.listAccounts(targetProfileId);
+        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        
+        const accRes: any = await zernio.accounts.listAccounts(profileId);
         const accounts = accRes.data?.accounts || accRes.accounts || accRes.data || [];
         
+        const { userId } = payload;
         if (userId && accounts.length > 0) {
           const mappedAccounts = accounts.map((acc: any) => ({
             profile_id: userId,
             zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
-            zernio_profile_id: targetProfileId,
             platform: acc.platform || 'unknown',
             account_name: acc.username || acc.displayName || acc.name || acc.platform,
             status: 'active'
@@ -168,32 +161,26 @@ serve(async (req) => {
           }
         }
         
-        result = { accounts, profileId: targetProfileId };
+        result = { accounts, profileId };
         break;
       }
 
       case 'sync-posts': {
-        const { userId, profileId: requestedProfileId } = payload;
-        
         const listRes: any = await zernio.profiles.listProfiles();
         const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
+        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
         
-        let targetProfileId = requestedProfileId;
-        if (!targetProfileId) {
-          const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
-          if (existing) {
-             targetProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
-          }
-        }
-        
-        if (!targetProfileId) {
+        if (!existing) {
           result = { posts: [] };
           break;
         }
         
-        const postsRes: any = await zernio.posts.listPosts(targetProfileId);
+        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        
+        const postsRes: any = await zernio.posts.listPosts(profileId);
         const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
         
+        const { userId } = payload;
         if (userId && postsList.length > 0) {
            const mappedPosts = postsList.map((p: any) => {
                let mediaList = p.mediaItems?.map((m: any) => m.url) || [];
@@ -404,8 +391,7 @@ serve(async (req) => {
       }
 
       case 'create-post': {
-        const finalMediaIds: string[] = [];
-        const finalMediaUrls: string[] = [];
+        const finalMediaIds = [];
         if (payload.mediaItems && payload.mediaItems.length > 0) {
           for (const item of payload.mediaItems) {
             if (item.url && item.url.startsWith('data:')) {
@@ -427,32 +413,49 @@ serve(async (req) => {
                    throw new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError)));
                  }
                  
+                 // Zernio'nun dondurdugu benzersiz mediaId'yi al (Upload Once, Reference Everywhere optimization)
                  const mediaId = uploadRes?.data?.id || uploadRes?.id;
                  if (mediaId) {
                     finalMediaIds.push(mediaId);
-                 } else if (uploadRes?.data?.url) {
-                    finalMediaUrls.push(uploadRes.data.url);
                  } else {
-                    throw new Error("Resim yüklenemedi, Zernio'dan mediaId veya url dönmedi: " + JSON.stringify(uploadRes));
+                    throw new Error("Resim yüklenemedi, Zernio'dan mediaId dönmedi: " + JSON.stringify(uploadRes));
                  }
                }
             } else if (item.url) {
-               finalMediaUrls.push(item.url);
+               // Eger base64 degil de normal bir http url geldiyse Zernio Media API'ye external URL upload istegi atiyoruz
+               let uploadRes: any;
+               try {
+                 // Guncel Zernio API ile URL tabanli upload (varsayimsal veya sdk destegi)
+                 const formData = new FormData();
+                 formData.append('url', item.url);
+                 
+                 // Zernio backend'ine istek
+                 const zernioReq = await fetch('https://api.zernio.com/v1/media/upload', {
+                   method: 'POST',
+                   headers: { 'Authorization': `Bearer ${Deno.env.get("ZERNIO_API_KEY")}` },
+                   body: formData
+                 });
+                 uploadRes = await zernioReq.json();
+               } catch (uploadError: any) {
+                 console.error("URL upload error:", uploadError);
+               }
+               
+               const mediaId = uploadRes?.data?.id || uploadRes?.id;
+               if (mediaId) {
+                 finalMediaIds.push(mediaId);
+               }
             }
           }
         }
 
-        const finalMediaItems: any[] = [];
-        finalMediaIds.forEach(id => finalMediaItems.push({ id, type: 'image' }));
-        finalMediaUrls.forEach(url => finalMediaItems.push({ url, type: 'image' }));
-
-        const createPostPayload: any = {
+        const createPostPayload = {
           title: payload.title,
           content: payload.content,
           platforms: payload.platforms,
           scheduledFor: payload.scheduledFor,
           publishNow: payload.publishNow,
-          mediaItems: finalMediaItems.length > 0 ? finalMediaItems : undefined,
+          // Artik URL listesi degil, dogrudan ID listesi gonderiyoruz
+          mediaIds: finalMediaIds.length > 0 ? finalMediaIds : undefined,
           tags: payload.tags
         };
 
@@ -578,18 +581,18 @@ serve(async (req) => {
         break; 
       }
 
-      case 'list-profiles': {
-        const listRes: any = await zernio.profiles.listProfiles();
-        result = { profiles: listRes.data?.profiles || listRes.profiles || listRes.data || [] };
-        break;
-      }
-
       case 'create-profile': {
-        const { name } = payload;
-        if (!name) throw new ZernioError("Missing profile name", 400);
+        const { userId } = payload;
+        if (!userId) throw new ZernioError("Missing userId", 400);
         
-        const profileRes: any = await zernio.profiles.createProfile(name);
-        result = profileRes.data?.profile || profileRes.data || profileRes;
+        const { error } = await supabase.from('profiles').upsert({ 
+          id: userId, 
+          business_name: 'AI Esnaf Profil',
+          created_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+        
+        if (error) throw error;
+        result = { success: true };
         break;
       }
 
