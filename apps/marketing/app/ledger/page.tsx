@@ -97,7 +97,7 @@ export default function LedgerPage() {
 <div className="ml-4 h-4 w-64 bg-[#37333d] rounded-full opacity-50"></div>
 </div>
 <div className="w-full h-full pt-12 overflow-hidden relative z-10">
-  <video src="/video1.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover rounded-b-xl opacity-90 mix-blend-screen" />
+  <video src="/video1.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover rounded-b-xl" />
 </div>
 </div>
 </div>
