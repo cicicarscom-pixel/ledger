@@ -96,48 +96,8 @@ export default function LedgerPage() {
 <div className="w-3 h-3 rounded-full bg-[#d0bcff]/50"></div>
 <div className="ml-4 h-4 w-64 bg-[#37333d] rounded-full opacity-50"></div>
 </div>
-<div className="w-full h-full pt-16 p-6 grid grid-cols-12 gap-6 opacity-80">
-<div className="col-span-3 flex flex-col gap-4">
-<div className="h-8 w-3/4 bg-[#37333d] rounded"></div>
-<div className="h-4 w-full bg-[#37333d]/50 rounded"></div>
-<div className="h-4 w-5/6 bg-[#37333d]/50 rounded"></div>
-<div className="h-4 w-full bg-[#37333d]/50 rounded"></div>
-<div className="mt-auto h-32 w-full rounded border border-[#d0bcff]/20 bg-[#d0bcff]/5"></div>
-</div>
-<div className="col-span-9 flex flex-col gap-6">
-<div className="flex gap-4">
-<div className="flex-1 h-24 rounded border border-white/5 bg-[#1d1a23] flex items-center p-4">
-<div className="w-12 h-12 rounded-full bg-[#d0bcff]/20 mr-md"></div>
-<div className="space-y-2 flex-1">
-<div className="h-4 w-1/2 bg-[#37333d] rounded"></div>
-<div className="h-3 w-1/4 bg-[#37333d]/50 rounded"></div>
-</div>
-</div>
-<div className="flex-1 h-24 rounded border border-white/5 bg-[#1d1a23] flex items-center p-4">
-<div className="w-12 h-12 rounded-full bg-[#14d8ff]/20 mr-md"></div>
-<div className="space-y-2 flex-1">
-<div className="h-4 w-1/2 bg-[#37333d] rounded"></div>
-<div className="h-3 w-1/4 bg-[#37333d]/50 rounded"></div>
-</div>
-</div>
-</div>
-<div className="flex-1 rounded border border-white/5 bg-[#1d1a23] p-4 flex flex-col">
-<div className="h-6 w-1/4 bg-[#37333d] rounded mb-4"></div>
-<div className="space-y-3 flex-1">
-<div className="h-10 w-full border-b border-[#494454]/30 bg-[#37333d]/20 rounded-t"></div>
-<div className="h-10 w-full border-b border-[#494454]/30 flex items-center px-sm gap-4">
-<div className="h-3 w-8 bg-[#37333d] rounded"></div>
-<div className="h-3 w-32 bg-[#37333d] rounded"></div>
-<div className="h-3 w-24 bg-[#37333d] rounded ml-auto"></div>
-</div>
-<div className="h-10 w-full border-b border-[#494454]/30 flex items-center px-sm gap-4">
-<div className="h-3 w-8 bg-[#37333d] rounded"></div>
-<div className="h-3 w-40 bg-[#37333d] rounded"></div>
-<div className="h-3 w-16 bg-[#37333d] rounded ml-auto"></div>
-</div>
-</div>
-</div>
-</div>
+<div className="w-full h-full pt-12 overflow-hidden relative z-10">
+  <video src="/video1.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover rounded-b-xl opacity-90 mix-blend-screen" />
 </div>
 </div>
 </div>
