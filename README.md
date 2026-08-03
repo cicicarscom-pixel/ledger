@@ -159,3 +159,9 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
 * **Dinamik UI Güncellemesi:** Kullanıcının girdiği verilere dayanarak; AI Muhasebe ekranındaki "Bu Ay Gelir / Bu Ay Gider" kutularını, ödeme takvimini ve Dashboard'da yer alan genel gelir-gider özet kutularını anlık olarak günceller.
 * **Müşteri İletişimi:** AI Muhasebe ekranındaki AI Asistan butonu üzerinden (sosyal medya/WhatsApp entegrasyonlarıyla) müşteriler ile günlük iletişimi kurar.
 * **Veri Sınırı:** Sözlü olarak veya manuel olarak kaydedilen tüm işlemleri sadece Flow arayüzü tabanlı olarak kendi bünyesinde (transactions) tutar.
+
+## [03.08.2026] UI/UX Kararları ve Yapılandırma Notları
+- **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. pps/marketing/app/ledger/page.tsx bu tasarıma göre kilitlenmiştir.
+- **Videolu Anlatım Alanları:** Statik mockuplar yerine ideo1.mp4 ve ideo2.mp4 dosyaları sisteme dahil edilmiştir. ideo2.mp4, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
+- **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u avicon-16x16.png olarak güncellenmiştir.
+- **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara xport const dynamic = 'force-dynamic'; eklenmesi kuralı getirilmiştir.
