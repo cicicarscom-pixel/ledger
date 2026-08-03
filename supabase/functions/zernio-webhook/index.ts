@@ -244,11 +244,11 @@ serve(async (req) => {
         // Önce botun aktif olup olmadığını kontrol et
         const { data: botSettings } = await supabase
           .from('bot_settings')
-          .select('social_bot_active')
+          .select('is_active, social_bot_active')
           .eq('merchant_id', profileId)
           .single();
 
-        if (botSettings?.social_bot_active !== false) {
+        if (botSettings?.is_active !== false && botSettings?.social_bot_active !== false) {
           // İnsan davranışı simülasyonu için 8 ile 13 dakika arası rastgele bir gecikme ekliyoruz.
           const randomMinutes = Math.floor(Math.random() * (13 - 8 + 1)) + 8;
           const scheduledAt = new Date(Date.now() + randomMinutes * 60000).toISOString();
@@ -316,3 +316,4 @@ serve(async (req) => {
     });
   }
 });
+

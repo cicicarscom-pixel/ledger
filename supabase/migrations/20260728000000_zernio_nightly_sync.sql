@@ -3,7 +3,12 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Varsa once eski cron'u temizle (idempotent yapi icin)
-SELECT cron.unschedule('zernio-nightly-fallback-sync');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('zernio-nightly-fallback-sync');
+EXCEPTION WHEN OTHERS THEN
+  -- ignore error if job doesn't exist
+END $$;
 
 -- Her gece 03:00'te 'zernio-client' adli edge fonksiyonunu (sync-messages parametresiyle) tetikleyecek gorev
 SELECT cron.schedule(

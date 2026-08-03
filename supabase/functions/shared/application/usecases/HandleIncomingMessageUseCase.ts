@@ -28,7 +28,7 @@ export class HandleIncomingMessageUseCase {
     // 1. Fetch Bot Settings
     const { data: botSettings, error: botError } = await supabaseClient
       .from('bot_settings')
-      .select('whatsapp_bot_active, social_bot_active, system_prompt')
+      .select('is_active, whatsapp_bot_active, social_bot_active, system_prompt')
       .eq('merchant_id', merchantId)
       .single();
 
@@ -37,6 +37,10 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 2. Check Toggles (Manuel Şalter Kontrolü)
+    if (botSettings?.is_active === false) {
+      return; // Master switch is off
+    }
+
     if (source === 'whatsapp' && botSettings?.whatsapp_bot_active === false) {
       return;
     }
@@ -143,3 +147,4 @@ export class HandleIncomingMessageUseCase {
     );
   }
 }
+
