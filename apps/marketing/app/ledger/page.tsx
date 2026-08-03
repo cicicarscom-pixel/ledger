@@ -352,7 +352,7 @@ export default function LedgerMarketingPage() {
                 <div className="flex gap-6 text-xs text-gray-300">
                   <span className="flex flex-col items-center gap-1"><span className="material-symbols-outlined text-[#8C3FE8] text-2xl">card_giftcard</span> 14 Gün Ücretsiz</span>
                   <span className="flex flex-col items-center gap-1"><span className="material-symbols-outlined text-[#8C3FE8] text-2xl">rocket_launch</span> Kolay Kurulum</span>
-                  <span className="flex flex-col items-center gap-1"><span class="material-symbols-outlined text-[#8C3FE8] text-2xl">support_agent</span> 7/24 Destek</span>
+                  <span className="flex flex-col items-center gap-1"><span className="material-symbols-outlined text-[#8C3FE8] text-2xl">support_agent</span> 7/24 Destek</span>
                 </div>
                 <div className="flex flex-col items-center md:items-end gap-2 w-full max-w-[200px]">
                   <a className="w-full bg-[#8C3FE8] hover:bg-purple-600 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="#">
