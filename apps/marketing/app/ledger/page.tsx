@@ -1,285 +1,403 @@
+import React from 'react';
 
-'use client';
-import './ledger.css';
-import LedgerThreeJs from '../../components/ledger/LedgerThreeJs';
-import { useEffect } from 'react';
+export const dynamic = 'force-dynamic';
 
-export default function LedgerPage() {
-  useEffect(() => {
-    const observerOptions = {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-    };
-
-    const observer = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, observerOptions);
-
-    document.querySelectorAll('.ledger-fade-up').forEach(el => {
-        observer.observe(el);
-    });
-    
-    const nav = document.getElementById('top-nav');
-    const onScroll = () => {
-        if (!nav) return;
-        if (window.scrollY > 20) {
-            nav.style.backgroundColor = 'rgba(28, 27, 28, 0.8)';
-            nav.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
-        } else {
-            nav.style.backgroundColor = 'rgba(28, 27, 28, 0.6)';
-            nav.style.boxShadow = 'none';
-        }
-    };
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
+export default function LedgerMarketingPage() {
   return (
-    <div className="ledger-wrapper antialiased min-h-screen flex flex-col text-base selection:bg-[#d0bcff]/30 selection:text-[#e9ddff]">
-      
-<nav className="fixed top-0 w-full z-50 bg-[#211e27]/60 dark:bg-[#211e27]/60 backdrop-blur-xl border-b border-white/15 shadow-none transition-all duration-300" id="top-nav">
-<div className="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
-<div className="text-2xl font-semibold leading-normal font-bold text-[#e7e0ed] dark:text-[#e7e0ed] tracking-tight">
-                Workigom Ledger
+    <div className="min-h-screen bg-[#0B0F19] text-white font-sans selection:bg-[#8C3FE8] selection:text-white antialiased">
+      <style dangerouslySetInnerHTML={{__html: `
+        .gradient-text {
+          background: linear-gradient(90deg, #8C3FE8 0%, #00F0FF 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+          background: linear-gradient(180deg, rgba(140, 63, 232, 0.1) 0%, rgba(11, 15, 25, 0) 100%);
+        }
+        .glass-panel {
+          background: rgba(30, 37, 58, 0.4);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+      `}} />
+
+      {/* BEGIN: MainHeader */}
+      <header className="w-full z-50 glass-panel border-b border-white/10 py-4 sticky top-0 backdrop-blur-md">
+        <div className="container mx-auto px-6 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <svg className="w-8 h-8 text-[#2B41B7]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5l7.5 15h-15L12 5.5z"></path></svg>
+            <span className="text-xl font-bold tracking-tight">Workigom <span className="text-blue-400">Ledger</span></span>
+          </div>
+          <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-300">
+            <a className="hover:text-white transition-colors" href="#">Özellikler</a>
+            <a className="hover:text-white transition-colors" href="#">Avantajlar</a>
+            <a className="hover:text-white transition-colors" href="#">Entegrasyonlar</a>
+            <a className="hover:text-white transition-colors" href="#">Fiyatlandırma</a>
+            <a className="hover:text-white transition-colors flex items-center gap-1" href="#">Kaynaklar <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path></svg></a>
+          </nav>
+          <div className="flex items-center gap-4">
+            <a className="text-sm font-medium hover:text-white transition-colors" href="#">Giriş Yap</a>
+            <a className="bg-[#8C3FE8] hover:bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors" href="#">Ücretsiz Dene</a>
+          </div>
+        </div>
+      </header>
+      {/* END: MainHeader */}
+
+      <main>
+        {/* BEGIN: HeroSection */}
+        <section className="pt-16 pb-20 relative overflow-hidden">
+          {/* Background Glows */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#8C3FE8]/20 blur-[120px] rounded-full pointer-events-none"></div>
+          <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
+            <div className="w-full lg:w-1/2 text-left mb-12 lg:mb-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-6">
+                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">AI DESTEKLİ MUHASEBE PLATFORMU</span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
+                Muhasebe Artık <br/>
+                <span className="gradient-text">Daha Akıllı, Daha Kolay</span>
+              </h1>
+              <p className="text-base text-[#A3B1C6] mb-8 max-w-lg">
+                Faturalarınızı tek tıkla yükleyin, AI asistanınız 7/24 sizin ve mükelleflerinizin yanında olsun.
+              </p>
+              <div className="flex flex-wrap gap-6 mb-10 text-sm text-gray-300">
+                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">schedule</span> 7/24 Destek</span>
+                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">lock</span> Güvenli Altyapı</span>
+                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">bolt</span> Tek Tıkla İşlem</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <a className="bg-[#8C3FE8] hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="#">
+                  14 Gün Ücretsiz Dene
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+                <a className="border border-white/20 hover:bg-white/5 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="#">
+                  <span className="material-symbols-outlined text-sm">play_circle</span>
+                  Canlı Demo İzle
+                </a>
+              </div>
             </div>
-<div className="hidden md:flex items-center gap-10">
+            
+            {/* HERO VIDEO 1 (RED AREA) */}
+            <div className="w-full lg:w-1/2 relative">
+              <video 
+                src="/video1.mp4" 
+                autoPlay 
+                loop 
+                muted 
+                playsInline 
+                className="w-full h-auto object-cover rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 aspect-video bg-black/20" 
+              />
+            </div>
+          </div>
+        </section>
+        {/* END: HeroSection */}
 
-<a className="text-[#cbc3d7] hover:text-[#e7e0ed] transition-colors text-base" href="#features">Features</a>
-<a className="text-[#cbc3d7] hover:text-[#e7e0ed] transition-colors text-base" href="#how-it-works">How it Works</a>
-</div>
-<div>
-<button onClick={() => window.location.href = '/ledger/login'} className="ledger-primary-glow-btn text-white text-xs font-medium px-6 py-2 rounded-full scale-95 active:scale-90 transition-transform">
-                    Ledger'a Geç
-                </button>
-</div>
-</div>
-</nav>
-<main className="flex-grow pt-24">
+        {/* BEGIN: FeaturesSection */}
+        <section className="py-12 bg-[#0B0F19]">
+          <div className="container mx-auto px-6 overflow-x-auto">
+            <div className="flex flex-nowrap md:flex-wrap lg:flex-nowrap gap-4 min-w-max">
+              {/* Step 1 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">1</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">upload_file</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">Faturayı Yükle</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">Mükellefleriniz faturalarının resmini tek tıkla çekip yada sisteme yükleyebilir. 7/24 her zaman, her yerden.</p>
+              </div>
+              {/* Step 2 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">2</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">settings</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">Otomatik İşle</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">Yüklenen faturalar, panelinizden kullandığınız muhasebe programınıza uygun formatta işlenir.</p>
+              </div>
+              {/* Step 3 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">3</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">description</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">İstediğiniz Format</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">Faturalarınızı muhasebe programınıza göre çıktısını alabilirsiniz. XML, Excel, CSV veya PDF.</p>
+              </div>
+              {/* Step 4 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">4</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">integration_instructions</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">Muhasebe Entegrasyonu</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">Logo, Mikro, Paraşüt, Idea, Netsis ve daha birçok muhasebe programı ile tam entegre çalışır.</p>
+              </div>
+              {/* Step 5 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">5</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">smart_toy</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">7/24 AI Asistan</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">AI asistanınız mükellefleriniz ile ilgilenir, sorularını yanıtlar, not alır, mesajlarını size anında iletir.</p>
+              </div>
+              {/* Step 6 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">6</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">task</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">Görev Verin, Takip Etsin</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">AI asistanınıza görevler verin. Kontrol etsin, bilgilendirsin ve size rapor versin. Siz işinize odaklanın.</p>
+              </div>
+              {/* Step 7 */}
+              <div className="glass-panel p-5 rounded-xl relative w-64 flex-shrink-0">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">7</div>
+                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[#00F0FF]">chat</span>
+                </div>
+                <h3 className="font-semibold text-sm mb-2 text-white">Bilgiye Anında Ulaşın</h3>
+                <p className="text-xs text-[#A3B1C6] leading-relaxed">Mükellefleriniz tüm fatura ve hesap geçmişini AI asistanından saniyeler içerisinde öğrenir.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* END: FeaturesSection */}
 
-<section className="relative min-h-[921px] flex items-center justify-center overflow-hidden px-4 md:px-8">
+        {/* BEGIN: AIAssistantSection */}
+        <section className="py-16">
+          <div className="container mx-auto px-6">
+            <div className="glass-panel rounded-2xl p-8 flex flex-col lg:flex-row gap-12 items-center">
+              <div className="w-full lg:w-1/3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-4 text-xs font-medium text-gray-300 uppercase">
+                  7/24 YANINIZDA
+                </div>
+                <h2 className="text-3xl font-bold mb-2">AI Asistanınız</h2>
+                <h3 className="text-2xl font-bold text-[#8C3FE8] mb-4">Her Zaman Görev Başında</h3>
+                <p className="text-[#A3B1C6] text-sm mb-6">Workigom Ledger AI Asistanınız, mükelleflerinizle iletişimi yönetir, sorularını yanıtlar, not alır ve tüm önemli bilgileri size ulaştırır.</p>
+                <ul className="space-y-3 text-sm text-gray-300">
+                  <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-base">chat_bubble_outline</span> Mükellef sorularını anında yanıtlar</li>
+                  <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-base">edit_note</span> Not alır ve sizi bilgilendirir</li>
+                  <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-base">check_circle</span> Görevlerinizi yerine getirir</li>
+                  <li className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-base">assessment</span> Otomatik raporlar oluşturur</li>
+                </ul>
+              </div>
+              
+              {/* VIDEO 2 (GREEN AREA) */}
+              <div className="w-full lg:w-1/3 flex justify-center">
+                <div className="relative w-full max-w-[300px] aspect-square rounded-full overflow-hidden border-4 border-[#8C3FE8]/50 shadow-[0_0_50px_rgba(140,63,232,0.3)]">
+                  <video 
+                    src="/video2.mp4" 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#0B0F19] px-3 py-1 rounded border border-white/10 font-bold text-white tracking-widest text-xl shadow-lg z-10">W</div>
+                </div>
+              </div>
 
-<div className="absolute inset-0 w-full h-full opacity-60 z-0">
-  <LedgerThreeJs />
-</div>
+              <div className="w-full lg:w-1/3">
+                <div className="space-y-4">
+                  {/* Chat Message 1 */}
+                  <div>
+                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">person</span> Mükellef Sorusu</p>
+                    <div className="bg-gray-800 rounded-lg p-3 text-sm flex justify-between items-end border border-white/5">
+                      <p>Merhaba, Mayıs ayı toplam borcum nedir?</p>
+                      <span className="text-[10px] text-gray-500">10:30</span>
+                    </div>
+                  </div>
+                  {/* Chat Message 2 */}
+                  <div>
+                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">smart_toy</span> AI Asistan Yanıtı</p>
+                    <div className="bg-[#8C3FE8] rounded-lg p-3 text-sm border border-purple-500">
+                      <p>Merhaba Ahmet Bey,<br/>Mayıs ayı toplam borcunuz 24.750 TL'dir.<br/>Detayları sizinle paylaşabilirim.</p>
+                      <div className="flex justify-end items-center gap-1 mt-1">
+                        <span className="text-[10px] text-purple-200">10:30</span>
+                        <span className="material-symbols-outlined text-[12px] text-white">done_all</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Chat Message 3 */}
+                  <div>
+                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">support_agent</span> Sizden Gelen Bildirim</p>
+                    <div className="bg-[#0B0F19] border border-green-500/30 rounded-lg p-3 text-sm flex justify-between items-end">
+                      <p className="text-green-400">XYZ A.Ş. ödemesi eksik olanları bilgilendir ve bana rapor ver.</p>
+                      <div className="flex gap-1 items-center">
+                        <span className="text-[10px] text-gray-500">10:31</span>
+                        <span className="material-symbols-outlined text-[12px] text-green-500">done_all</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Chat Message 4 */}
+                  <div>
+                    <p className="text-xs text-[#A3B1C6] mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">smart_toy</span> AI Asistan</p>
+                    <div className="bg-gray-800 rounded-lg p-3 text-sm border border-white/5">
+                      <p>Görev tamamlandı. 8 mükellefe bilgilendirme gönderildi. Raporunuz hazır.</p>
+                      <div className="flex justify-end items-center gap-1 mt-1">
+                        <span className="text-[10px] text-gray-500">10:32</span>
+                        <span className="material-symbols-outlined text-[12px] text-blue-400">done_all</span>
+                      </div>
+                      <button className="mt-2 w-full bg-[#0B0F19] hover:bg-gray-700 border border-white/10 rounded py-1.5 text-xs flex items-center justify-center gap-1 transition-colors">
+                        <span className="material-symbols-outlined text-sm">description</span> Raporu Görüntüle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* END: AIAssistantSection */}
 
-<div className="relative z-10 flex flex-col items-center text-center max-w-5xl mx-auto mt-10">
-<h1 className="text-5xl font-bold leading-tight text-white mb-6 ledger-fade-up max-w-4xl tracking-tight leading-tight">
-                    Muhasebede Yeni Çağ: <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d0bcff] to-[#14d8ff]">Otonom Yapay Zeka İstasyonu</span>
-</h1>
-<p className="text-2xl font-semibold leading-normal text-[#cbc3d7] mb-10 max-w-3xl ledger-fade-up" style={{ transitionDelay: '100ms' }}>
-                    Mükelleflerinizden gelen tüm evrak ve verileri saniyeler içinde otomatik işleyen, kategorize eden ve onayınıza sunan akıllı çalışma alanınız.
-                </p>
-<div className="flex gap-4 ledger-fade-up" style={{ transitionDelay: '200ms' }}>
-<button onClick={() => window.location.href = '/ledger/login'} className="ledger-primary-glow-btn text-white text-base font-semibold px-10 py-4 rounded-lg flex items-center gap-2">
-                        Hemen Başlayın
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>arrow_forward</span>
-</button>
-<button className="ledger-secondary-glass-btn text-white text-base font-semibold px-10 py-4 rounded-lg flex items-center gap-2">
-                        Demoyu İzle
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
-</button>
-</div>
+        {/* BEGIN: DataVisualizationSection */}
+        <section className="py-16 bg-[#0B0F19]">
+          <div className="container mx-auto px-6">
+            <div className="glass-panel rounded-2xl p-8 flex flex-col lg:flex-row gap-12">
+              <div className="w-full lg:w-1/3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-4 text-xs font-medium text-gray-300 uppercase">
+                  BİLGİYE ANINDA ULAŞIN
+                </div>
+                <h2 className="text-3xl font-bold mb-2">Geçmişe Dönük Tüm Bilgiler</h2>
+                <h3 className="text-2xl font-bold text-[#8C3FE8] mb-4">Saniyeler İçinde Elinizde</h3>
+                <p className="text-[#A3B1C6] text-sm mb-6">Mükellefleriniz diledikleri tarih aralığındaki fatura, ödeme, borç ve hesap bilgilerine AI asistanınızdan anında ulaşabilir.</p>
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Mart 2024'teki ödemelerim</span>
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Geçen yıla ait faturalarım</span>
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Toplam borcum ne kadar?</span>
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> 2024 gelir-gider raporum</span>
+                </div>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
+                  <input className="w-full bg-black/50 border border-white/10 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#8C3FE8] text-white placeholder-gray-500" placeholder="İstediğinizi sorun, AI asistanınız saniyeler içinde getirsin." type="text"/>
+                </div>
+              </div>
+              <div className="w-full lg:w-2/3">
+                <div className="bg-black/40 rounded-xl p-6 border border-white/5">
+                  <div className="flex items-center gap-2 mb-6 text-sm text-gray-300 border-b border-white/10 pb-4">
+                    <span className="material-symbols-outlined text-[#00F0FF]">analytics</span>
+                    <span className="font-medium">AI Asistan Sonuçları</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    {/* Card 1 */}
+                    <div className="bg-[#0B0F19]/80 rounded-lg p-4 border border-white/5 relative overflow-hidden">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="text-xs text-[#A3B1C6] mb-1">Faturalar</h4>
+                          <p className="font-semibold text-sm">124 fatura</p>
+                        </div>
+                        <span className="material-symbols-outlined text-green-400 text-xl">description</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs text-[#A3B1C6] mb-1">Toplam Tutar</h4>
+                        <p className="font-bold text-lg">₺ 1.248.750</p>
+                      </div>
+                    </div>
+                    {/* Card 2 */}
+                    <div className="bg-[#0B0F19]/80 rounded-lg p-4 border border-white/5 relative overflow-hidden">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="text-xs text-[#A3B1C6] mb-1">Ödemeler</h4>
+                          <p className="font-semibold text-sm">86 ödeme</p>
+                        </div>
+                        <span className="material-symbols-outlined text-[#00F0FF] text-xl">person</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs text-[#A3B1C6] mb-1">Toplam Tutar</h4>
+                        <p className="font-bold text-lg">₺ 978.300</p>
+                      </div>
+                    </div>
+                    {/* Card 3 */}
+                    <div className="bg-[#0B0F19]/80 rounded-lg p-4 border border-white/5 relative overflow-hidden flex flex-col justify-between">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-xs text-[#A3B1C6] mb-1">Borcunuz</h4>
+                          <p className="font-bold text-lg">₺ 24.750</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex justify-between items-end">
+                        <div>
+                          <h4 className="text-xs text-[#A3B1C6] mb-1">Vadesi Geçen</h4>
+                          <p className="font-semibold text-sm">₺ 3.200</p>
+                        </div>
+                        <span className="material-symbols-outlined text-gray-500 text-sm">trending_flat</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-xs text-gray-500">Tarih Aralığı: 01 Mayıs 2024 - 31 Mayıs 2024</p>
+                    <button className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-xs transition-colors flex items-center gap-2">
+                      Detaylı Raporu İndir
+                      <span className="material-symbols-outlined text-[14px]">download</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* END: DataVisualizationSection */}
 
-<div className="mt-24 w-full max-w-6xl aspect-[16/9] ledger-glass-panel rounded-xl border border-white/10 shadow-[0_0_100px_rgba(139,92,246,0.15)] relative ledger-fade-up flex items-center justify-center overflow-hidden group" style={{ transitionDelay: '300ms' }}>
+        {/* BEGIN: CTASection */}
+        <section className="py-16">
+          <div className="container mx-auto px-6">
+            <div className="glass-panel rounded-2xl p-8 md:p-12 text-center max-w-4xl mx-auto relative overflow-hidden flex flex-col md:flex-row items-center justify-between">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#8C3FE8]/10 to-[#00F0FF]/10 blur-xl"></div>
+              <div className="relative z-10 text-left mb-6 md:mb-0 md:w-1/2">
+                <h2 className="text-2xl md:text-3xl font-bold mb-2">Muhasebenizi Geleceğe Taşıyın</h2>
+                <p className="text-[#A3B1C6] text-sm">Yapay zeka destekli Workigom Ledger ile tanışın, işlerinizi kolaylaştırın, zamandan kazanın.</p>
+              </div>
+              <div className="relative z-10 flex flex-col items-center md:items-end md:w-1/2 gap-6">
+                <div className="flex gap-6 text-xs text-gray-300">
+                  <span className="flex flex-col items-center gap-1"><span className="material-symbols-outlined text-[#8C3FE8] text-2xl">card_giftcard</span> 14 Gün Ücretsiz</span>
+                  <span className="flex flex-col items-center gap-1"><span className="material-symbols-outlined text-[#8C3FE8] text-2xl">rocket_launch</span> Kolay Kurulum</span>
+                  <span className="flex flex-col items-center gap-1"><span class="material-symbols-outlined text-[#8C3FE8] text-2xl">support_agent</span> 7/24 Destek</span>
+                </div>
+                <div className="flex flex-col items-center md:items-end gap-2 w-full max-w-[200px]">
+                  <a className="w-full bg-[#8C3FE8] hover:bg-purple-600 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="#">
+                    Hemen Başlayın
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </a>
+                  <p className="text-[10px] text-[#A3B1C6]">Kredi kartı gerekmez</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* END: CTASection */}
+      </main>
 
-<div className="absolute inset-0 bg-gradient-to-tr from-[#d0bcff]/5 via-transparent to-[#14d8ff]/5 opacity-50"></div>
-
-<div className="absolute top-0 left-0 w-full h-12 border-b border-[#494454]/30 flex items-center px-4 gap-2">
-<div className="w-3 h-3 rounded-full bg-[#ffb4ab]/50"></div>
-<div className="w-3 h-3 rounded-full bg-[#ffb869]/50"></div>
-<div className="w-3 h-3 rounded-full bg-[#d0bcff]/50"></div>
-<div className="ml-4 h-4 w-64 bg-[#37333d] rounded-full opacity-50"></div>
-</div>
-<div className="w-full h-full pt-12 overflow-hidden relative z-10">
-  <video src="/video1.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover rounded-b-xl" />
-</div>
-</div>
-</div>
-</section>
-
-<section className="py-24 px-4 md:px-8 max-w-7xl mx-auto" id="features">
-<div className="text-center mb-16 ledger-fade-up">
-<h2 className="text-4xl font-semibold leading-snug text-white mb-2">Yapay Zeka Destekli Hassasiyet</h2>
-<p className="text-[#cbc3d7] text-base max-w-2xl mx-auto">Tüm iş akışınızı tek bir ekranda, benzersiz bir hız ve doğrulukla yönetin.</p>
-</div>
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-<div className="lg:col-span-2 ledger-glass-panel rounded-xl p-6 ledger-bento-glow-border ledger-fade-up group flex flex-col justify-between min-h-[300px]">
-<div>
-<div className="w-12 h-12 rounded-lg bg-[#d0bcff]/10 flex items-center justify-center mb-4 border border-[#d0bcff]/20 group-hover:bg-[#d0bcff]/20 transition-colors">
-<span className="material-symbols-outlined text-[#d0bcff]" style={{ fontVariationSettings: "'FILL' 1" }}>category</span>
-</div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 tracking-tight">AI Veri Sınıflandırma</h3>
-<p className="text-[#cbc3d7] text-sm max-w-md">Fiş, fatura ve dekontları anında tanır; vergi kodları ve KDV oranlarını otomatik eşleştirir.</p>
-</div>
-
-<div className="mt-6 rounded-lg border border-[#494454]/30 bg-[#37333d]/50 p-4 flex flex-col gap-2">
-<div className="flex items-center justify-between border-b border-[#494454]/30 pb-2">
-<span className="text-sm font-mono text-[#cbc3d7]">Fatura No: INV-2024-001</span>
-<span className="px-2 py-1 rounded-full bg-[#d0bcff]/10 text-[#d0bcff] text-xs font-medium border border-[#d0bcff]/20">Eşleşti</span>
-</div>
-<div className="flex items-center gap-4">
-<div className="flex-1 bg-[#37333d]/30 h-8 rounded px-sm flex items-center">
-<span className="text-sm font-mono text-[#cbc3d7] text-xs">Hesap Kodu: 153.01</span>
-</div>
-<span className="material-symbols-outlined text-[#d0bcff]" style={{ fontSize: "16px" }}>arrow_forward</span>
-<div className="flex-1 bg-[#d0bcff]/10 h-8 rounded px-sm flex items-center border border-[#d0bcff]/20">
-<span className="text-sm font-mono text-[#d0bcff] text-xs">KDV: %20 - İndirilecek</span>
-</div>
-</div>
-</div>
-</div>
-
-<div className="ledger-glass-panel rounded-xl p-6 ledger-bento-glow-border ledger-fade-up group flex flex-col justify-between min-h-[300px]" style={{ transitionDelay: '100ms' }}>
-<div>
-<div className="w-12 h-12 rounded-lg bg-[#14d8ff]/10 flex items-center justify-center mb-4 border border-[#14d8ff]/20 group-hover:bg-[#14d8ff]/20 transition-colors">
-<span className="material-symbols-outlined text-[#14d8ff]" style={{ fontVariationSettings: "'FILL' 1" }}>sync</span>
-</div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 tracking-tight">Flow Senkronizasyonu</h3>
-<p className="text-[#cbc3d7] text-sm">Mükellef iletişimini merkezileştirin.</p>
-</div>
-
-<div className="mt-4 rounded-lg border border-[#494454]/30 bg-[#37333d]/50 p-2 space-y-2">
-<div className="bg-[#37333d]/40 rounded p-2 max-w-[85%] self-start border border-white/5">
-<p className="text-sm text-[#e7e0ed] text-xs">Ahmet Bey, Ekim ayı harcama fişleri ektedir.</p>
-</div>
-<div className="bg-[#d0bcff]/20 rounded p-2 max-w-[85%] ml-auto border border-[#d0bcff]/30 relative">
-<p className="text-sm text-[#d0bcff]-fixed-dim text-xs">Teşekkürler, Ledger 4 belgenizi işledi.</p>
-<span className="absolute -top-1 -right-1 flex h-3 w-3">
-<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#14d8ff] opacity-75"></span>
-<span className="relative inline-flex rounded-full h-3 w-3 bg-[#14d8ff]"></span>
-</span>
-</div>
-</div>
-</div>
-
-<div className="ledger-glass-panel rounded-xl p-6 ledger-bento-glow-border ledger-fade-up group flex flex-col justify-between min-h-[300px]" style={{ transitionDelay: '200ms' }}>
-<div>
-<div className="w-12 h-12 rounded-lg bg-[#ffb869]/10 flex items-center justify-center mb-4 border border-[#ffb869]/20 group-hover:bg-[#ffb869]/20 transition-colors">
-<span className="material-symbols-outlined text-[#ffb869]" style={{ fontVariationSettings: "'FILL' 1" }}>folder_managed</span>
-</div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 tracking-tight">RAG Drive Sync</h3>
-<p className="text-[#cbc3d7] text-sm">Gelişmiş dosya arama ve analiz.</p>
-</div>
-
-<div className="mt-4 flex flex-col items-center justify-center h-24 rounded-lg border border-[#494454]/30 bg-[#37333d]/50 relative overflow-hidden">
-<div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#ffb869]/10 via-transparent to-transparent opacity-50"></div>
-<div className="w-full px-4 flex items-center justify-between mb-2 z-10">
-<div className="h-6 flex-1 bg-[#37333d]/50 rounded flex items-center px-sm border border-white/5">
-<span className="material-symbols-outlined text-[#cbc3d7]" style={{ fontSize: "14px" }}>search</span>
-<span className="text-sm font-mono text-[#cbc3d7] ml-2 text-xs">"2023 Kira Sözleşmesi"</span>
-</div>
-</div>
-<div className="w-3/4 h-8 bg-[#ffb869]/10 rounded border border-[#ffb869]/30 flex items-center px-sm gap-2 z-10">
-<span className="material-symbols-outlined text-[#ffb869]" style={{ fontSize: "14px" }}>description</span>
-<span className="text-sm text-[#e7e0ed] text-xs truncate">Kira_Sozlesmesi_2023.pdf</span>
-</div>
-</div>
-</div>
-
-<div className="lg:col-span-2 ledger-glass-panel rounded-xl p-6 ledger-bento-glow-border ledger-fade-up group flex flex-col justify-between min-h-[300px]" style={{ transitionDelay: '300ms' }}>
-<div>
-<div className="w-12 h-12 rounded-lg bg-[#37333d] flex items-center justify-center mb-4 border border-[#494454] group-hover:bg-[#37333d]/80 transition-colors">
-<span className="material-symbols-outlined text-[#e7e0ed]" style={{ fontVariationSettings: "'FILL' 1" }}>publish</span>
-</div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 tracking-tight">Tek Tıkla Dışa Aktarım</h3>
-<p className="text-[#cbc3d7] text-sm max-w-md">Onaylanan verileri kullandığınız muhasebe yazılımına anında entegre edin.</p>
-</div>
-
-<div className="mt-6 flex items-center gap-4">
-<div className="flex items-center gap-2 bg-[#37333d] border border-[#494454]/50 rounded-lg px-4 py-2">
-<div className="w-6 h-6 rounded bg-[#E45325] flex items-center justify-center">
-<span className="text-white font-bold text-xs">L</span>
-</div>
-<span className="text-xs font-medium text-[#e7e0ed]">Luca</span>
-</div>
-<div className="w-8 h-[1px] bg-[#494454]"></div>
-<div className="flex items-center gap-2 bg-[#37333d] border border-[#494454]/50 rounded-lg px-4 py-2">
-<div className="w-6 h-6 rounded bg-[#004A99] flex items-center justify-center">
-<span className="text-white font-bold text-xs">Z</span>
-</div>
-<span className="text-xs font-medium text-[#e7e0ed]">Zirve</span>
-</div>
-<div className="w-8 h-[1px] bg-[#494454]"></div>
-<div className="w-10 h-10 rounded-full border border-dashed border-[#494454] flex items-center justify-center">
-<span className="material-symbols-outlined text-[#494454] text-sm">add</span>
-</div>
-</div>
-</div>
-</div>
-</section>
-
-<section className="py-24 relative overflow-hidden" id="how-it-works">
-
-<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#d0bcff]/5 rounded-full blur-[100px] pointer-events-none"></div>
-<div className="max-w-4xl mx-auto px-4 md:px-8 relative z-10">
-<div className="text-center mb-16 ledger-fade-up">
-<h2 className="text-4xl font-semibold leading-snug text-white mb-2">Zahmetsiz Süreç</h2>
-<p className="text-[#cbc3d7] text-base">Evraktan bilançoya en kısa yol.</p>
-</div>
-<div className="relative border-l border-[#494454]/30 ml-4 md:ml-1/2 space-y-10">
-
-<div className="relative pl-6 ledger-fade-up">
-<div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#14d8ff] shadow-[0_0_10px_rgba(20,216,255,0.8)]"></div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 flex items-center gap-2">
-<span className="text-[#14d8ff] text-sm font-mono opacity-70">01.</span> Veri Akar
-                        </h3>
-<p className="text-[#cbc3d7] text-sm max-w-lg">Müşterileriniz evraklarını WhatsApp, e-posta veya mobil uygulama üzerinden gönderir. Ledger tüm kanalları dinler.</p>
-</div>
-
-<div className="relative pl-6 ledger-fade-up" style={{ transitionDelay: '150ms' }}>
-<div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#d0bcff] shadow-[0_0_10px_rgba(208,188,255,0.8)]"></div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 flex items-center gap-2">
-<span className="text-[#d0bcff] text-sm font-mono opacity-70">02.</span> AI Çözer
-                        </h3>
-<p className="text-[#cbc3d7] text-sm max-w-lg">Optik karakter tanıma (OCR) ve doğal dil işleme (NLP) algoritmaları verileri okur, tutarları çıkarır ve yasal mevzuata uygun hesap kodlarına yerleştirir.</p>
-</div>
-
-<div className="relative pl-6 ledger-fade-up" style={{ transitionDelay: '300ms' }}>
-<div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#ffb869] shadow-[0_0_10px_rgba(255,184,105,0.8)]"></div>
-<h3 className="text-2xl font-semibold leading-normal text-white mb-1 flex items-center gap-2">
-<span className="text-[#ffb869] text-sm font-mono opacity-70">03.</span> Siz Onaylarsınız
-                        </h3>
-<p className="text-[#cbc3d7] text-sm max-w-lg">Derlenmiş taslak fişleri tek ekranda inceler, saniyeler içinde onaylar ve mevcut mali yazılımınıza aktarırsınız.</p>
-</div>
-</div>
-</div>
-</section>
-
-<section className="py-32 px-4 md:px-8 relative">
-<div className="max-w-4xl mx-auto ledger-glass-panel rounded-2xl p-10 md:p-24 text-center border border-[#d0bcff]/20 shadow-[0_0_50px_rgba(139,92,246,0.1)] ledger-fade-up overflow-hidden relative">
-<div className="absolute inset-0 bg-gradient-to-b from-[#d0bcff]/10 to-transparent opacity-50"></div>
-<h2 className="text-5xl font-bold leading-tight text-white mb-4 relative z-10 tracking-tight">Manuel veri girişini tarihe gömün. <br/><span className="text-[#d0bcff]-fixed-dim">Danışmanlığa odaklanın.</span></h2>
-<p className="text-[#cbc3d7] text-base mb-10 max-w-2xl mx-auto relative z-10">Zamanınızı veri girmeye değil, işinizi büyütmeye ayırın. Ledger ile muhasebe süreçlerinizi hemen otomatikleştirin.</p>
-<button onClick={() => window.location.href = '/ledger/login'} className="ledger-primary-glow-btn ledger-animate-pulse-glow text-white text-2xl font-semibold leading-normal px-10 py-6 rounded-xl relative z-10 flex items-center justify-center gap-2 mx-auto">
-                    Ledger Workspace'e Geçin
-                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
-</button>
-</div>
-</section>
-</main>
-
-<footer className="bg-[#1d1a23]est dark:bg-[#1d1a23]est w-full py-10 border-t border-[#494454]/30 flex flex-col md:flex-row justify-between items-center px-8 gap-6 no shadows">
-<div className="text-2xl font-semibold leading-normal font-bold text-[#e7e0ed]">
-            Workigom Ledger
+      {/* BEGIN: MainFooter */}
+      <footer className="border-t border-white/5 pt-12 pb-6 bg-[#0B0F19]">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+            <div className="lg:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-6 h-6 text-[#2B41B7]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5l7.5 15h-15L12 5.5z"></path></svg>
+                <span className="text-lg font-bold">Workigom <span className="text-blue-400">Ledger</span></span>
+              </div>
+              <p className="text-xs text-[#A3B1C6] mb-6">AI destekli muhasebe platformu ile işinizi kolaylaştırın, geleceğe güvenle ilerleyin.</p>
+              <div className="flex gap-3">
+                <a className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-colors" href="#">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"></path></svg>
+                </a>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4 text-sm text-white">Ürün</h4>
+              <ul className="space-y-2 text-xs text-[#A3B1C6]">
+                <li><a className="hover:text-white transition-colors" href="#">Özellikler</a></li>
+                <li><a className="hover:text-white transition-colors" href="#">Fiyatlandırma</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-white/5 pt-6 flex justify-between items-center text-[10px] text-[#A3B1C6]">
+            <p>© 2024 Workigom Ledger. Tüm hakları saklıdır.</p>
+          </div>
         </div>
-<div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-<a className="text-[#cbc3d7] text-sm hover:text-[#d0bcff] transition-colors opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
-<a className="text-[#cbc3d7] text-sm hover:text-[#d0bcff] transition-colors opacity-80 hover:opacity-100" href="#">Terms of Service</a>
-<a className="text-[#cbc3d7] text-sm hover:text-[#d0bcff] transition-colors opacity-80 hover:opacity-100" href="#">Contact Support</a>
-<a className="text-[#cbc3d7] text-sm hover:text-[#d0bcff] transition-colors opacity-80 hover:opacity-100" href="#">API Documentation</a>
-</div>
-<div className="text-[#d0bcff] dark:text-[#d0bcff] text-sm text-center md:text-right">
-            © 2024 Workigom Ledger. Precision Luxury in AI Accounting.
-        </div>
-</footer>
-
+      </footer>
+      {/* END: MainFooter */}
     </div>
   );
 }
