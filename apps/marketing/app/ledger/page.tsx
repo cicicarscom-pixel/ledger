@@ -51,7 +51,7 @@ export default function LedgerMarketingPage() {
           <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
             <div className="w-full lg:w-1/2 text-left mb-12 lg:mb-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-6">
-                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">AI DESTEKLİ MUHASEBE PLATFORMU</span>
+                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">Aİ DESTEKLİ MALİ MÜŞAVİR PLATFORMU</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
                 Muhasebe Artık <br/>
