@@ -4,6 +4,8 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { ConnectionRepository } from '../../../../modules/flow-connections/infrastructure/connection.repository';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
