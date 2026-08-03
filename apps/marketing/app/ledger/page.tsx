@@ -25,8 +25,7 @@ export default function LedgerMarketingPage() {
       <header className="w-full z-50 glass-panel border-b border-white/10 py-4 sticky top-0 backdrop-blur-md">
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <svg className="w-8 h-8 text-[#2B41B7]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5l7.5 15h-15L12 5.5z"></path></svg>
-            <span className="text-xl font-bold tracking-tight">Workigom <span className="text-blue-400">Ledger</span></span>
+            <img src="/ledgerlogo1.png" alt="Workigom Ledger Logo" className="h-10 w-auto" />
           </div>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-300">
             <a className="hover:text-white transition-colors" href="#">Özellikler</a>
@@ -322,8 +321,7 @@ export default function LedgerMarketingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
             <div className="lg:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <svg className="w-6 h-6 text-[#2B41B7]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5l7.5 15h-15L12 5.5z"></path></svg>
-                <span className="text-lg font-bold">Workigom <span className="text-blue-400">Ledger</span></span>
+                <img src="/ledgerlogo1.png" alt="Workigom Ledger Logo" className="h-10 w-auto" />
               </div>
               <p className="text-xs text-[#A3B1C6] mb-6">AI destekli muhasebe platformu ile işinizi kolaylaştırın, geleceğe güvenle ilerleyin.</p>
               <div className="flex gap-3">
