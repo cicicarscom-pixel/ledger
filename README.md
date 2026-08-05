@@ -1,3 +1,35 @@
+# Workigom Ecosystem Architecture
+
+Workigom projesi monorepo mimarisinden bağımsız ve modüler 4 ayrı projeye (repository) bölünmüştür. Bu yapı, her bir ürünün bağımsız geliştirilmesini, deploy edilmesini ve yönetilmesini sağlar.
+
+## Repolar ve Görevleri
+
+1. **Workigom (Marketing Hub)**
+   - **Repo:** cicicarscom-pixel/workigom
+   - **Domain:** www.workigom.com
+   - **Görev:** Ana landing page ve pazarlama sitesidir. /flow ve /ledger tanıtım sayfalarını içerir. Kullanıcı kayıt/giriş işlemlerini yürütmez, doğrudan uygulamanın login sayfasına yönlendirir.
+   
+2. **Workigom Flow (Ana Uygulama)**
+   - **Repo:** cicicarscom-pixel/flow (Eski adıyla i_muhasebeci)
+   - **Domain:** low.workigom.com
+   - **Görev:** Flow'un gerçek yapay zeka ve otomasyon uygulamasıdır. Supabase ve arka plan API'lerine bağlıdır. Çalışması için Vercel üzerinde Environment Variables (Ortam Değişkenleri) yapılandırmasına ihtiyaç duyar.
+
+3. **Workigom Ledger (Ana Uygulama)**
+   - **Repo:** cicicarscom-pixel/ledger
+   - **Domain:** ledger.workigom.com
+   - **Görev:** Muhasebe ve Ledger platformunun gerçek uygulamasıdır.
+
+4. **Workigom FlowWeb (Legacy / Standalone Landing)**
+   - **Repo:** cicicarscom-pixel/flowweb
+   - **Görev:** Flow için hazırlanmış eski bağımsız tanıtım projesidir (Şu an tanıtım sayfaları ana Workigom reposuna taşındığı için daha pasif durumdadır).
+
+## Geliştirme ve Deployment Kuralları
+- **Yönlendirmeler:** Tanıtım sayfalarındaki "Giriş Yap" butonları (örn: www.workigom.com/flow veya /ledger), direkt olarak uygulamanın kendi domain'indeki (örn: https://flow.workigom.com/login) giriş sayfalarına yönlendirmelidir.
+- **Environment Variables:** low ve ledger gibi gerçek uygulama repoları Vercel'de deploy edilirken .env dosyasındaki tüm API ve veritabanı değişkenleri eksiksiz olarak Vercel paneline girilmelidir, aksi takdirde 500 Internal Server Error hatası alınır.
+- **Root Directory:** Repolar ayrıldığı için Vercel üzerindeki Root Directory ayarları boş bırakılmalıdır (Eskiden pps/flow vs. idi, artık tüm repolar kendi kök dizininde çalışır).
+
+---
+
 # Workigom (AI Muhasebeci) Proje Dokümantasyonu
 
 Bu belge, **Workigom Ledger** ve **Workigom Flow** projelerinin mimari yapısını, tasarım kararlarını, kullanılan animasyonları ve yapılandırma detaylarını içerir. Bu dosya, projede yapılacak yeni geliştirmelerde bir rehber olarak kullanılmalıdır.
@@ -165,3 +197,4 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
 - **Videolu Anlatım Alanları:** Statik mockuplar yerine ideo1.mp4 ve ideo2.mp4 dosyaları sisteme dahil edilmiştir. ideo2.mp4, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
 - **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u avicon-16x16.png olarak güncellenmiştir.
 - **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara xport const dynamic = 'force-dynamic'; eklenmesi kuralı getirilmiştir.
+
