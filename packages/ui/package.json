@@ -1,8 +1,0 @@
-{
-    "name":  "@workigom/ui",
-    "version":  "0.0.0",
-    "private":  true,
-    "dependencies":  {
-                         "@workigom/design-system":  "workspace:*"
-                     }
-}

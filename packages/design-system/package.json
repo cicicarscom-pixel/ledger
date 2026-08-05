@@ -1,9 +1,0 @@
-{
-  "name": "@workigom/design-system",
-  "version": "0.0.0",
-  "private": true,
-  "main": "index.ts",
-  "dependencies": {
-    "tailwindcss": "^3.4.1"
-  }
-}
