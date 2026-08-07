@@ -1,7 +1,19 @@
 import React from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
 
-export default function LedgerLandingPage() {
+export default async function LedgerLandingPage() {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    redirect('/clients');
+  }
+
   return (
     <div className="bg-[#0B0F19] text-white font-sans antialiased selection:bg-[#8C3FE8] selection:text-white min-h-screen">
       <style dangerouslySetInnerHTML={{__html: `
