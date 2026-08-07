@@ -98,10 +98,10 @@ export default async function LedgerLandingPage() {
 
         {/* BEGIN: FeaturesSection */}
         <section className="py-12 bg-[#0B0F19]">
-          <div className="container mx-auto px-6 overflow-x-auto">
-            <div className="flex flex-nowrap md:flex-wrap lg:flex-nowrap gap-4 min-w-max">
+          <div className="container mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Step 1 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
+              <div className="glass-panel-landing p-5 rounded-xl relative">
                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">1</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">upload_file</span>
@@ -110,7 +110,7 @@ export default async function LedgerLandingPage() {
                 <p className="text-xs text-[#A3B1C6] leading-relaxed">Mükellefleriniz faturalarının resmini tek tıkla çekip yada sisteme yükleyebilir. 7/24 her zaman, her yerden.</p>
               </div>
               {/* Step 2 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
+              <div className="glass-panel-landing p-5 rounded-xl relative">
                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">2</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">settings</span>
@@ -119,7 +119,7 @@ export default async function LedgerLandingPage() {
                 <p className="text-xs text-[#A3B1C6] leading-relaxed">Yüklenen faturalar, panelinizden kullandığınız muhasebe programınıza uygun formatta işlenir.</p>
               </div>
               {/* Step 3 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
+              <div className="glass-panel-landing p-5 rounded-xl relative">
                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">3</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">description</span>
@@ -128,35 +128,26 @@ export default async function LedgerLandingPage() {
                 <p className="text-xs text-[#A3B1C6] leading-relaxed">Faturalarınızı muhasebe programınıza göre çıktısını alabilirsiniz. XML, Excel, CSV veya PDF.</p>
               </div>
               {/* Step 4 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
+              <div className="glass-panel-landing p-5 rounded-xl relative">
                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">4</div>
-                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
-                  <span className="material-symbols-outlined text-[#00F0FF]">integration_instructions</span>
-                </div>
-                <h3 className="font-semibold text-sm mb-2 text-white">Muhasebe Entegrasyonu</h3>
-                <p className="text-xs text-[#A3B1C6] leading-relaxed">Logo, Mikro, Paraşüt, Idea, Netsis ve daha birçok muhasebe programı ile tam entegre çalışır.</p>
-              </div>
-              {/* Step 5 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
-                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">5</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">smart_toy</span>
                 </div>
                 <h3 className="font-semibold text-sm mb-2 text-white">7/24 AI Asistan</h3>
                 <p className="text-xs text-[#A3B1C6] leading-relaxed">AI asistanınız mükellefleriniz ile ilgilenir, sorularını yanıtlar, not alır, mesajlarını size anında iletir.</p>
               </div>
-              {/* Step 6 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
-                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">6</div>
+              {/* Step 5 */}
+              <div className="glass-panel-landing p-5 rounded-xl relative">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">5</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">task</span>
                 </div>
                 <h3 className="font-semibold text-sm mb-2 text-white">Görev Verin, Takip Etsin</h3>
                 <p className="text-xs text-[#A3B1C6] leading-relaxed">AI asistanınıza görevler verin. Kontrol etsin, bilgilendirsin ve size rapor versin. Siz işinize odaklanın.</p>
               </div>
-              {/* Step 7 */}
-              <div className="glass-panel-landing p-5 rounded-xl relative w-64 flex-shrink-0">
-                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#8C3FE8] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">7</div>
+              {/* Step 6 */}
+              <div className="glass-panel-landing p-5 rounded-xl relative">
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-[#2B41B7] rounded-full flex items-center justify-center text-xs font-bold shadow-lg">6</div>
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-3">
                   <span className="material-symbols-outlined text-[#00F0FF]">chat</span>
                 </div>
