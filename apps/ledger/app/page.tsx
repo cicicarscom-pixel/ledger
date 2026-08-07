@@ -90,7 +90,7 @@ export default async function LedgerLandingPage() {
               </div>
             </div>
             <div className="w-full lg:w-1/2 relative flex justify-center items-center">
-              <video src="/video.mp4" autoPlay loop muted playsInline className="w-full h-auto object-cover rounded-xl shadow-2xl border border-white/10" />
+              <video src="/ledger/video1.mp4" autoPlay loop muted playsInline className="w-full h-auto object-cover rounded-xl shadow-2xl border border-white/10" />
             </div>
           </div>
         </section>
@@ -187,7 +187,7 @@ export default async function LedgerLandingPage() {
                 </ul>
               </div>
               <div className="w-full lg:w-2/3 flex justify-center items-center">
-                <video src="/video2.mp4" autoPlay loop muted playsInline className="w-full h-auto object-cover rounded-xl shadow-[0_0_50px_rgba(140,63,232,0.15)] border border-white/10" />
+                <video src="/ledger/video2.mp4" autoPlay loop muted playsInline className="w-full h-auto object-cover rounded-xl shadow-[0_0_50px_rgba(140,63,232,0.15)] border border-white/10" />
               </div>
             </div>
           </div>
