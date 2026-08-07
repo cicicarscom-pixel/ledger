@@ -49,7 +49,7 @@ export default async function LedgerLandingPage() {
             <Link className="hover:text-white transition-colors flex items-center gap-1" href="#">Kaynaklar <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path></svg></Link>
           </nav>
           <div className="flex items-center gap-4">
-            <Link className="text-sm font-medium hover:text-white transition-colors" href="/login">Giriş Yap</Link>
+            <Link className="text-sm font-medium hover:text-white transition-colors" href="/signin">Giriş Yap</Link>
             <Link className="bg-[#8C3FE8] hover:bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors" href="/register">Ücretsiz Dene</Link>
           </div>
         </div>
