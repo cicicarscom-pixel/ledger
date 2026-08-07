@@ -67,7 +67,7 @@ export default async function LedgerLandingPage() {
                 <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">MALİMÜŞAVİRLER İÇİN AI DESTEKLİ MÜKELLEF YÖNETİM PLATFORMU</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
-                Malimüşavirler İçin İşler Artık <br/>
+                Malimüşavirler İçin İşler <br/>
                 <span className="gradient-text">Daha Akıllı Daha Kolay</span>
               </h1>
               <p className="text-base text-[#A3B1C6] mb-8 max-w-lg">
