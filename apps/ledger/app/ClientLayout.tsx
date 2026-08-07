@@ -21,7 +21,7 @@ export default function LedgerLayout({ children }: { children: React.ReactNode }
   }
 
   const isLandingPage = pathname === '/';
-  const isAuthPage = pathname === '/signin' || pathname === '/register';
+  const isAuthPage = pathname === '/login' || pathname === '/register';
 
   // Dynamic Scaling
   const zoomLevel = isApproval ? 0.75 : 0.90;

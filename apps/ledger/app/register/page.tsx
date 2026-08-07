@@ -24,7 +24,7 @@ export default function LedgerRegisterPage() {
     if (result.success) {
       setSuccessMsg("Hesabınız başarıyla oluşturuldu! Lütfen giriş yapın.");
       setTimeout(() => {
-        router.push("/signin");
+        router.push("/login");
       }, 2000);
     } else {
       setErrorMsg(result.error || "Bir hata oluştu.");
@@ -210,7 +210,7 @@ export default function LedgerRegisterPage() {
           </form>
 
           <p className="text-center text-[14px] text-[#8E95B3] mt-8">
-            Zaten hesabınız var mı? <Link href="/signin" className="text-white font-bold hover:text-[#00F0FF] transition-colors">Giriş Yapın</Link>
+            Zaten hesabınız var mı? <Link href="/login" className="text-white font-bold hover:text-[#00F0FF] transition-colors">Giriş Yapın</Link>
           </p>
         </motion.div>
       </div>
