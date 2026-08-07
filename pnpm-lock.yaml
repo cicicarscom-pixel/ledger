@@ -26,85 +26,6 @@ importers:
       '@types/three':
         specifier: ^0.185.0
         version: 0.185.0
-      '@workigom/design-system':
-        specifier: workspace:*
-        version: link:../../packages/design-system
-      '@workigom/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ai:
-        specifier: ^7.0.29
-        version: 7.0.29(zod@4.4.3)
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      framer-motion:
-        specifier: ^12.42.2
-        version: 12.42.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      lucide-react:
-        specifier: ^1.23.0
-        version: 1.23.0(react@18.3.1)
-      next:
-        specifier: 14.2.5
-        version: 14.2.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18
-        version: 18.3.1
-      react-dom:
-        specifier: ^18
-        version: 18.3.1(react@18.3.1)
-      tailwind-merge:
-        specifier: ^3.6.0
-        version: 3.6.0
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^20
-        version: 20.19.43
-      '@types/react':
-        specifier: ^18
-        version: 18.3.31
-      '@types/react-dom':
-        specifier: ^18
-        version: 18.3.7(@types/react@18.3.31)
-      autoprefixer:
-        specifier: ^10.5.2
-        version: 10.5.2(postcss@8.5.16)
-      postcss:
-        specifier: ^8
-        version: 8.5.16
-      tailwindcss:
-        specifier: ^3.4.1
-        version: 3.4.19
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-
-  apps/marketing:
-    dependencies:
-      '@ai-sdk/google':
-        specifier: ^4.0.17
-        version: 4.0.17(zod@4.4.3)
-      '@supabase/ssr':
-        specifier: ^0.12.3
-        version: 0.12.3(@supabase/supabase-js@2.110.5)
-      '@supabase/supabase-js':
-        specifier: ^2.110.5
-        version: 2.110.5
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.0
-      '@workigom/design-system':
-        specifier: workspace:*
-        version: link:../../packages/design-system
-      '@workigom/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       ai:
         specifier: ^7.0.29
         version: 7.0.29(zod@4.4.3)
@@ -170,12 +91,6 @@ importers:
 
   packages/database: {}
 
-  packages/design-system:
-    dependencies:
-      tailwindcss:
-        specifier: ^3.4.1
-        version: 3.4.19
-
   packages/hooks: {}
 
   packages/i18n: {}
@@ -187,12 +102,6 @@ importers:
   packages/storage: {}
 
   packages/types: {}
-
-  packages/ui:
-    dependencies:
-      '@workigom/design-system':
-        specifier: workspace:*
-        version: link:../design-system
 
   packages/utils: {}
 
