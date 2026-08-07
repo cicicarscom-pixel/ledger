@@ -38,7 +38,7 @@ export default async function LedgerLandingPage() {
       <header className="w-full z-50 glass-panel-landing border-b-0 border-white/10 py-4">
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <svg className="w-8 h-8 text-[#2B41B7]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5l7.5 15h-15L12 5.5z"></path></svg>
+            <img src="/ledger/ledgerlogo1.png" alt="Workigom Ledger Logo" className="h-8 w-auto object-contain" />
             <span className="text-xl font-bold tracking-tight">Workigom <span className="text-blue-400">Ledger</span></span>
           </div>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-300">
@@ -64,14 +64,14 @@ export default async function LedgerLandingPage() {
           <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
             <div className="w-full lg:w-1/2 text-left mb-12 lg:mb-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-6">
-                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">AI DESTEKLİ MUHASEBE PLATFORMU</span>
+                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">MALİMÜŞAVİRLER İÇİN AI DESTEKLİ MÜKELLEF YÖNETİM PLATFORMU</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
-                Muhasebe Artık <br/>
-                <span className="gradient-text">Daha Akıllı, Daha Kolay</span>
+                Malimüşavirler İçin İşler Artık <br/>
+                <span className="gradient-text">Daha Akıllı Daha Kolay</span>
               </h1>
               <p className="text-base text-[#A3B1C6] mb-8 max-w-lg">
-                Faturalarınızı tek tıkla yükleyin, AI asistanınız 7/24 sizin ve mükelleflerinizin yanında olsun.
+                Mükellefleriniz ile ilişkinizi düzenleyen ve takip eden bir platformunuz var. Mükelleflerinizin tek tıkla fatura yükleyebildiği, o faturaları anında istediğiniz formatta işleyip muhasebe programınıza uygun çıktı veren. Tüm mükelleflerinizi 7/24 takip edip tüm soru ve sorunlarını çözen akıllı asistan destekli eşsiz bir platform.
               </p>
               <div className="flex flex-wrap gap-6 mb-10 text-sm text-gray-300">
                 <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">schedule</span> 7/24 Destek</span>
