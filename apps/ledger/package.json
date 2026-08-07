@@ -13,8 +13,8 @@
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.5",
     "@types/three": "^0.185.0",
-    "@workigom/design-system": "workspace:*",
-    "@workigom/ui": "workspace:*",
+    
+    
     "ai": "^7.0.29",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
