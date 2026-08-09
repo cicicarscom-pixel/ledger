@@ -69,9 +69,9 @@ export class HandleIncomingMessageUseCase {
       } else if (source === 'social') {
         if (isComment && postId && zernioAccountId) {
           // Like the comment first
-          await this.zernioClient.likeComment(zernioAccountId, postId, senderId);
+          await this.zernioClient.comments.likeComment(zernioAccountId, postId, senderId);
           // senderId here is the commentId
-          const replyRes = await this.zernioClient.replyToComment(zernioAccountId, postId, senderId, aiResponse);
+          const replyRes = await this.zernioClient.comments.replyToComment(zernioAccountId, postId, senderId, aiResponse);
           
           // Save AI comment to local Supabase DB
           // First, find the internal post_id
@@ -106,7 +106,7 @@ export class HandleIncomingMessageUseCase {
               zernioAccountId = "";
             }
           }
-          const msgRes = await this.zernioClient.sendMessage(zernioAccountId!, senderId, aiResponse);
+          const msgRes = await this.zernioClient.inbox.sendMessage(zernioAccountId!, senderId, aiResponse);
           
           // Save AI message to local Supabase DB
           // find conversation

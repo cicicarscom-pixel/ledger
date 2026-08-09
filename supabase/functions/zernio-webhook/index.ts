@@ -115,7 +115,11 @@ serve(async (req) => {
             content: textContent
           });
 
-        if (msgError && msgError.code !== '23505') { // Ignore unique constraint violations (duplicates)
+        if (msgError) {
+          if (msgError.code === '23505') {
+            console.log(`[webhook] Duplicate message ignored (zernio_message_id: ${messageId})`);
+            break;
+          }
           throw msgError;
         }
 
@@ -229,7 +233,11 @@ serve(async (req) => {
             platform: platform || 'unknown'
           });
 
-        if (commentError && commentError.code !== '23505') {
+        if (commentError) {
+          if (commentError.code === '23505') {
+            console.log(`[webhook] Duplicate comment ignored (zernio_comment_id: ${commentId})`);
+            break;
+          }
           // Log error to ai_jobs for debugging
           await supabase.from('ai_jobs').insert({
             task_type: 'debug_webhook_error',
