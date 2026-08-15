@@ -597,6 +597,22 @@ serve(async (req) => {
         break; 
       }
 
+      case 'get-zernio-profiles': {
+        const listRes: any = await zernio.profiles.listProfiles();
+        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
+        result = { profiles };
+        break;
+      }
+      
+      case 'add-zernio-profile': {
+        const { name } = payload;
+        if (!name) throw new ZernioError("Missing profile name", 400);
+        const profileRes: any = await zernio.profiles.createProfile(name);
+        const newProfile = profileRes.data?.profile || profileRes.data || profileRes;
+        result = { profile: newProfile };
+        break;
+      }
+
       case 'create-profile': {
         const { userId } = payload;
         if (!userId) throw new ZernioError("Missing userId", 400);
