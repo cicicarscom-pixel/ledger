@@ -27,6 +27,7 @@ export interface Client {
   assignedAccountant: string;
   country: string;
   language: string;
+  address?: any;
   nextFollowUp?: string;
   recentAIAction?: string;
 }
@@ -146,6 +147,7 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
           assignedAccountant: 'Siz',
           country: 'Türkiye',
           language: 'Türkçe',
+          address: null,
         } as Client));
         
         const pendingInvites = invitedClients.filter((c: Client) => c.connectionStatus !== 'connected');
@@ -186,16 +188,20 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
           let contactName = 'Yetkili';
           let phone = '-';
           let email = '-';
+          let address = null;
 
           if (orgMember) {
              const { data: profile } = await adminSupabase
               .from('profiles')
-              .select('full_name')
+              .select('full_name, address')
               .eq('id', orgMember.user_id)
               .maybeSingle();
               
              if (profile?.full_name) {
                contactName = profile.full_name;
+             }
+             if (profile?.address) {
+               address = profile.address;
              }
           }
 
@@ -246,6 +252,7 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
             assignedAccountant: 'Siz',
             country: 'Türkiye',
             language: 'Türkçe',
+            address: address,
           } as Client);
         }
       }

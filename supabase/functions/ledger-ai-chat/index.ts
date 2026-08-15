@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
-import { GoogleGenAI } from "npm:@google/genai"
+import { GoogleGenAI, Type } from "npm:@google/genai"
+import { sendNotificationToUser, sendNotificationToAllUsers } from "./notificationTools.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,6 +45,10 @@ Aşağıdaki SİSTEM TALİMATI, senin rolünü ve kurallarını belirler.
 ${customInstruction || 'Kullanıcıya nazikçe ve profesyonelce yardımcı ol. JSON veya kod gösterme.'}
 ----------------------------------
 
+ÖZEL ARAÇ (TOOL) KULLANIM TALİMATLARI:
+Eğer kullanıcı "Bu mesajı [Kişi Adı]'na gönder" veya "Spesifik birine bildirim at" derse, sadece kişinin adını veya unvanını belirterek 'sendNotificationToUser' aracını kullan (ID bilmene gerek yok, araç isme göre bulur).
+Eğer kullanıcı açıkça "Bunu tüm kullanıcılara gönder / herkese duyuru yap" derse, 'sendNotificationToAllUsers' aracını kullan. Araçları sadece kullanıcı özellikle talep ettiğinde kullan.
+
 SADECE aşağıdaki JSON formatında yanıt dön:
 {
   "text": "[Role bürünerek yazdığın doğal dildeki yanıt]"
@@ -63,6 +68,12 @@ SADECE aşağıdaki JSON formatında yanıt dön:
 
     const interaction = await ai.interactions.create({
       model: "gemini-3.5-flash",
+      config: {
+        tools: [
+          { sendNotificationToUser },
+          { sendNotificationToAllUsers }
+        ],
+      },
       input: input
     });
 

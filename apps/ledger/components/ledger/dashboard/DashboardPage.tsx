@@ -43,11 +43,6 @@ export default function DashboardPage({ documents = [], rssFeeds = [] }: { docum
   };
   return (
     <div className="flex flex-col gap-6">
-      {/* Page Rhythm: Title -> Subtitle -> 24px -> KPI */}
-      <div>
-        <PageTitle>Dashboard</PageTitle>
-        <p className="text-body text-text-muted mt-2">Welcome back. Here is your daily overview.</p>
-      </div>
 
       {/* Grid Container: 12 Columns */}
       <div className="grid grid-cols-12 gap-1">

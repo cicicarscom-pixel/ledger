@@ -133,31 +133,47 @@ serve(async (req) => {
         const accounts = accRes.data?.accounts || accRes.accounts || accRes.data || [];
         
         const { userId } = payload;
-        if (userId && accounts.length > 0) {
-          const mappedAccounts = accounts.map((acc: any) => ({
-            profile_id: userId,
-            zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
-            platform: acc.platform || 'unknown',
-            account_name: acc.username || acc.displayName || acc.name || acc.platform,
-            status: 'active'
-          }));
-          
-          const { error } = await supabase.from('social_accounts').upsert(
-            mappedAccounts,
-            { onConflict: 'zernio_account_id' }
-          );
-          
-          if (error && error.code === '42P10') {
-              console.warn('[sync-accounts] UNIQUE constraint eksik. Geçici fallback aktif.');
-              for (const acc of mappedAccounts) {
-                const { data: ex } = await supabase.from('social_accounts')
-                  .select('id').eq('zernio_account_id', acc.zernio_account_id).maybeSingle();
-                if (!ex) {
-                  await supabase.from('social_accounts').insert(acc);
+        if (userId) {
+          if (accounts.length > 0) {
+            const mappedAccounts = accounts.map((acc: any) => ({
+              profile_id: userId,
+              zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
+              platform: acc.platform || 'unknown',
+              account_name: acc.username || acc.displayName || acc.name || acc.platform,
+              status: 'active'
+            }));
+            
+            const { error } = await supabase.from('social_accounts').upsert(
+              mappedAccounts,
+              { onConflict: 'zernio_account_id' }
+            );
+            
+            if (error && error.code === '42P10') {
+                console.warn('[sync-accounts] UNIQUE constraint eksik. Geçici fallback aktif.');
+                for (const acc of mappedAccounts) {
+                  const { data: ex } = await supabase.from('social_accounts')
+                    .select('id').eq('zernio_account_id', acc.zernio_account_id).maybeSingle();
+                  if (!ex) {
+                    await supabase.from('social_accounts').insert(acc);
+                  }
+                }
+            } else if (error) {
+                console.error('[sync-accounts] Upsert error:', error);
+            }
+
+            // DELETE accounts that no longer exist in Zernio
+            const currentAccountIds = mappedAccounts.map((a: any) => a.zernio_account_id);
+            if (currentAccountIds.length > 0) {
+              const { data: userAccounts } = await supabase.from('social_accounts').select('id, zernio_account_id').eq('profile_id', userId);
+              if (userAccounts) {
+                const accountsToDelete = userAccounts.filter((a: any) => !currentAccountIds.includes(a.zernio_account_id)).map((a: any) => a.id);
+                if (accountsToDelete.length > 0) {
+                  await supabase.from('social_accounts').delete().in('id', accountsToDelete);
                 }
               }
-          } else if (error) {
-              console.error('[sync-accounts] Upsert error:', error);
+            }
+          } else {
+             await supabase.from('social_accounts').delete().eq('profile_id', userId);
           }
         }
         

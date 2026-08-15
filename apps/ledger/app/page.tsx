@@ -39,7 +39,6 @@ export default async function LedgerLandingPage() {
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <img src="/ledger/ledgerlogo1.png" alt="Workigom Ledger Logo" className="h-8 w-auto object-contain" />
-            <span className="text-xl font-bold tracking-tight">Workigom <span className="text-blue-400">Ledger</span></span>
           </div>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-300">
             <Link className="hover:text-white transition-colors" href="#">Özellikler</Link>

@@ -80,3 +80,11 @@ ull\ veya boş string dönülmeyecek.
 - **Video Entegrasyonu:** Hero (Ana ekran) alanındaki statik görsel yerine ideo1.mp4 eklendi. Yapay Zeka (AI Asistan) bölümünde bulunan yuvarlak robot ikonu ve sohbet balonları tamamen kaldırılarak, bu 2/3'lük geniş alana ideo2.mp4 yerleştirildi.
 - **Logo ve Favicon:** Sitenin header (üst menü) ve footer (alt menü) kısımlarındaki standart SVG Workigom Ledger logoları, özel tasarım olan ledgerlogo1.png ile değiştirildi. Tarayıcı sekmesinde görünmesi için avicon-16x16.png dosyası Next.js 14 standartlarına uygun olarak pps/marketing/app/icon.png ve genel erişim için public/favicon.ico olarak sisteme dahil edildi.
 - **Vercel DYNAMIC_SERVER_USAGE Hatası:** Vercel build esnasında pps/marketing/app/api/flow-connections/verify/route.ts yolunda çerez okuyan (cookies) GET metodunun statik olarak üretilmeye çalışılmasından kaynaklanan derleme hatası, bu rotaya xport const dynamic = 'force-dynamic'; eklenerek çözüldü.
+
+### [11.08.2026] In-App Bildirim Sistemi & AI Entegrasyonu (Ledger)
+- **Veritabanı Şeması:** Supabase'de \
+otifications\ tablosu (RLS yetkileri ile birlikte) oluşturuldu.
+- **AI Araçları (Function Calling):** Edge Function (\ledger-ai-chat/index.ts\) güncellendi. Gemini 3.5 Flash Interactions API kullanılarak AI asistanına iki yeni araç verildi:
+  - \sendNotificationToUser\: Sadece ismini veya UUID'sini belirterek tek bir mükellefe/kullanıcıya özel sistem içi bildirim gönderir. İsim verilirse \profiles\ tablosundan otomatik \ilike\ sorgusuyla \profile_id\ bulur.
+  - \sendNotificationToAllUsers\: Tüm \profiles\ tablosunu çekerek tek bir *Bulk Insert* ile herkese anlık yayın (broadcast) yapar.
+- **Güvenlik:** RLS kurallarını aşabilmek için bu Edge Function araçları içerisinde \SUPABASE_SERVICE_ROLE_KEY\ kullanıldı.

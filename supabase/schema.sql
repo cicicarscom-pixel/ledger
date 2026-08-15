@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS public.conversations CASCADE;
 DROP TABLE IF EXISTS public.posts CASCADE;
 DROP TABLE IF EXISTS public.social_accounts CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
 
 
 -- Bütün tablolar için otomatik updated_at güncelleyici fonksiyon
@@ -31,6 +32,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   business_name TEXT,
   category TEXT,
   phone_number TEXT,
+  address JSONB,
+  avatar_url TEXT,
   ai_plan TEXT DEFAULT 'free',
   system_prompt TEXT,
   google_drive_folder_id TEXT,
@@ -45,7 +48,26 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- RLS (Sadece kendi profiline erişebilir)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Kullanicilar kendi profillerini gorebilir" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can manage their own profiles" ON public.profiles FOR ALL USING (auth.uid() = id);
+
+-- NOTIFICATIONS TABLE
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'system',
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view and manage their own notifications" ON public.notifications FOR ALL USING (auth.uid() = profile_id);
+
+CREATE TRIGGER handle_updated_at_notifications BEFORE UPDATE ON public.notifications
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE POLICY "Kullanicilar kendi profillerini guncelleyebilir" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Trigger for updated_at

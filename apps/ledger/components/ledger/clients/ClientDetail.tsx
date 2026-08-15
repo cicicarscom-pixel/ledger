@@ -112,6 +112,14 @@ export function ClientDetail({ client }: ClientDetailProps) {
                     <span className="text-[#8B949E]">Ülke / Dil</span>
                     <span className="text-white">{client.country} / {client.language}</span>
                   </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-[#8B949E]">Açık Adres</span>
+                    <span className="text-white text-right max-w-[150px] truncate" title={client.address?.fullAddress || `${client.address?.district || ''} ${client.address?.city || ''}`}>
+                      {client.address 
+                        ? `${client.address.district || ''}, ${client.address.city || ''}`
+                        : "-"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
