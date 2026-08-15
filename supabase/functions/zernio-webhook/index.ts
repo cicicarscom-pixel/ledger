@@ -22,11 +22,35 @@ serve(async (req) => {
 
   try {
     // 1. Zernio Webhook Signature Verification (Security)
-    // const signature = req.headers.get('x-zernio-signature');
-    // const secret = Deno.env.get("ZERNIO_WEBHOOK_SECRET");
-    // TODO: Implement HMAC SHA256 verification of the payload using the secret
+    const signature = req.headers.get('x-zernio-signature');
+    const secret = Deno.env.get("ZERNIO_WEBHOOK_SECRET");
+    const rawBody = await req.text();
 
-    const payload: ZernioWebhookEvent = await req.json();
+    if (secret && signature) {
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(secret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+      const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
+      const hashArray = Array.from(new Uint8Array(signatureBuffer));
+      const expectedSignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      if (expectedSignature !== signature) {
+        console.error("Webhook signature mismatch");
+        return new Response("Invalid signature", { status: 401 });
+      }
+    } else if (!secret) {
+      console.warn("ZERNIO_WEBHOOK_SECRET is not set, skipping signature verification.");
+    } else if (!signature) {
+      console.error("Missing x-zernio-signature header");
+      return new Response("Missing signature", { status: 401 });
+    }
+
+    const payload: ZernioWebhookEvent = JSON.parse(rawBody);
 
     // Initialize Supabase Client with SERVICE_ROLE to bypass RLS for background ingestion
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
