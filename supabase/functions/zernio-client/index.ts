@@ -197,7 +197,7 @@ serve(async (req) => {
         const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
         
         const { userId } = payload;
-        if (userId && postsList.length > 0) {
+        if (userId) {
            const mappedPosts = postsList.map((p: any) => {
                let mediaList = p.mediaItems?.map((m: any) => m.url) || [];
                if (mediaList.length === 0 && p.picture) mediaList = [p.picture];
@@ -215,13 +215,28 @@ serve(async (req) => {
                };
             });
            
-           const { data: existingPosts } = await supabase.from('posts').select('zernio_post_id').eq('profile_id', userId);
+           const { data: existingPosts } = await supabase.from('posts').select('id, zernio_post_id').eq('profile_id', userId);
            const existingIds = existingPosts?.map((p: any) => p.zernio_post_id) || [];
            
-           const newPosts = mappedPosts.filter((p: any) => !existingIds.includes(p.zernio_post_id));
-           if (newPosts.length > 0) {
-              const { error } = await supabase.from('posts').insert(newPosts);
-              if (error) console.error("Supabase insert error (posts):", error);
+           if (mappedPosts.length > 0) {
+               const newPosts = mappedPosts.filter((p: any) => !existingIds.includes(p.zernio_post_id));
+               if (newPosts.length > 0) {
+                  const { error } = await supabase.from('posts').insert(newPosts);
+                  if (error) console.error("Supabase insert error (posts):", error);
+               }
+           }
+
+           // DELETE posts that no longer exist in Zernio
+           const currentPostIds = mappedPosts.map((p: any) => p.zernio_post_id).filter(Boolean);
+           if (existingPosts && existingPosts.length > 0) {
+               const postsToDelete = existingPosts
+                  .filter((p: any) => p.zernio_post_id && !currentPostIds.includes(p.zernio_post_id))
+                  .map((p: any) => p.id);
+               
+               if (postsToDelete.length > 0) {
+                  const { error } = await supabase.from('posts').delete().in('id', postsToDelete);
+                  if (error) console.error("Supabase delete error (posts):", error);
+               }
            }
         }
         
@@ -458,6 +473,19 @@ serve(async (req) => {
           result = await zernio.posts.createPost(createPostPayload);
         } catch (postError: any) {
           throw new ZernioError("Zernio createPost Hatası: " + postError.message, postError.status, 'CREATE_POST_FAILED');
+        }
+        break;
+      }
+
+      case 'delete-post': {
+        const { postId, deleteFromPlatforms } = payload;
+        if (!postId) {
+          throw new Error("postId is required for delete-post action");
+        }
+        try {
+          result = await zernio.posts.deletePost(postId, deleteFromPlatforms);
+        } catch (postError: any) {
+          throw new ZernioError("Zernio deletePost Hatası: " + postError.message, postError.status, 'DELETE_POST_FAILED');
         }
         break;
       }
