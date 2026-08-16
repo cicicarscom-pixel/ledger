@@ -464,6 +464,7 @@ serve(async (req) => {
           content: payload.content,
           platforms: payload.platforms,
           scheduledFor: payload.scheduledFor,
+          timezone: payload.timezone,
           publishNow: payload.publishNow,
           mediaItems: finalMediaItems.length > 0 ? finalMediaItems : undefined,
           tags: payload.tags
