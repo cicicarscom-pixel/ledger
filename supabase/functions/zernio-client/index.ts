@@ -492,12 +492,38 @@ serve(async (req) => {
       }
 
       case 'send-message': {
-        result = await zernio.inbox.sendMessage(payload.accountId, payload.conversationId, payload.message);
+        let accountId = payload.accountId;
+        if (!accountId && payload.userId && payload.platform) {
+           const { data: socialAcc } = await supabase
+              .from('social_accounts')
+              .select('zernio_account_id')
+              .eq('profile_id', payload.userId)
+              .ilike('platform', payload.platform)
+              .limit(1);
+           if (socialAcc && socialAcc.length > 0) {
+               accountId = socialAcc[0].zernio_account_id;
+           }
+        }
+        if (!accountId) throw new Error("Missing accountId for send-message");
+        result = await zernio.inbox.sendMessage(accountId, payload.conversationId, payload.message);
         break;
       }
 
       case 'reply-comment': {
-        result = await zernio.comments.replyToComment(payload.accountId, payload.postId, payload.commentId, payload.message);
+        let accountId = payload.accountId;
+        if (!accountId && payload.userId && payload.platform) {
+           const { data: socialAcc } = await supabase
+              .from('social_accounts')
+              .select('zernio_account_id')
+              .eq('profile_id', payload.userId)
+              .ilike('platform', payload.platform)
+              .limit(1);
+           if (socialAcc && socialAcc.length > 0) {
+               accountId = socialAcc[0].zernio_account_id;
+           }
+        }
+        if (!accountId) throw new Error("Missing accountId for reply-comment");
+        result = await zernio.comments.replyToComment(accountId, payload.postId, payload.commentId, payload.message);
         break;
       }
 
