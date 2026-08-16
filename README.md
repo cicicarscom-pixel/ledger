@@ -198,3 +198,7 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
 - **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u avicon-16x16.png olarak güncellenmiştir.
 - **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara xport const dynamic = 'force-dynamic'; eklenmesi kuralı getirilmiştir.
 
+
+## [16.08.2026] Sosyal Medya Optimizasyonları (Zernio Client)
+- **Timezone Desteği:** `zernio-client` Supabase Edge Function'ına gönderi oluşturma (`create-post`) sırasında `timezone` parametresi eklendi. Zernio Node SDK'sı ile uyumlu çalışarak doğru saat diliminde planlama yapılması sağlandı.
+- **Post Silme Endpoint:** Zernio üzerinden veya kalıcı platformdan gönderi silebilmek için `delete-post` fonksiyonu eklendi.
