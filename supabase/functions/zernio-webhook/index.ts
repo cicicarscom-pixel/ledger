@@ -317,6 +317,40 @@ serve(async (req) => {
         break;
       }
 
+      case 'comment.deleted':
+      case 'comment.removed': {
+        const commentData = payload.comment || payload.data || {};
+        const { id: commentId } = commentData;
+        
+        if (!commentId) {
+          console.warn(`[webhook] ${payload.event} event without commentId`);
+          break;
+        }
+
+        if (!profileId) throw new Error(`Cannot process ${payload.event} without mapped profileId`);
+
+        // Delete from local DB
+        const { error: deleteError } = await supabase
+          .from('comments')
+          .delete()
+          .eq('zernio_comment_id', commentId);
+
+        if (deleteError) {
+          console.error(`[webhook] Error deleting comment ${commentId}:`, deleteError.message);
+        } else {
+          console.log(`[webhook] Successfully deleted comment ${commentId} from DB.`);
+          
+          // Log deletion to prevent sync from bringing it back
+          await supabase.from('ai_communication_logs').insert({
+             platform: 'zernio_deleted_comment',
+             sender_id: commentId,
+             user_message: '[DELETED_ON_SOCIAL]',
+             merchant_id: profileId
+          });
+        }
+        break;
+      }
+
       case 'review.created': {
         const { id: reviewId, reviewerName, rating, text, platform } = payload.data;
         
