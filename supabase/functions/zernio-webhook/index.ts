@@ -68,15 +68,18 @@ serve(async (req) => {
     console.log(`[webhook] Received event=${payload.event} account=${zernioAccountId || 'unknown'} ts=${payload.timestamp || new Date().toISOString()}`);
     let profileId = null;
 
+    let platformUsername = null;
+
     if (zernioAccountId) {
       const { data: accountData, error: accountError } = await supabase
         .from('social_accounts')
-        .select('profile_id')
+        .select('profile_id, platform_username')
         .eq('zernio_account_id', zernioAccountId)
         .single();
 
       if (!accountError && accountData) {
         profileId = accountData.profile_id;
+        platformUsername = accountData.platform_username;
       } else {
         console.warn(`Zernio Account ID ${zernioAccountId} not mapped to any profile.`);
       }
@@ -273,14 +276,20 @@ serve(async (req) => {
         }
 
         // C. AI Task Queue (Kuyruk) Sistemine Gönder
-        // Önce botun aktif olup olmadığını kontrol et
+        // Önce botun aktif olup olmadığını ve yorumun bize ait olmadığını kontrol et
         const { data: botSettings } = await supabase
           .from('bot_settings')
           .select('social_bot_active')
           .eq('merchant_id', profileId)
           .single();
 
-        if (botSettings?.social_bot_active !== false) {
+        const isOwnComment = (
+          commentData.isOwn === true || 
+          commentData.direction === 'outbound' || 
+          (platformUsername && authorName === platformUsername)
+        );
+
+        if (!isOwnComment && botSettings?.social_bot_active !== false) {
           // İnsan davranışı simülasyonu için 8 ile 13 dakika arası rastgele bir gecikme ekliyoruz.
           const randomMinutes = Math.floor(Math.random() * (13 - 8 + 1)) + 8;
           const scheduledAt = new Date(Date.now() + randomMinutes * 60000).toISOString();
