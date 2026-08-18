@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
-import { GoogleGenAI } from "npm:@google/genai"
 import { sendNotificationToUser, sendNotificationToAllUsers } from "./notificationTools.ts"
 
 const corsHeaders = {
@@ -54,36 +53,107 @@ SADECE aşağıdaki JSON formatında yanıt dön:
   "text": "[Role bürünerek yazdığın doğal dildeki yanıt]"
 }`;
 
-    // 3. Prepare parts for Gemini API
-    console.log("Calling Gemini 1.5 Flash via SDK for Ledger AI Chat...");
-    const ai = new GoogleGenAI({ 
-      apiKey: apiKey
-    });
-
-    const formattedHistory = (history || []).map((msg: any) => ({
+    // 3. Prepare parts for Gemini API via direct REST Fetch
+    console.log("Calling Gemini 1.5 Flash via REST API for Ledger AI Chat...");
+    
+    // Map history to contents
+    const contents = (history || []).map((msg: any) => ({
       role: msg.role === 'ai' ? 'model' : 'user',
       parts: [{ text: msg.content || msg.text || "" }]
     }));
-
-    const chat = ai.chats.create({
-      model: "gemini-3.7-flash",
-      history: formattedHistory,
-      config: {
-        systemInstruction: systemInstruction,
-        tools: [sendNotificationToUser, sendNotificationToAllUsers]
-      }
+    
+    contents.push({
+      role: 'user',
+      parts: [{ text: prompt || 'Merhaba' }]
     });
 
-    const response = await chat.sendMessage({ message: prompt || "Merhaba" });
-    const generatedText = response.text || "";
+    const tools = [{
+      function_declarations: [
+        {
+          name: "sendNotificationToUser",
+          description: "Belirli bir kullanıcıya bildirim gönderir.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              userNameOrId: { type: "STRING", description: "Kullanıcının adı, unvanı veya ID'si" },
+              title: { type: "STRING", description: "Bildirim başlığı" },
+              message: { type: "STRING", description: "Bildirim içeriği" }
+            },
+            required: ["userNameOrId", "title", "message"]
+          }
+        },
+        {
+          name: "sendNotificationToAllUsers",
+          description: "Sistemdeki tüm kullanıcılara genel duyuru ve bildirim gönderir.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "Bildirim başlığı" },
+              message: { type: "STRING", description: "Bildirim içeriği" }
+            },
+            required: ["title", "message"]
+          }
+        }
+      ]
+    }];
+
+    const payload = {
+      system_instruction: { parts: [{ text: systemInstruction }] },
+      contents: contents,
+      tools: tools
+    };
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const apiResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await apiResponse.json();
+
+    if (!apiResponse.ok) {
+      throw new Error(`Gemini API Error: ${JSON.stringify(data)}`);
+    }
+
+    let generatedText = "";
+    
+    // 4. Handle Function Calling Manually
+    const candidate = data.candidates?.[0];
+    if (candidate && candidate.content && candidate.content.parts) {
+      const parts = candidate.content.parts;
+      
+      for (const part of parts) {
+        if (part.functionCall) {
+          const call = part.functionCall;
+          console.log(`Executing tool: ${call.name}`, call.args);
+          
+          let toolResult = "";
+          if (call.name === "sendNotificationToUser") {
+            toolResult = await sendNotificationToUser(call.args.userNameOrId, call.args.title, call.args.message);
+          } else if (call.name === "sendNotificationToAllUsers") {
+            toolResult = await sendNotificationToAllUsers(call.args.title, call.args.message);
+          }
+          
+          console.log(`Tool Result: ${toolResult}`);
+          // Return the tool result as the response directly, since it fulfills the user's action
+          generatedText = JSON.stringify({ text: `İşlem tamamlandı: ${toolResult}` });
+          break; // Stop parsing other parts
+        } else if (part.text) {
+          generatedText += part.text;
+        }
+      }
+    }
     
     let parsedResult = { text: "İçerik oluşturulamadı." }
     try {
+       // If generatedText is already the JSON string from tool, it will parse fine.
        let cleanText = generatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-       parsedResult = JSON.parse(cleanText)
+       parsedResult = JSON.parse(cleanText);
     } catch(e) {
-       console.error("Failed to parse Gemini JSON output:", generatedText)
-       parsedResult.text = generatedText
+       console.error("Failed to parse Gemini JSON output:", generatedText);
+       parsedResult.text = generatedText;
     }
 
     return new Response(
