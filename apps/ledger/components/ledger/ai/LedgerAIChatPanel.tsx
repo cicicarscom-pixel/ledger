@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bot, Minus, Pin, Send, X } from "lucide-react";
+import { Bot, Minus, Pin, Send, X, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 interface LedgerAIChatPanelProps {
   contextLabel: string;
@@ -18,7 +19,9 @@ export function LedgerAIChatPanel({ contextLabel, onClose }: LedgerAIChatPanelPr
     },
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -26,16 +29,43 @@ export function LedgerAIChatPanel({ contextLabel, onClose }: LedgerAIChatPanelPr
     }
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
 
+    const userMessage = inputValue;
+    setInputValue("");
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), role: "user", text: inputValue },
-      { id: (Date.now() + 1).toString(), role: "ai", text: "Bu bir simülasyon yanıtıdır. İsteğiniz Ledger AI sistemine kaydedildi." },
+      { id: Date.now().toString(), role: "user", text: userMessage },
     ]);
-    setInputValue("");
+    
+    setIsLoading(true);
+
+    try {
+      const history = messages.filter(m => m.id !== "1").map(m => ({ role: m.role, content: m.text }));
+      const { data, error } = await supabase.functions.invoke('ledger-ai-chat', {
+        body: {
+          prompt: userMessage,
+          customInstruction: `Kullanıcı ${contextLabel} bağlamında işlem yapıyor. Bu bilgiye göre yardımcı ol.`,
+          history
+        }
+      });
+
+      if (error) throw error;
+      
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), role: "ai", text: data?.text || "Bir sorun oluştu, lütfen tekrar deneyin." },
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), role: "ai", text: `Hata oluştu: ${err.message}` },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -108,16 +138,18 @@ export function LedgerAIChatPanel({ contextLabel, onClose }: LedgerAIChatPanelPr
         <input
           type="text"
           value={inputValue}
+          disabled={isLoading}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Ledger AI’a sorun..."
-          className="min-w-0 flex-1 rounded-xl border border-white/5 bg-white/[0.035] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#65707D] focus:border-cyan-400/30 transition-colors"
+          placeholder="Ledger AI'a sorun..."
+          className="min-w-0 flex-1 rounded-xl border border-white/5 bg-white/[0.035] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#65707D] focus:border-cyan-400/30 transition-colors disabled:opacity-50"
         />
         <button
           type="submit"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#9D5CFF] text-white transition hover:brightness-110"
+          disabled={isLoading}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#9D5CFF] text-white transition hover:brightness-110 disabled:opacity-50"
           aria-label="Mesaj gönder"
         >
-          <Send className="h-1 w-1" />
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
       </form>
     </motion.section>
