@@ -163,8 +163,38 @@ SADECE aşağıdaki JSON formatında yanıt dön (eğer tool tetiklemezsen):
           }
           
           console.log(`Tool Result: ${toolResult}`);
-          // Return the tool result as the response directly, since it fulfills the user's action
-          generatedText = JSON.stringify({ text: `İşlem tamamlandı: ${toolResult}` });
+          
+          // Send result back to Gemini for natural language response
+          contents.push(candidate.content); // push the assistant's functionCall
+          contents.push({
+            role: 'user',
+            parts: [{
+              text: `Sistem verisi/Araç Sonucu:\n${toolResult}\n\nLütfen bu veriyi kullanarak kullanıcının asıl talebine/sorusuna çok doğal, kibar ve asistan rolüne uygun bir yanıt ver. Doğrudan sistem verisini okumak yerine kendi cümlelerinle özetle. (SADECE JSON formatında dön: {"text": "..."})`
+            }]
+          });
+
+          const secondPayload = {
+            system_instruction: { parts: [{ text: systemInstruction }] },
+            contents: contents,
+            tools: tools
+          };
+
+          const secondResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(secondPayload)
+          });
+          
+          const secondData = await secondResponse.json();
+          if (!secondResponse.ok) throw new Error(`Gemini API Tool Fetch Error: ${JSON.stringify(secondData)}`);
+          
+          const secondCandidate = secondData.candidates?.[0];
+          if (secondCandidate && secondCandidate.content && secondCandidate.content.parts) {
+            generatedText = secondCandidate.content.parts.map((p: any) => p.text || "").join("");
+          } else {
+            generatedText = JSON.stringify({ text: `İşlem tamamlandı:\n${toolResult}` });
+          }
+
           break; // Stop parsing other parts
         } else if (part.text) {
           generatedText += part.text;

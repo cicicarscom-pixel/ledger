@@ -9,12 +9,19 @@ function getAdminClient() {
 export async function getTaxpayersSummary(): Promise<string> {
   try {
     const supabaseAdmin = getAdminClient();
-    const { count, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('organizations')
-      .select('*', { count: 'exact', head: true });
+      .select('id, name')
+      .limit(50);
       
-    if (error) return `Mükellef sayısı alınamadı: ${error.message}`;
-    return `Sistemde şu an toplam ${count || 0} adet kayıtlı mükellef (organizasyon) bulunmaktadır.`;
+    if (error) return `Mükellef listesi alınamadı: ${error.message}`;
+    if (!data || data.length === 0) return "Sistemde henüz kayıtlı mükellef bulunmuyor.";
+    
+    let result = `Sistemde şu an ${data.length} adet kayıtlı mükellef bulunmaktadır.\n\nMükellef Listesi:\n`;
+    data.forEach((org, i) => {
+      result += `${i + 1}. ${org.name}\n`;
+    });
+    return result;
   } catch (error: any) {
     return `Hata: ${error.message}`;
   }
