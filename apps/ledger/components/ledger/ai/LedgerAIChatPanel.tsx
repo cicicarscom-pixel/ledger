@@ -54,9 +54,14 @@ export function LedgerAIChatPanel({ contextLabel, onClose }: LedgerAIChatPanelPr
 
       if (error) throw error;
       
+      let replyText = data?.text;
+      if (data?.success === false && data?.error) {
+        replyText = data.error;
+      }
+
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: "ai", text: data?.text || "Bir sorun oluştu, lütfen tekrar deneyin." },
+        { id: Date.now().toString(), role: "ai", text: replyText || "Bir sorun oluştu, lütfen tekrar deneyin." },
       ]);
     } catch (err: any) {
       setMessages((prev) => [
