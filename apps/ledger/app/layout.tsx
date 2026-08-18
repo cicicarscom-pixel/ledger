@@ -4,6 +4,9 @@ import ClientLayout from "./ClientLayout";
 export const metadata = {
   title: "Workigom Ledger AI",
   description: "Workigom Ledger AI",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
