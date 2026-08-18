@@ -65,4 +65,27 @@ export class CommentApi {
       return await fetchRes.json();
     });
   }
+
+  async sendPrivateReply(accountId: string, postId: string, commentId: string, message: string): Promise<ZernioResponse> {
+    return withRetry(async () => {
+      const url = `https://api.zernio.com/v1/inbox/comments/${postId}/${commentId}/private-reply`;
+      const fetchRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.context.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accountId,
+          message
+        })
+      });
+      
+      if (!fetchRes.ok) {
+        throw new ZernioError(await fetchRes.text(), fetchRes.status, 'PRIVATE_REPLY_FAILED');
+      }
+      
+      return await fetchRes.json();
+    });
+  }
 }

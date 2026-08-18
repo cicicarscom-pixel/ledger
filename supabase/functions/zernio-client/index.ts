@@ -250,12 +250,42 @@ serve(async (req) => {
         const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
         if (!existing) { result = { pictures: {} }; break; }
         const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
-        const inboxRes: any = await zernio.comments.listInboxComments(profileId);
-        const posts = inboxRes.data?.data || [];
+        
         const pictures: Record<string, string> = {};
-        posts.forEach((p: any) => {
-          if (p.id && p.picture) pictures[p.id] = p.picture;
-        });
+        
+        try {
+          const inboxRes: any = await zernio.comments.listInboxComments(profileId);
+          const posts = inboxRes.data?.data || [];
+          
+          await Promise.all(posts.map(async (p: any) => {
+            if (p.id && p.picture) pictures['post_' + p.id] = p.picture;
+            
+            if (p.id && p.accountId) {
+              try {
+                const commentsRes: any = await zernio.comments.getInboxPostComments(p.id, p.accountId);
+                const commentsList = commentsRes.data?.comments || commentsRes.comments || [];
+                commentsList.forEach((c: any) => {
+                  const cId = c.id || c._id;
+                  const cPic = c.author?.picture || c.author?.profile_picture || c.author?.avatar_url || c.from?.picture || c.from?.profile_picture;
+                  if (cId && cPic) pictures[cId] = cPic;
+                });
+              } catch (e) {
+                console.error("Error fetching comments pictures for post", p.id);
+              }
+            }
+          }));
+          
+          const convRes: any = await zernio.inbox.listInboxConversations(profileId);
+          const convList = convRes.data?.data || convRes.data?.conversations || [];
+          convList.forEach((conv: any) => {
+            const convId = conv.id || conv._id;
+            const cPic = conv.participantPicture || conv.participant?.picture || conv.participants?.[0]?.picture || conv.participants?.[0]?.avatarUrl || conv.from?.picture || conv.author?.picture;
+            if (convId && cPic) pictures[convId] = cPic;
+          });
+        } catch(e) {
+          console.error("Error in get-inbox-pictures", e);
+        }
+
         result = { pictures, profileId };
         break;
       }

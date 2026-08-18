@@ -70,8 +70,8 @@ SADECE aşağıdaki JSON formatında yanıt dön:
       model: "gemini-3.5-flash",
       config: {
         tools: [
-          { sendNotificationToUser },
-          { sendNotificationToAllUsers }
+          sendNotificationToUser,
+          sendNotificationToAllUsers
         ],
       },
       input: input
