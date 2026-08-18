@@ -51,11 +51,15 @@ export async function sendNotificationToUser(
         .replace(/[öÖ]/g, '_')
         .replace(/[çÇ]/g, '_');
 
+      // Split into words, remove tiny words (likely suffixes like "a", "ya", "ne"), and join with wildcards
+      let searchWords = safeSearch.split(' ').filter(w => w.length > 2);
+      let smartSearchStr = searchWords.length > 0 ? searchWords.join('%') : safeSearch;
+
       // 1. Check organizations table
       const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .select('id, name')
-        .ilike('name', `%${safeSearch}%`)
+        .ilike('name', `%${smartSearchStr}%`)
         .limit(1);
 
       if (!orgError && orgData && orgData.length > 0) {
@@ -76,7 +80,7 @@ export async function sendNotificationToUser(
         const { data, error: searchError } = await supabaseAdmin
           .from('profiles')
           .select('id, business_name')
-          .ilike('business_name', `%${safeSearch}%`)
+          .ilike('business_name', `%${smartSearchStr}%`)
           .limit(1);
           
         if (searchError || !data || data.length === 0) {
