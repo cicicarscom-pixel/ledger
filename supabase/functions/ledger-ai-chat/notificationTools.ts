@@ -42,10 +42,19 @@ export async function sendNotificationToUser(
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(userNameOrId)) {
       // It's a name, search in profiles table
+      // Fix Turkish ILIKE issue by replacing problematic letters with '_'
+      let safeSearch = userNameOrId
+        .replace(/[ıIİi]/g, '_')
+        .replace(/[şŞ]/g, '_')
+        .replace(/[ğĞ]/g, '_')
+        .replace(/[üÜ]/g, '_')
+        .replace(/[öÖ]/g, '_')
+        .replace(/[çÇ]/g, '_');
+
       const { data, error: searchError } = await supabaseAdmin
         .from('profiles')
         .select('id, business_name')
-        .ilike('business_name', `%${userNameOrId}%`)
+        .ilike('business_name', `%${safeSearch}%`)
         .limit(1);
         
       if (searchError || !data || data.length === 0) {
