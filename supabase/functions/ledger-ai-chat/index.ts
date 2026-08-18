@@ -66,7 +66,7 @@ SADECE aşağıdaki JSON formatında yanıt dön:
     }));
 
     const chat = ai.chats.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-3.5-flash",
       history: formattedHistory,
       config: {
         systemInstruction: systemInstruction,
@@ -96,13 +96,9 @@ SADECE aşağıdaki JSON formatında yanıt dön:
 
   } catch (error: any) {
     console.error("Ledger AI Chat Error:", error);
-    const isServiceError = error.message?.includes('503') || error.message?.includes('500') || error.message?.includes('fetch') || error.message?.includes('timeout');
-    const friendlyMessage = isServiceError 
-      ? "Kusura bakmayın, sistemlerimizde anlık bir yoğunluk yaşanıyor. Lütfen birkaç saniye sonra tekrar deneyin." 
-      : "Kusura bakmayın, bir sorun oluştu ve isteğinizi tamamlayamadım. Lütfen tekrar deneyin.";
-
+    
     return new Response(
-      JSON.stringify({ success: false, error: friendlyMessage }),
+      JSON.stringify({ success: false, error: `DEBUG HATA: ${error.message}` }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
