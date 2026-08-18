@@ -103,7 +103,7 @@ SADECE aşağıdaki JSON formatında yanıt dön:
       tools: tools
     };
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`;
     
     const apiResponse = await fetch(apiUrl, {
       method: 'POST',
