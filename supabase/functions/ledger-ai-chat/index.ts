@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
-import { GoogleGenAI, Type } from "npm:@google/genai"
+import { GoogleGenAI } from "npm:@google/genai"
 import { sendNotificationToUser, sendNotificationToAllUsers } from "./notificationTools.ts"
 
 const corsHeaders = {
@@ -60,24 +60,22 @@ SADECE aşağıdaki JSON formatında yanıt dön:
       apiKey: apiKey
     });
 
-    const input: any[] = (history || []).map((msg: any) => ({
-      type: "text",
-      text: msg.content
+    const formattedHistory = (history || []).map((msg: any) => ({
+      role: msg.role === 'ai' ? 'model' : 'user',
+      parts: [{ text: msg.content || msg.text || "" }]
     }));
-    input.push({ type: "text", text: `SİSTEM TALİMATI:\n${systemInstruction}\n\nKULLANICI TALEBİ:\n${prompt || 'Merhaba'}` });
 
-    const interaction = await ai.interactions.create({
-      model: "gemini-3.5-flash",
+    const chat = ai.chats.create({
+      model: "gemini-2.5-flash",
+      history: formattedHistory,
       config: {
-        tools: [
-          sendNotificationToUser,
-          sendNotificationToAllUsers
-        ],
-      },
-      input: input
+        systemInstruction: systemInstruction,
+        tools: [sendNotificationToUser, sendNotificationToAllUsers]
+      }
     });
 
-    const generatedText = interaction.output_text || "";
+    const response = await chat.sendMessage({ message: prompt || "Merhaba" });
+    const generatedText = response.text || "";
     
     let parsedResult = { text: "İçerik oluşturulamadı." }
     try {
@@ -96,7 +94,7 @@ SADECE aşağıdaki JSON formatında yanıt dön:
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Ledger AI Chat Error:", error);
     const isServiceError = error.message?.includes('503') || error.message?.includes('500') || error.message?.includes('fetch') || error.message?.includes('timeout');
     const friendlyMessage = isServiceError 
