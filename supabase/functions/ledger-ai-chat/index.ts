@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
 import { sendNotificationToUser, sendNotificationToAllUsers } from "./notificationTools.ts"
+import { getTaxpayersSummary, getLatestInvoices, getRecentMessages } from "./ledgerTools.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,16 +46,20 @@ ${customInstruction || 'Kullanıcıya nazikçe ve profesyonelce yardımcı ol. J
 ----------------------------------
 
 ÖZEL ARAÇ (TOOL) KULLANIM TALİMATLARI:
-Eğer kullanıcı "Bu mesajı [Kişi Adı]'na gönder" veya "Spesifik birine bildirim at" derse, sadece kişinin adını veya unvanını belirterek 'sendNotificationToUser' aracını kullan (ID bilmene gerek yok, araç isme göre bulur).
-Eğer kullanıcı açıkça "Bunu tüm kullanıcılara gönder / herkese duyuru yap" derse, 'sendNotificationToAllUsers' aracını kullan. Araçları sadece kullanıcı özellikle talep ettiğinde kullan.
+Eğer kullanıcı "Bu mesajı [Kişi Adı]'na gönder" veya "Spesifik birine bildirim at" derse, 'sendNotificationToUser' aracını kullan.
+Eğer kullanıcı "Bunu tüm kullanıcılara gönder / herkese duyuru yap" derse, 'sendNotificationToAllUsers' aracını kullan.
+Eğer kullanıcı "kaç mükellefimiz var", "mükellef listesi", "firmalar" derse 'getTaxpayersSummary' aracını kullan.
+Eğer kullanıcı "gelen faturalar", "faturaları göster" derse 'getLatestInvoices' aracını kullan.
+Eğer kullanıcı "gelen bildirim cevapları", "mesajlar", "müşteriler ne demiş" derse 'getRecentMessages' aracını kullan.
+Araçları sadece kullanıcı özellikle talep ettiğinde veya bilgi eksikliğin varsa kullan.
 
-SADECE aşağıdaki JSON formatında yanıt dön:
+SADECE aşağıdaki JSON formatında yanıt dön (eğer tool tetiklemezsen):
 {
   "text": "[Role bürünerek yazdığın doğal dildeki yanıt]"
 }`;
 
     // 3. Prepare parts for Gemini API via direct REST Fetch
-    console.log("Calling Gemini 1.5 Flash via REST API for Ledger AI Chat...");
+    console.log("Calling Gemini 3.7 Flash via REST API for Ledger AI Chat...");
     
     // Map history to contents
     const contents = (history || []).map((msg: any) => ({
@@ -93,6 +98,21 @@ SADECE aşağıdaki JSON formatında yanıt dön:
             },
             required: ["title", "message"]
           }
+        },
+        {
+          name: "getTaxpayersSummary",
+          description: "Sistemdeki toplam mükellef sayısını ve özetini getirir.",
+          parameters: { type: "OBJECT", properties: {} }
+        },
+        {
+          name: "getLatestInvoices",
+          description: "Sisteme gelen son faturaları getirir.",
+          parameters: { type: "OBJECT", properties: {} }
+        },
+        {
+          name: "getRecentMessages",
+          description: "Müşterilerden/mükelleflerden gelen son mesajları ve bildirim cevaplarını getirir.",
+          parameters: { type: "OBJECT", properties: {} }
         }
       ]
     }];
@@ -134,6 +154,12 @@ SADECE aşağıdaki JSON formatında yanıt dön:
             toolResult = await sendNotificationToUser(call.args.userNameOrId, call.args.title, call.args.message);
           } else if (call.name === "sendNotificationToAllUsers") {
             toolResult = await sendNotificationToAllUsers(call.args.title, call.args.message);
+          } else if (call.name === "getTaxpayersSummary") {
+            toolResult = await getTaxpayersSummary();
+          } else if (call.name === "getLatestInvoices") {
+            toolResult = await getLatestInvoices();
+          } else if (call.name === "getRecentMessages") {
+            toolResult = await getRecentMessages();
           }
           
           console.log(`Tool Result: ${toolResult}`);
