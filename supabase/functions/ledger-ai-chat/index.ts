@@ -60,22 +60,22 @@ SADECE aşağıdaki JSON formatında yanıt dön:
       apiKey: apiKey
     });
 
-    const inputParts: any[] = (history || []).map((msg: any) => ({
-      type: "text",
-      text: msg.content || msg.text || ""
+    const formattedHistory = (history || []).map((msg: any) => ({
+      role: msg.role === 'ai' ? 'model' : 'user',
+      parts: [{ text: msg.content || msg.text || "" }]
     }));
-    
-    inputParts.push({ type: "text", text: `SİSTEM TALİMATI:\n${systemInstruction}\n\nKULLANICI TALEBİ:\n${prompt || 'Merhaba'}` });
 
-    const interaction = await ai.interactions.create({
+    const chat = ai.chats.create({
       model: "gemini-3.7-flash",
+      history: formattedHistory,
       config: {
+        systemInstruction: systemInstruction,
         tools: [sendNotificationToUser, sendNotificationToAllUsers]
-      },
-      input: inputParts
+      }
     });
 
-    const generatedText = interaction.output_text || "";
+    const response = await chat.sendMessage({ message: prompt || "Merhaba" });
+    const generatedText = response.text || "";
     
     let parsedResult = { text: "İçerik oluşturulamadı." }
     try {
