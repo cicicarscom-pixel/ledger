@@ -41,7 +41,7 @@ export async function sendNotificationToUser(
     // Check if userNameOrId is a valid UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(userNameOrId)) {
-      // It's a name, search in profiles table
+      // It's a name, search in organizations table first
       // Fix Turkish ILIKE issue by replacing problematic letters with '_'
       let safeSearch = userNameOrId
         .replace(/[ıIİi]/g, '_')
@@ -51,16 +51,39 @@ export async function sendNotificationToUser(
         .replace(/[öÖ]/g, '_')
         .replace(/[çÇ]/g, '_');
 
-      const { data, error: searchError } = await supabaseAdmin
-        .from('profiles')
-        .select('id, business_name')
-        .ilike('business_name', `%${safeSearch}%`)
+      // 1. Check organizations table
+      const { data: orgData, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .select('id, name')
+        .ilike('name', `%${safeSearch}%`)
         .limit(1);
-        
-      if (searchError || !data || data.length === 0) {
-        return `Kullanıcı bulunamadı: "${userNameOrId}". Lütfen adı kontrol edin.`;
+
+      if (!orgError && orgData && orgData.length > 0) {
+        // Find the owner/admin of this organization
+        const { data: memberData } = await supabaseAdmin
+          .from('organization_members')
+          .select('user_id')
+          .eq('organization_id', orgData[0].id)
+          .limit(1);
+          
+        if (memberData && memberData.length > 0) {
+          finalProfileId = memberData[0].user_id;
+        } else {
+          return `Firma bulundu ("${orgData[0].name}") ancak bağlı bir yetkili hesabı bulunamadı.`;
+        }
+      } else {
+        // 2. Fallback to profiles table
+        const { data, error: searchError } = await supabaseAdmin
+          .from('profiles')
+          .select('id, business_name')
+          .ilike('business_name', `%${safeSearch}%`)
+          .limit(1);
+          
+        if (searchError || !data || data.length === 0) {
+          return `Kullanıcı veya Firma bulunamadı: "${userNameOrId}". Lütfen adı kontrol edin.`;
+        }
+        finalProfileId = data[0].id;
       }
-      finalProfileId = data[0].id;
     }
     
     const { error } = await supabaseAdmin
