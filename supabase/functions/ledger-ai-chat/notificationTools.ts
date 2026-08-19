@@ -45,9 +45,9 @@ export async function sendNotificationToUser(
       // Fix Turkish ILIKE issue by replacing problematic letters with '_'
       let safeSearch = userNameOrId
         .replace(/[ıIİi]/g, '%')
-        .replace(/[şŞ]/g, '%')
         .replace(/[ğĞ]/g, '%')
         .replace(/[üÜ]/g, '%')
+        .replace(/[şŞ]/g, '%')
         .replace(/[öÖ]/g, '%')
         .replace(/[çÇ]/g, '%');
 
