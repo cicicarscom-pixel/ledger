@@ -47,6 +47,7 @@ ${customInstruction || 'Kullanıcıya nazikçe ve profesyonelce yardımcı ol. J
 
 ÖZEL ARAÇ (TOOL) KULLANIM TALİMATLARI:
 Eğer kullanıcı "Bu mesajı [Kişi Adı]'na gönder" veya "Spesifik birine bildirim at" derse, 'sendNotificationToUser' aracını kullan.
+ÖNEMLİ KURAL: Eğer kullanıcı "bu mükellefe", "şu firmaya", "ona" gibi zamirler kullanırsa, sohbet geçmişine bakarak bahsettiği firmanın veya kişinin TAM ADINI (örn: YILMAZ İNŞAAT...) bul ve araca parametre olarak O TAM ADI gönder. Asla "bu mükellef" gibi belirsiz kelimeler gönderme.
 Eğer kullanıcı "Bunu tüm kullanıcılara gönder / herkese duyuru yap" derse, 'sendNotificationToAllUsers' aracını kullan.
 Eğer kullanıcı "kaç mükellefimiz var", "mükellef listesi", "firmalar" derse 'getTaxpayersSummary' aracını kullan.
 Eğer kullanıcı "gelen faturalar", "faturaları göster" derse 'getLatestInvoices' aracını kullan.

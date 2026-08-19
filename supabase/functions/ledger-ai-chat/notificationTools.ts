@@ -44,12 +44,12 @@ export async function sendNotificationToUser(
       // It's a name, search in organizations table first
       // Fix Turkish ILIKE issue by replacing problematic letters with '_'
       let safeSearch = userNameOrId
-        .replace(/[ıIİi]/g, '_')
-        .replace(/[şŞ]/g, '_')
-        .replace(/[ğĞ]/g, '_')
-        .replace(/[üÜ]/g, '_')
-        .replace(/[öÖ]/g, '_')
-        .replace(/[çÇ]/g, '_');
+        .replace(/[ıIİi]/g, '%')
+        .replace(/[şŞ]/g, '%')
+        .replace(/[ğĞ]/g, '%')
+        .replace(/[üÜ]/g, '%')
+        .replace(/[öÖ]/g, '%')
+        .replace(/[çÇ]/g, '%');
 
       // Split into words, remove tiny words (likely suffixes like "a", "ya", "ne"), and join with wildcards
       let searchWords = safeSearch.split(' ').filter(w => w.length > 2);
