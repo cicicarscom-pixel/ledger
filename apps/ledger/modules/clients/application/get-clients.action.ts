@@ -193,11 +193,11 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
           if (orgMember) {
              const { data: profile } = await adminSupabase
               .from('profiles')
-              .select('full_name, address')
+              .select('authorized_person, business_name, phone_number, address')
               .eq('id', orgMember.user_id)
               .maybeSingle();
               
-             if (profile?.full_name) {
+             if (profile?.authorized_person) {
                contactName = profile.full_name;
              }
              if (profile?.address) {
@@ -265,3 +265,5 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
     return { advisorCode: `Sistem Hatası: ${error?.message || 'Bilinmeyen Hata'}`, clients: [] };
   }
 }
+
+
