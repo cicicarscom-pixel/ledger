@@ -46,7 +46,7 @@ export function LedgerAiChat({ conversationId }: LedgerAiChatProps) {
       {/* Output Area */}
       {result && (
         <div 
-          className={\p-4 rounded-lg text-sm \\}
+          className={`p-4 rounded-lg text-sm ${result.success ? 'bg-green-50' : 'bg-red-50'}`}
         >
           {result.success ? (
             <div className="flex flex-col gap-1">
