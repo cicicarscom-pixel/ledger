@@ -54,7 +54,7 @@ export function normalizeTurkishText(text: string): string {
     while (modified && currentWord.length > 3) {
       modified = false;
       for (const suffix of suffixes) {
-        const regex = new RegExp(\^\(.*\?)\\$\, 'i');
+        const regex = new RegExp(`^(.*?)${suffix}$`, 'i');
         const match = currentWord.match(regex);
         // Only strip if the remaining stem is at least 3 chars
         if (match && match[1].length >= 3) {
