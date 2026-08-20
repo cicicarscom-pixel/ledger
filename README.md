@@ -202,3 +202,46 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
 ## [16.08.2026] Sosyal Medya Optimizasyonları (Zernio Client)
 - **Timezone Desteği:** `zernio-client` Supabase Edge Function'ına gönderi oluşturma (`create-post`) sırasında `timezone` parametresi eklendi. Zernio Node SDK'sı ile uyumlu çalışarak doğru saat diliminde planlama yapılması sağlandı.
 - **Post Silme Endpoint:** Zernio üzerinden veya kalıcı platformdan gönderi silebilmek için `delete-post` fonksiyonu eklendi.
+
+---
+
+# 🧠 WORKIGOM AI CORE ARCHITECTURE (Ledger)
+
+This section documents the massive infrastructure built for the **AI Core in the Ledger Application** (Implemented on August 20, 2026). It outlines the exact specifications, strict Typescript implementations, database migrations, and UI integration patterns.
+
+## 1. Domain-Driven Design (DDD) Migration
+Moved away from a single public schema. A strict schema-based isolation was introduced to protect core tenant data from AI and background task operations.
+- **New Schemas:** audit, analytics, ai
+- **Low-Risk Tables Migrated:** api_usage_logs, ai_audit_logs, organization_audit_events, analytics_cache, extraction_schemas, ai_decision_events, ledger_ai_rules, ledger_ai_settings, accountant_ai_tasks, accountant_ai_conversations, accountant_ai_messages.
+- **Migration Script:** supabase/migrations/20260820_phase1_ai_audit_schemas.sql
+
+## 2. Core Foundation & Tool Registry
+Built inside apps/ledger/src/ai-core/ using strict Typescript.
+- **Types (shared/types.ts):** Defined ToolRisk (read, write, external_action), ToolContext (must have userId, firmId), and ToolResult.
+- **Registry (tools/registry.ts):** Singleton ToolRegistry mapping tool intents to executable blocks safely.
+
+## 3. Fuzzy Entity Resolver (Turkish NLP)
+- **Normalizer (entities/turkish-normalizer.ts):** Resolves Turkish character mismatches (ı->i, ş->s), lowercases, and performs simplified stemming (stripping suffixes like ın, ya, dan) to standardize user input.
+- **Resolver (entities/taxpayer-resolver.ts):** Matches natural language names (e.g. Yılmazların borcu ne) to physical database tenants (organizations) scoped strictly by firmId. Assigns a 0 to 1 confidence score (e.g. confidence > 0.85).
+
+## 4. Business Tools (Read & External Actions)
+- **Read Tool (count_taxpayers):** Securely fetches the count of taxpayers connected to the firm.
+- **Read Tool (get_taxpayer_balance):** Uses the taxpayerResolver to find the company and returns account balance data.
+- **External Action Tool (send_notification):** Demonstrates high-risk operations. Evaluates policy, executes action, and mandates a cross-schema audit log (aiAuditRepository) via a finally block.
+
+## 5. Security: Policy Engine & Cross-Schema Audit
+- **Policy Engine (policy/policy-engine.ts):** Authorizes execution based on ToolRisk and RBAC roles (e.g. rejecting external_action if not an admin).
+- **Audit Repository (repositories/ai-audit.repository.ts):** Overrides default schema by initializing Supabase with { db: { schema: 'audit' } } to ensure all AI operations are logged safely away from the public schema.
+
+## 6. AI Router & Gemini Provider
+- **Zod Schemas (router/intent.schemas.ts):** Enforces a strict schema (IntentResultSchema) expecting intent, risk, entityQuery, and confidence.
+- **Gemini SDK (providers/gemini-provider.ts):** Utilizes Vercel AI SDK (generateObject) with @ai-sdk/google (gemini-1.5-flash) to force structured JSON output from natural language queries.
+- **Fast Path Architecture (router/intent-router.ts):** Bypasses costly Agent Orchestrator loops by instantly executing the tool if confidence > 0.80 and risk === read.
+
+## 7. UI Integration (Next.js Server Actions)
+- **Server Action (actions/ai-actions.ts):** 
+  - **Zero-Trust Client:** Ignores client-provided tenant data.
+  - Fetches the active user via supabase.auth.getUser().
+  - Queries accounting_firm_members to establish the secure firmId.
+  - Injects this trusted ToolContext into the routerService.
+- **Client Component (components/ai/LedgerAiChat.tsx):** Uses React 19 useTransition to cleanly stream loading states and present the resulting ToolResult or Error directly to the UI without blocking the main thread.
