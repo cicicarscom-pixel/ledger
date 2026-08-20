@@ -2,7 +2,8 @@
   "name": "workigom",
   "private": true,
   "scripts": {
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "build": "turbo run build"
   },
   "devDependencies": {
     "turbo": "latest"
