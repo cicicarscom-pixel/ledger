@@ -198,7 +198,7 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
               .maybeSingle();
               
              if (profile?.authorized_person) {
-               contactName = profile.full_name;
+               contactName = profile.authorized_person;
              }
              if (profile?.address) {
                address = profile.address;
