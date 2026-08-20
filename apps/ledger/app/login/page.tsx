@@ -52,7 +52,7 @@ export default function LedgerLoginPage() {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-2"
         >
-          <img src="/ledger1logo.png" alt="Workigom Ledger" className="h-10 w-auto object-contain" />
+          <img src="/ledger/ledger1logo.png" alt="Workigom Ledger" className="h-10 w-auto object-contain" />
         </motion.div>
 
         <div className="relative z-10 my-auto">
@@ -121,7 +121,7 @@ export default function LedgerLoginPage() {
         >
           {/* Mobile Logo */}
           <div className="flex lg:hidden items-center justify-center gap-2 mb-12">
-            <img src="/ledger1logo.png" alt="Workigom Ledger" className="h-12 w-auto object-contain" />
+            <img src="/ledger/ledger1logo.png" alt="Workigom Ledger" className="h-12 w-auto object-contain" />
           </div>
 
           <div className="mb-8">
