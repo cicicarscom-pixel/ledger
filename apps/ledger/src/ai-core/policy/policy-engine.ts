@@ -26,7 +26,7 @@ export class PolicyEngine {
       // TODO: FUTURE STRICT RLS/ROLE ENFORCEMENT GOES HERE.
       // E.g., if (context.role !== 'admin' && context.role !== 'partner') return false;
       // For now, we mock approval to establish the architecture pattern.
-      console.warn(\[POLICY ENGINE] Mock approval granted for external_action by user \\);
+      console.warn(`[POLICY ENGINE] Mock approval granted for external_action by user ${context.userId}`);
       return true; 
     }
 
