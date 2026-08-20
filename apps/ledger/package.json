@@ -13,8 +13,7 @@
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.5",
     "@types/three": "^0.185.0",
-    
-    
+    "@types/ws": "^8.18.1",
     "ai": "^7.0.29",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
@@ -24,6 +23,7 @@
     "react-dom": "^18",
     "tailwind-merge": "^3.6.0",
     "three": "^0.185.1",
+    "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
