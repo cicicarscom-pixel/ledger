@@ -1,10 +1,9 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -15,7 +14,9 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-    window.location.href = '/logout';
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
   return (

@@ -12,6 +12,9 @@ export async function GET(request: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     
+    // Create the response object early so we can attach cookies to it
+    const response = NextResponse.redirect(`${origin}${next}`)
+    
     const supabase = createServerClient(
       supabaseUrl,
       supabaseKey,
@@ -22,12 +25,17 @@ export async function GET(request: Request) {
           },
           setAll(cookiesToSet) {
             try {
+              // Try to set on cookieStore (works in some Next.js versions)
               cookiesToSet.forEach(({ name, value, options }) => {
                 cookieStore.set(name, value, options)
               })
             } catch (error) {
-              // Ignore in route handler
+              // Ignore
             }
+            // Ensure cookies are actually attached to the outgoing redirect response (Next.js 14 requirement)
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options)
+            })
           },
         },
       }
@@ -59,7 +67,7 @@ export async function GET(request: Request) {
           }
         }
       }
-      return NextResponse.redirect(`${origin}${next}`)
+      return response;
     }
   }
   return NextResponse.redirect(`${origin}/ledger/login?error=auth-callback-failed`)
