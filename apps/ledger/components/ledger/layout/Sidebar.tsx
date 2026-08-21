@@ -31,6 +31,7 @@ export default function Sidebar() {
         <SidebarItem icon="fact_check" label="Onay Merkezi" href="/approval" active={pathname?.startsWith('/approval')} />
         <SidebarItem icon="archive" label="Onaylananlar" href="/approved" active={isActive('/approved')} />
         <SidebarItem icon="analytics" label="Analitik" href="/analytics" active={isActive('/analytics')} />
+        <SidebarItem icon="person" label="Profil" href="/profil" active={isActive('/profil')} />
         <SidebarItem icon="settings" label="Ayarlar" href="/settings" active={isActive('/settings') || isActive('/ai-settings')} />
       </div>
 
