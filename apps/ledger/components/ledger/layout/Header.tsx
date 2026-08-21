@@ -1,15 +1,40 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import InviteTaxpayerDialog from '../../../modules/invitations/presentation/InviteTaxpayerDialog';
+import { createClient } from '@/utils/supabase/client';
 
 export default function Header() {
   const pathname = usePathname();
   const isWorkflow = pathname?.includes('/workflow');
+  const [profile, setProfile] = useState<{ authorized_person: string | null; avatar_url: string | null } | null>(null);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('authorized_person, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (data) {
+          setProfile(data);
+        }
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  const defaultAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPO2S5Ej4i3F_TVZ3dUC2ggrw233UmltDDGSl7V7SvfOGE6T03SyHfm5cmSL2FaAhhl3W21tkm7Z0OMpeADR6SRLzA5L_wyYQovtiSbdprdaKT4ivzaPYWtWxufcC0gp3uGL5yE-enGEYy2BQ2QprlTFC0XNQWNH6mOHb9BAqpTxlps_X3L16XRICrpBH_3sNJkFxxc1tQ5In1EUv0CHpuPMX_KOKD2qrDTeLq8EWCUFL79rQKxThYgFDo030UMFTbXx2A1xx3zuY";
+  const avatarUrl = profile?.avatar_url || defaultAvatar;
+  const fullName = profile?.authorized_person || "Mali Müşavir";
+  const firstName = fullName.split(' ')[0] || "Kullanıcı";
   
   let headerTitle = (
     <h1 className="text-[16px] font-semibold text-on-surface flex items-center gap-2 tracking-tight leading-none mb-1">
-      Günaydın, Ahmet Bey <span className="text-[14px] animate-pulse">👋</span>
+      Günaydın, {firstName} Bey <span className="text-[14px] animate-pulse">👋</span>
     </h1>
   );
   let headerSubtitle = (
@@ -51,10 +76,10 @@ export default function Header() {
           <img 
             className="w-7 h-7 rounded-full object-cover border border-primary-container/30 p-0.5" 
             alt="Profile" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPO2S5Ej4i3F_TVZ3dUC2ggrw233UmltDDGSl7V7SvfOGE6T03SyHfm5cmSL2FaAhhl3W21tkm7Z0OMpeADR6SRLzA5L_wyYQovtiSbdprdaKT4ivzaPYWtWxufcC0gp3uGL5yE-enGEYy2BQ2QprlTFC0XNQWNH6mOHb9BAqpTxlps_X3L16XRICrpBH_3sNJkFxxc1tQ5In1EUv0CHpuPMX_KOKD2qrDTeLq8EWCUFL79rQKxThYgFDo030UMFTbXx2A1xx3zuY"
+            src={avatarUrl}
           />
           <div className="hidden md:flex flex-col justify-center">
-            <span className="font-h3 text-on-surface text-[11px] font-semibold leading-tight">Ahmet Yılmaz</span>
+            <span className="font-h3 text-on-surface text-[11px] font-semibold leading-tight">{fullName}</span>
             <span className="font-caption text-on-surface-variant text-[9px] leading-tight">Mali Müşavir</span>
           </div>
           <span className="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
