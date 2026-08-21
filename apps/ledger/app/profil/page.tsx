@@ -141,7 +141,7 @@ export default function ProfilePage() {
             <button 
               type="submit" 
               disabled={saving}
-              className="bg-primary/90 hover:bg-primary text-on-primary font-semibold py-3 px-8 rounded-xl transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(78,222,163,0.2)] text-sm flex items-center gap-2"
+              className="bg-primary opacity-90 hover:opacity-100 text-on-primary font-semibold py-3 px-8 rounded-xl transition-all disabled:opacity-50 shadow-glow-primary text-sm flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-[18px]">save</span>
               {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
