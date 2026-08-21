@@ -5,16 +5,19 @@ import { createClient } from '@/utils/supabase/client';
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [firmId, setFirmId] = useState<string | null>(null);
   const [profile, setProfile] = useState<{
     authorized_person: string;
     avatar_url: string;
     phone: string;
     email: string;
+    business_name: string;
   }>({
     authorized_person: '',
     avatar_url: '',
     phone: '',
-    email: ''
+    email: '',
+    business_name: ''
   });
   
   useEffect(() => {
@@ -23,18 +26,47 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setProfile(prev => ({ ...prev, email: user.email || '' }));
-        const { data } = await supabase
+        
+        // Fetch profile
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('authorized_person, avatar_url, phone')
           .eq('id', user.id)
           .maybeSingle();
-        if (data) {
+          
+        if (profileData) {
           setProfile(prev => ({
             ...prev,
-            authorized_person: data.authorized_person || '',
-            avatar_url: data.avatar_url || '',
-            phone: data.phone || ''
+            authorized_person: profileData.authorized_person || '',
+            avatar_url: profileData.avatar_url || '',
+            phone: profileData.phone || ''
           }));
+        }
+
+        // Fetch firm name
+        const { data: firmMemberData } = await supabase
+          .from('accounting_firm_members')
+          .select(`
+            accounting_firm_id,
+            accounting_firms (
+              name
+            )
+          `)
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        if (firmMemberData && firmMemberData.accounting_firm_id) {
+          setFirmId(firmMemberData.accounting_firm_id);
+          const firm = Array.isArray(firmMemberData.accounting_firms) 
+             ? firmMemberData.accounting_firms[0] 
+             : firmMemberData.accounting_firms;
+          
+          if (firm) {
+            setProfile(prev => ({
+              ...prev,
+              business_name: firm.name || ''
+            }));
+          }
         }
       }
       setLoading(false);
@@ -42,12 +74,44 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
+      
+      setSaving(true);
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file);
+        
+      if (error) throw error;
+      
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
+      
+    } catch (error: any) {
+      alert("Fotoğraf yükleme hatası: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      // Update profile
       await supabase.from('profiles').upsert({
         id: user.id,
         authorized_person: profile.authorized_person,
@@ -55,6 +119,14 @@ export default function ProfilePage() {
         phone: profile.phone,
         updated_at: new Date().toISOString()
       });
+      
+      // Update firm name if exists
+      if (firmId) {
+        await supabase.from('accounting_firms').update({
+          name: profile.business_name
+        }).eq('id', firmId);
+      }
+      
       alert('Profil başarıyla güncellendi!');
       window.location.reload();
     }
@@ -80,28 +152,40 @@ export default function ProfilePage() {
         
         <form onSubmit={handleSave} className="flex flex-col gap-6">
           <div className="flex items-center gap-6 mb-2">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="Profile" className="w-20 h-20 rounded-full object-cover border-2 border-primary/30 shadow-lg" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-surface border-2 border-white/10 flex items-center justify-center text-on-surface-variant">
-                <span className="material-symbols-outlined text-3xl">person</span>
+            <label className="cursor-pointer relative group">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-20 h-20 rounded-full object-cover border-2 border-primary/30 shadow-lg group-hover:opacity-80 transition-opacity" />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-surface border-2 border-white/10 flex items-center justify-center text-on-surface-variant group-hover:bg-white/5 transition-colors">
+                  <span className="material-symbols-outlined text-3xl">person</span>
+                </div>
+              )}
+              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+              <div className="absolute -bottom-1 -right-1 bg-primary text-black p-1.5 rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-[14px]">edit</span>
               </div>
-            )}
+            </label>
             <div className="flex-1 flex flex-col gap-2">
-              <label className="text-sm font-medium text-on-surface-variant">Profil Resmi URL</label>
-              <input 
-                type="text" 
-                value={profile.avatar_url} 
-                onChange={e => setProfile({...profile, avatar_url: e.target.value})}
-                className="bg-surface/50 border border-white/10 rounded-xl p-3 text-white focus:border-primary/50 outline-none transition-all text-sm"
-                placeholder="Örn: https://example.com/photo.jpg"
-              />
+              <label className="text-sm font-medium text-on-surface-variant">Profil Resmi Yükle</label>
+              <p className="text-xs text-on-surface-variant/70">Fotoğrafınıza tıklayarak cihazınızdan yeni bir resim seçebilirsiniz.</p>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 mt-2">
+            <label className="text-sm font-medium text-on-surface-variant">İşletme Adı (Müşavirlik Ofisi)</label>
+            <input 
+              type="text" 
+              value={profile.business_name} 
+              onChange={e => setProfile({...profile, business_name: e.target.value})}
+              className="bg-surface/50 border border-white/10 rounded-xl p-3 text-white focus:border-primary/50 outline-none transition-all text-sm"
+              placeholder="Ofisinizin Adı"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-on-surface-variant">Ad Soyad</label>
+              <label className="text-sm font-medium text-on-surface-variant">Yetkili Kişi Adı Soyadı</label>
               <input 
                 type="text" 
                 value={profile.authorized_person} 
