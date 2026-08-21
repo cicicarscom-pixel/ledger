@@ -245,3 +245,6 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
   - Queries accounting_firm_members to establish the secure firmId.
   - Injects this trusted ToolContext into the routerService.
 - **Client Component (components/ai/LedgerAiChat.tsx):** Uses React 19 useTransition to cleanly stream loading states and present the resulting ToolResult or Error directly to the UI without blocking the main thread.
+
+### [21.08.2026] Müşavir Profil & Bağlantı Entegrasyonu
+- **Profil Yönetimi:** Ledger paneline /profil rotası ve sol menü kısayolu eklendi. Müşavirler artık cihazlarından (veya galerilerinden) Supabase altyapısıyla kendi profil fotoğraflarını yükleyebilir; İşletme Adı, Yetkili Adı-Soyadı ve Telefon numarası gibi bilgilerini anlık olarak veritabanında güncelleyebilirler.

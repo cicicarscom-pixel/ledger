@@ -88,3 +88,7 @@ otifications\ tablosu (RLS yetkileri ile birlikte) oluşturuldu.
   - \sendNotificationToUser\: Sadece ismini veya UUID'sini belirterek tek bir mükellefe/kullanıcıya özel sistem içi bildirim gönderir. İsim verilirse \profiles\ tablosundan otomatik \ilike\ sorgusuyla \profile_id\ bulur.
   - \sendNotificationToAllUsers\: Tüm \profiles\ tablosunu çekerek tek bir *Bulk Insert* ile herkese anlık yayın (broadcast) yapar.
 - **Güvenlik:** RLS kurallarını aşabilmek için bu Edge Function araçları içerisinde \SUPABASE_SERVICE_ROLE_KEY\ kullanıldı.
+
+### [21.08.2026] Müşavir Profil & Bağlantı Entegrasyonu (Flow & Ledger Senkronizasyonu)
+1. **Ledger Profil Ekranı:** Müşavirlerin kendi profil bilgilerini (İşletme Adı, Yetkili Kişi Adı Soyadı, Telefon vb.) düzenleyebilecekleri ve cihazlarından resim yükleyebilecekleri (Supabase Storage 'avatars' bucket üzerinden) '/profil' ekranı eklendi.
+2. **Flow Bağlantı Kartı:** Esnafın (Flow) "Muhasebecim" sayfasında yer alan sahte mock ekran kaldırılarak gerçek Supabase veritabanına bağlandı. Aktif bir bağlantı varsa doğrudan müşavirin profili, işletme adı ve avatarı şık bir "Bağlı" rozeti ile gösterilmektedir.
