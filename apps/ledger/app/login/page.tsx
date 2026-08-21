@@ -139,7 +139,7 @@ export default function LedgerLoginPage() {
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+                    redirectTo: `${window.location.origin}/ledger/auth/callback?next=/ledger/dashboard`,
                   },
                 })
                 if (error) throw error

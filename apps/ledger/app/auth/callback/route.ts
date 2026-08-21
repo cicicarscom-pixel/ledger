@@ -38,5 +38,5 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
-  return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`)
+  return NextResponse.redirect(`${origin}/ledger/login?error=auth-callback-failed`)
 }
