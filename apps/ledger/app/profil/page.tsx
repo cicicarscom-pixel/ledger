@@ -30,7 +30,7 @@ export default function ProfilePage() {
         // Fetch profile
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('authorized_person, avatar_url, phone')
+          .select('authorized_person, avatar_url, phone_number')
           .eq('id', user.id)
           .maybeSingle();
           
@@ -46,7 +46,7 @@ export default function ProfilePage() {
             ...prev,
             authorized_person: finalName,
             avatar_url: finalAvatar,
-            phone: profileData.phone || ''
+            phone: profileData.phone_number || ''
           }));
         } else {
           setProfile(prev => ({
@@ -62,7 +62,7 @@ export default function ProfilePage() {
             id: user.id,
             authorized_person: finalName,
             avatar_url: finalAvatar,
-            phone: profileData?.phone || '',
+            phone_number: profileData?.phone_number || '',
             updated_at: new Date().toISOString()
           });
         }
@@ -136,13 +136,19 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // Update profile
-      await supabase.from('profiles').upsert({
+      const { error } = await supabase.from('profiles').upsert({
         id: user.id,
         authorized_person: profile.authorized_person,
         avatar_url: profile.avatar_url,
-        phone: profile.phone,
+        phone_number: profile.phone,
         updated_at: new Date().toISOString()
       });
+
+      if (error) {
+        alert('Profil güncellenirken bir hata oluştu: ' + error.message);
+        setSaving(false);
+        return;
+      }
       
       // Update firm name if exists
       if (firmId) {
