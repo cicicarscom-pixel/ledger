@@ -34,12 +34,20 @@ export default function ProfilePage() {
           .eq('id', user.id)
           .maybeSingle();
           
+        const meta = user.user_metadata || {};
+        
         if (profileData) {
           setProfile(prev => ({
             ...prev,
-            authorized_person: profileData.authorized_person || '',
-            avatar_url: profileData.avatar_url || '',
+            authorized_person: profileData.authorized_person || meta.full_name || '',
+            avatar_url: profileData.avatar_url || meta.avatar_url || '',
             phone: profileData.phone || ''
+          }));
+        } else {
+          setProfile(prev => ({
+            ...prev,
+            authorized_person: meta.full_name || '',
+            avatar_url: meta.avatar_url || ''
           }));
         }
 
