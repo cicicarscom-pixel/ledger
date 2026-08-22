@@ -35,20 +35,36 @@ export default function ProfilePage() {
           .maybeSingle();
           
         const meta = user.user_metadata || {};
+        const googleName = meta.full_name || meta.name || '';
+        const googleAvatar = meta.avatar_url || meta.picture || '';
+        
+        let finalName = profileData?.authorized_person || googleName;
+        let finalAvatar = profileData?.avatar_url || googleAvatar;
         
         if (profileData) {
           setProfile(prev => ({
             ...prev,
-            authorized_person: profileData.authorized_person || meta.full_name || '',
-            avatar_url: profileData.avatar_url || meta.avatar_url || '',
+            authorized_person: finalName,
+            avatar_url: finalAvatar,
             phone: profileData.phone || ''
           }));
         } else {
           setProfile(prev => ({
             ...prev,
-            authorized_person: meta.full_name || '',
-            avatar_url: meta.avatar_url || ''
+            authorized_person: finalName,
+            avatar_url: finalAvatar
           }));
+        }
+
+        // Eğer veritabanında ad/soyad boşsa ama Google'dan geldiyse, arka planda otomatik kaydet
+        if (!profileData?.authorized_person && googleName) {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            authorized_person: finalName,
+            avatar_url: finalAvatar,
+            phone: profileData?.phone || '',
+            updated_at: new Date().toISOString()
+          });
         }
 
         // Fetch firm name

@@ -19,9 +19,15 @@ export default function Header() {
           .select('authorized_person, avatar_url')
           .eq('id', user.id)
           .maybeSingle();
-        if (data) {
-          setProfile(data);
-        }
+        
+        const meta = user.user_metadata || {};
+        const googleName = meta.full_name || meta.name || '';
+        const googleAvatar = meta.avatar_url || meta.picture || '';
+
+        setProfile({
+          authorized_person: data?.authorized_person || googleName || null,
+          avatar_url: data?.avatar_url || googleAvatar || null
+        });
       }
     }
     fetchProfile();
