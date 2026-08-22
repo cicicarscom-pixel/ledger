@@ -8,7 +8,11 @@ export class ProfileApi {
     return withRetry(() => this.context.sdk.profiles.listProfiles());
   }
 
-  async createProfile(name: string): Promise<ZernioResponse> {
-    return withRetry(() => this.context.sdk.profiles.createProfile({ body: { name } }));
+  async createProfile(name: string, idempotencyKey?: string): Promise<ZernioResponse> {
+    const config: any = { body: { name } };
+    if (idempotencyKey) {
+       config.headers = { "Idempotency-Key": idempotencyKey };
+    }
+    return withRetry(() => this.context.sdk.profiles.createProfile(config));
   }
 }

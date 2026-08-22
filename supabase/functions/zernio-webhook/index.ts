@@ -51,6 +51,7 @@ serve(async (req) => {
     }
 
     const payload: ZernioWebhookEvent = JSON.parse(rawBody);
+    const eventId = req.headers.get('x-zernio-event-id') || payload.data?.id || `${payload.event}-${payload.timestamp}`;
 
     // Initialize Supabase Client with SERVICE_ROLE to bypass RLS for background ingestion
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -62,6 +63,21 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // 1.5. Idempotency Check
+    const { data: existingEvent } = await supabase.schema('integration').from('webhook_events').select('id').eq('external_event_id', eventId).maybeSingle();
+    if (existingEvent) {
+       console.log(`[webhook] Event ${eventId} already processed, skipping.`);
+       return new Response(JSON.stringify({ success: true, duplicate: true }), { headers: corsHeaders, status: 200 });
+    }
+    
+    // Log the event as pending
+    await supabase.schema('integration').from('webhook_events').insert({
+       external_event_id: eventId,
+       event_type: payload.event,
+       payload: payload,
+       status: 'processing'
+    });
+
     // 2. Resolve Profile ID from Zernio Account ID
     // Most events contain an accountId or profileId indicating which business received the interaction.
     const zernioAccountId = payload.account?.id || payload.accountId || payload.data?.accountId || payload.data?.account?.id;
@@ -72,16 +88,17 @@ serve(async (req) => {
 
     if (zernioAccountId) {
       const { data: accountData, error: accountError } = await supabase
+        .schema('integration')
         .from('social_accounts')
-        .select('profile_id, platform_username')
+        .select('organization_id, username')
         .eq('zernio_account_id', zernioAccountId)
         .single();
 
       if (!accountError && accountData) {
-        profileId = accountData.profile_id;
-        platformUsername = accountData.platform_username;
+        profileId = accountData.organization_id;
+        platformUsername = accountData.username;
       } else {
-        console.warn(`Zernio Account ID ${zernioAccountId} not mapped to any profile.`);
+        console.warn(`Zernio Account ID ${zernioAccountId} not mapped to any organization.`);
       }
     }
 
@@ -97,6 +114,23 @@ serve(async (req) => {
     // 3. Handle specific Zernio Events
     switch (payload.event) {
       
+      case 'account.connected':
+        // Optional logic can go here. For now, sync-accounts handles the upsert.
+        break;
+
+      case 'account.disconnected':
+      case 'account.deleted': {
+        const disconnectedId = zernioAccountId || payload.account?.id || payload.accountId;
+        if (disconnectedId) {
+            await supabase.schema('integration').from('social_accounts').update({ 
+                is_active: false, 
+                disconnected_at: new Date().toISOString(), 
+                needs_reconnection: true 
+            }).eq('zernio_account_id', disconnectedId);
+        }
+        break;
+      }
+
       case 'message.received':
       case 'message.sent': {
         const messageData = payload.message || payload.data || {};
@@ -375,6 +409,11 @@ serve(async (req) => {
         console.log(`Unhandled Zernio Event: ${payload.event}`);
     }
 
+    await supabase.schema('integration').from('webhook_events').update({ 
+       status: 'completed', 
+       processed_at: new Date().toISOString() 
+    }).eq('external_event_id', eventId);
+
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200 
@@ -382,6 +421,20 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Zernio Webhook Error:", error.message);
+    
+    try {
+        const rawBody = await req.clone().text(); // Try to parse eventId again if it failed early
+        const payload = JSON.parse(rawBody);
+        const eventId = req.headers.get('x-zernio-event-id') || payload.data?.id || `${payload.event}-${payload.timestamp}`;
+        if (eventId) {
+           await supabase.schema('integration').from('webhook_events').update({ 
+             status: 'failed', 
+             error: error.message,
+             processed_at: new Date().toISOString() 
+           }).eq('external_event_id', eventId);
+        }
+    } catch(e) {}
+
     // Important: Webhooks should usually return 200 to acknowledge receipt even if processing fails,
     // otherwise Zernio will keep retrying and might disable the webhook. 
     // Return 200 but log the error.

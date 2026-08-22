@@ -182,16 +182,26 @@ serve(async (req) => {
       }
 
       case 'sync-posts': {
-        const listRes: any = await zernio.profiles.listProfiles();
-        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
+        const { organizationId } = payload;
+        if (!organizationId) {
+          result = { posts: [], error: 'organizationId is required' };
+          break;
+        }
         
-        if (!existing) {
+        const { data: profileMapping } = await supabase
+          .schema('integration')
+          .from('zernio_profiles')
+          .select('zernio_profile_id')
+          .eq('organization_id', organizationId)
+          .eq('is_primary', true)
+          .maybeSingle();
+
+        if (!profileMapping || !profileMapping.zernio_profile_id) {
           result = { posts: [] };
           break;
         }
         
-        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        const profileId = profileMapping.zernio_profile_id;
         
         const postsRes: any = await zernio.posts.listPosts(profileId);
         const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
@@ -245,11 +255,25 @@ serve(async (req) => {
       }
       
       case 'get-inbox-pictures': {
-        const listRes: any = await zernio.profiles.listProfiles();
-        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
-        if (!existing) { result = { pictures: {} }; break; }
-        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        const { organizationId } = payload;
+        if (!organizationId) {
+          result = { pictures: {}, error: 'organizationId is required' };
+          break;
+        }
+        
+        const { data: profileMapping } = await supabase
+          .schema('integration')
+          .from('zernio_profiles')
+          .select('zernio_profile_id')
+          .eq('organization_id', organizationId)
+          .eq('is_primary', true)
+          .maybeSingle();
+
+        if (!profileMapping || !profileMapping.zernio_profile_id) {
+          result = { pictures: {} };
+          break;
+        }
+        const profileId = profileMapping.zernio_profile_id;
         
         const pictures: Record<string, string> = {};
         
@@ -291,16 +315,26 @@ serve(async (req) => {
       }
 
       case 'sync-comments': {
-        const listRes: any = await zernio.profiles.listProfiles();
-        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
+        const { organizationId } = payload;
+        if (!organizationId) {
+          result = { comments: [], error: 'organizationId is required' };
+          break;
+        }
         
-        if (!existing) {
+        const { data: profileMapping } = await supabase
+          .schema('integration')
+          .from('zernio_profiles')
+          .select('zernio_profile_id')
+          .eq('organization_id', organizationId)
+          .eq('is_primary', true)
+          .maybeSingle();
+
+        if (!profileMapping || !profileMapping.zernio_profile_id) {
           result = { comments: [] };
           break;
         }
         
-        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        const profileId = profileMapping.zernio_profile_id;
         
         const inboxRes: any = await zernio.comments.listInboxComments(profileId);
         const commentedPosts = inboxRes.data?.data || [];
@@ -393,16 +427,26 @@ serve(async (req) => {
       }
       
       case 'sync-messages': {
-        const listRes: any = await zernio.profiles.listProfiles();
-        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
+        const { organizationId } = payload;
+        if (!organizationId) {
+          result = { conversations: [], error: 'organizationId is required' };
+          break;
+        }
         
-        if (!existing) {
+        const { data: profileMapping } = await supabase
+          .schema('integration')
+          .from('zernio_profiles')
+          .select('zernio_profile_id')
+          .eq('organization_id', organizationId)
+          .eq('is_primary', true)
+          .maybeSingle();
+
+        if (!profileMapping || !profileMapping.zernio_profile_id) {
           result = { conversations: [] };
           break;
         }
         
-        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        const profileId = profileMapping.zernio_profile_id;
         
         const inboxRes: any = await zernio.inbox.listInboxConversations(profileId);
         const convList = inboxRes.data?.data || [];

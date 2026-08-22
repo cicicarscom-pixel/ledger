@@ -31,3 +31,15 @@ export interface ZernioApiContext {
   apiKey: string;
   sdk: any; // Instantiated Zernio SDK
 }
+
+export type SocialIntegrationErrorCode = 
+  | "PROFILE_PROVISION_FAILED"
+  | "PROFILE_LIMIT_REACHED"
+  | "ACCOUNT_CONNECTION_FAILED"
+  | "ACCOUNT_NOT_FOUND"
+  | "ACCOUNT_ACCESS_DENIED"
+  | "ACCOUNT_RECONNECT_REQUIRED"
+  | "ANALYTICS_NOT_AVAILABLE"
+  | "ZERNIO_UNAVAILABLE"
+  | "ZERNIO_API_ERROR"
+  | "ZERNIO_EXECUTION_FAILED";
