@@ -248,3 +248,7 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
 
 ### [21.08.2026] Müşavir Profil & Bağlantı Entegrasyonu
 - **Profil Yönetimi:** Ledger paneline /profil rotası ve sol menü kısayolu eklendi. Müşavirler artık cihazlarından (veya galerilerinden) Supabase altyapısıyla kendi profil fotoğraflarını yükleyebilir; İşletme Adı, Yetkili Adı-Soyadı ve Telefon numarası gibi bilgilerini anlık olarak veritabanında güncelleyebilirler.
+
+### [22.08.2026] Dashboard Yapay Zeka Veri Bağlantıları ve Profil Senkronizasyonu
+- **Flow Dashboard Güncellemeleri:** AI Asistan günlük özet kutusundaki ve Sosyal Medya etkileşim trendindeki görsel amaçlı sahte veriler (mock data) kaldırıldı. Flow projelerinde mesaj/yorum istatistikleri ve yaklaşan randevular doğrudan ilgili Supabase tablolarına; sosyal medya etkileşim büyümesi ise Zernio üzerinden gerçek verilere bağlandı.
+- **Ledger Profil Yedekleme (Fallback) Sistemi:** Ledger uygulamasında, "Profil Bilgilerim" ekranının form alanlarında veritabanı boş olsa dahi (authorized_person, avatar_url) Google (OAuth) session'ından gelen verileri (user_metadata) varsayılan olarak göstermesi ve düzgün senkronize olması sağlandı.
