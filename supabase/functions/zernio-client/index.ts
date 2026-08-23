@@ -80,31 +80,32 @@ serve(async (req) => {
 
     switch (action) {
       case 'get-connect-url': {
-        let profileId = payload.profileId;
-        if (!profileId) {
-          console.log("No profileId provided. Listing profiles to find or create 'AI Esnaf Profil'...");
-          let profiles: any[] = [];
-          try {
-            const listRes: any = await zernio.profiles.listProfiles();
-            profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-          } catch(e: any) {
-            console.log("listProfiles error", e.message);
-          }
-          
-          const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
-          
-          if (existing) {
-             profileId = existing.id || existing.profileId || existing._id || existing.uuid;
-          } else {
-             const profileRes: any = await zernio.profiles.createProfile('AI Esnaf Profil');
-             profileId = profileRes.data?.profile?.id || profileRes.data?.id || profileRes.id;
-          }
+        const supabaseId = payload.profileId || 'AI_Esnaf_Shared';
+        const profileName = `User_${supabaseId}`;
+        let zernioProfileId = null;
+
+        console.log(`Listing profiles to find or create '${profileName}'...`);
+        let profiles: any[] = [];
+        try {
+          const listRes: any = await zernio.profiles.listProfiles();
+          profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
+        } catch(e: any) {
+          console.log("listProfiles error", e.message);
         }
         
-        console.log("Getting connect URL for profileId:", profileId, "platform:", payload.platform);
+        const existing = profiles.find((p: any) => p.name === profileName);
+        
+        if (existing) {
+           zernioProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        } else {
+           const profileRes: any = await zernio.profiles.createProfile(profileName);
+           zernioProfileId = profileRes.data?.profile?.id || profileRes.data?.id || profileRes.id;
+        }
+        
+        console.log("Getting connect URL for Zernio Profile:", zernioProfileId, "platform:", payload.platform);
         const urlRes: any = await zernio.accounts.getConnectUrl({ 
            platform: payload.platform, 
-           profileId, 
+           profileId: zernioProfileId, 
            redirectUrl: payload.redirectUrl 
         });
         
@@ -112,27 +113,30 @@ serve(async (req) => {
           ...urlRes,
           ...(urlRes.data || {}),
           authUrl: urlRes.data?.authUrl || urlRes.data?.url || urlRes.authUrl || urlRes.url,
-          profileId 
+          profileId: zernioProfileId 
         };
         break;
       }
 
       case 'sync-accounts': {
+        const supabaseId = payload.organizationId || payload.userId || 'AI_Esnaf_Shared';
+        const profileName = `User_${supabaseId}`;
+        
         const listRes: any = await zernio.profiles.listProfiles();
         const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === 'AI Esnaf Profil');
+        const existing = profiles.find((p: any) => p.name === profileName);
         
         if (!existing) {
           result = { accounts: [] };
           break;
         }
         
-        const profileId = existing.id || existing.profileId || existing._id || existing.uuid;
+        const zernioProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
         
-        const accRes: any = await zernio.accounts.listAccounts(profileId);
+        const accRes: any = await zernio.accounts.listAccounts(zernioProfileId);
         const accounts = accRes.data?.accounts || accRes.accounts || accRes.data || [];
         
-        const { userId } = payload;
+        const userId = supabaseId; // Since we are using User ID as the root tenant
         if (userId) {
           if (accounts.length > 0) {
             const mappedAccounts = accounts.map((acc: any) => ({
