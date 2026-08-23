@@ -99,9 +99,14 @@ serve(async (req) => {
            zernioProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
         } else {
            const profileRes: any = await zernio.profiles.createProfile(profileName);
-           zernioProfileId = profileRes.data?.profile?.id || profileRes.data?.id || profileRes.id;
+           zernioProfileId = profileRes.data?.profile?.id || profileRes.data?.profile?._id || profileRes.data?.id || profileRes.data?._id || profileRes.id || profileRes._id || profileRes.profileId;
         }
         
+        if (!zernioProfileId) {
+          console.error("Failed to extract Zernio Profile ID from:", existing ? 'existing' : 'createProfile response');
+          throw new ZernioError("Zernio Profil ID'si alınamadı. (undefined). Lütfen logları kontrol edin.", 500);
+        }
+
         console.log("Getting connect URL for Zernio Profile:", zernioProfileId, "platform:", payload.platform);
         const urlRes: any = await zernio.accounts.getConnectUrl({ 
            platform: payload.platform, 
