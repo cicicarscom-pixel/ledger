@@ -35,7 +35,7 @@ export default function ActivityPage() {
             <div>
               <span className="text-purple-400 font-semibold">[AI-GENERATION]</span> <span className="text-white">Yapay Zeka yanıt üretti. Token: 142</span>
               <div className="mt-1 p-2 bg-white/5 rounded border border-white/10 text-text-muted text-xs">
-                "Merhaba, randevunuzu 14:00 olarak güncelledim..."
+                &quot;Merhaba, randevunuzu 14:00 olarak güncelledim...&quot;
               </div>
             </div>
           </div>
