@@ -10,9 +10,9 @@ ADD COLUMN IF NOT EXISTS disconnect_source TEXT CHECK (disconnect_source IN ('fl
 CREATE TABLE IF NOT EXISTS public.accountant_connection_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type TEXT NOT NULL,
-    actor_user_id UUID REFERENCES auth.users(id),
-    accounting_firm_id UUID REFERENCES public.accounting_firms(id),
-    taxpayer_organization_id UUID REFERENCES public.organizations(id),
+    actor_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    accounting_firm_id UUID REFERENCES public.accounting_firms(id) ON DELETE CASCADE,
+    taxpayer_organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
     previous_status TEXT,
     new_status TEXT,
     reason TEXT,
