@@ -3,11 +3,13 @@ import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsersPage({ searchParams }: { searchParams: { group?: string } }) {
   const supabase = createClient();
   const group = searchParams.group || 'all';
   
-  let query = supabase.from('profiles').select('id, full_name, email, role, account_status, is_super_admin').order('created_at', { ascending: false });
+  let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
 
   if (group === 'flow') {
     query = query.eq('role', 'taxpayer');
@@ -17,12 +19,15 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
   
   const { data: users, error } = await query;
 
-  if (error) {
-    console.error('Kullanıcıları çekerken hata:', error);
-  }
-
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm mb-4">
+          <strong className="block mb-1">Veritabanı Hatası (Supabase):</strong>
+          {error.message} - {error.details || error.hint}
+        </div>
+      )}
+
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Kullanıcı Yönetimi</h1>
         <div className="relative">
@@ -89,7 +94,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                       ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
                       : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                   }`}>
-                    {user.role === 'accountant' ? 'Müşavir' : 'Esnaf'}
+                    {user.role === 'accountant' ? 'Müşavir' : (user.role || 'Esnaf')}
                   </span>
                 </td>
                 <td className="px-6 py-4">
