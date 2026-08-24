@@ -6,12 +6,15 @@ import { revalidatePath } from 'next/cache'
 export async function toggleUserStatus(targetUserId: string, currentStatus: string, formData?: FormData): Promise<void> {
   const supabase = createClient()
   
-  const action = currentStatus === 'suspended' ? 'unban' : 'ban'
+  const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended'
   
-  const { error } = await supabase.functions.invoke('admin-manager', {
+  const { data, error } = await supabase.functions.invoke('admin-manager', {
     body: {
-      action,
-      target_user_id: targetUserId
+      action: 'update-status',
+      targetUserId: targetUserId,
+      payload: {
+        status: newStatus
+      }
     }
   })
 
@@ -25,10 +28,10 @@ export async function toggleUserStatus(targetUserId: string, currentStatus: stri
 export async function deleteUser(targetUserId: string, formData?: FormData): Promise<void> {
   const supabase = createClient()
   
-  const { error } = await supabase.functions.invoke('admin-manager', {
+  const { data, error } = await supabase.functions.invoke('admin-manager', {
     body: {
-      action: 'delete',
-      target_user_id: targetUserId
+      action: 'delete-user',
+      targetUserId: targetUserId
     }
   })
 
