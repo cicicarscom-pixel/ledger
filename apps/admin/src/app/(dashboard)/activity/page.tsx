@@ -43,7 +43,7 @@ export default async function ActivityPage() {
                     <span className="text-white">Gelen Mesaj ({log.sender_id})</span>
                   </div>
                   <div className="text-text-muted text-xs mb-2 pl-2 border-l-2 border-white/10">
-                    "{log.user_message}"
+                    &quot;{log.user_message}&quot;
                   </div>
 
                   {log.ai_response && (
@@ -53,7 +53,7 @@ export default async function ActivityPage() {
                         <span className="text-white">Yapay Zeka Yanıtı</span>
                       </div>
                       <div className="p-2 bg-white/5 rounded border border-white/10 text-text-muted text-xs">
-                        "{log.ai_response}"
+                        &quot;{log.ai_response}&quot;
                       </div>
                     </>
                   )}
