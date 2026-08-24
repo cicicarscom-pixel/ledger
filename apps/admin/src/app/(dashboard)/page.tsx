@@ -5,17 +5,17 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboard() {
   const supabase = createClient();
 
-  // Fetch real metrics from Supabase
+  // Fetch real metrics from Supabase without head: true to avoid empty errors (406 Not Acceptable quirks)
   const [
     esnafRes, 
     musavirRes, 
     orgRes,
     zernioRes
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'taxpayer'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'accountant'),
-    supabase.from('organizations').select('*', { count: 'exact', head: true }),
-    supabase.schema('integration').from('zernio_profiles').select('*', { count: 'exact', head: true })
+    supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'taxpayer'),
+    supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'accountant'),
+    supabase.from('organizations').select('id', { count: 'exact' }),
+    supabase.schema('integration').from('zernio_profiles').select('id', { count: 'exact' })
   ]);
 
   const hasError = esnafRes.error || musavirRes.error || orgRes.error || zernioRes.error;
@@ -30,7 +30,7 @@ export default async function AdminDashboard() {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {hasError && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm mb-4 break-words">
-          <strong className="block mb-1">Veritabanı Hatası Detayı:</strong>
+          <strong className="block mb-1">Veritabanı Hatası Detayı (Gerçek Hata):</strong>
           <pre className="whitespace-pre-wrap">{errMsg}</pre>
         </div>
       )}
