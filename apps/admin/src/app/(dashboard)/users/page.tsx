@@ -1,14 +1,21 @@
 import { Search, UserX, Ban, Mail, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
+import Link from 'next/link';
 
-export default async function UsersPage() {
+export default async function UsersPage({ searchParams }: { searchParams: { group?: string } }) {
   const supabase = createClient();
+  const group = searchParams.group || 'all';
   
-  const { data: users, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, role, account_status, is_super_admin')
-    .order('created_at', { ascending: false });
+  let query = supabase.from('profiles').select('id, full_name, email, role, account_status, is_super_admin').order('created_at', { ascending: false });
+
+  if (group === 'flow') {
+    query = query.eq('role', 'taxpayer');
+  } else if (group === 'ledger') {
+    query = query.eq('role', 'accountant');
+  }
+  
+  const { data: users, error } = await query;
 
   if (error) {
     console.error('Kullanıcıları çekerken hata:', error);
@@ -27,6 +34,28 @@ export default async function UsersPage() {
           />
         </div>
       </header>
+
+      {/* Tabs */}
+      <div className="flex items-center space-x-2 bg-surface/30 p-1 rounded-xl w-max border border-border">
+        <Link 
+          href="/users?group=all" 
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'all' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          Tümü
+        </Link>
+        <Link 
+          href="/users?group=flow" 
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'flow' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          Flow (Esnaf)
+        </Link>
+        <Link 
+          href="/users?group=ledger" 
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'ledger' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          Ledger (Müşavir)
+        </Link>
+      </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -97,7 +126,7 @@ export default async function UsersPage() {
             {(!users || users.length === 0) && (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
-                  Sistemde kayıtlı kullanıcı bulunamadı.
+                  Sistemde {group === 'all' ? '' : (group === 'flow' ? 'Flow' : 'Ledger')} kullanıcısı bulunamadı.
                 </td>
               </tr>
             )}
