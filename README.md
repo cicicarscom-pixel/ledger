@@ -252,3 +252,22 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
 ### [22.08.2026] Dashboard Yapay Zeka Veri Bağlantıları ve Profil Senkronizasyonu
 - **Flow Dashboard Güncellemeleri:** AI Asistan günlük özet kutusundaki ve Sosyal Medya etkileşim trendindeki görsel amaçlı sahte veriler (mock data) kaldırıldı. Flow projelerinde mesaj/yorum istatistikleri ve yaklaşan randevular doğrudan ilgili Supabase tablolarına; sosyal medya etkileşim büyümesi ise Zernio üzerinden gerçek verilere bağlandı.
 - **Ledger Profil Yedekleme (Fallback) Sistemi:** Ledger uygulamasında, "Profil Bilgilerim" ekranının form alanlarında veritabanı boş olsa dahi (authorized_person, avatar_url) Google (OAuth) session'ından gelen verileri (user_metadata) varsayılan olarak göstermesi ve düzgün senkronize olması sağlandı.
+
+## 8. Admin Paneli ve Güvenlik Yapılandırması (Super Admin & Rol Mimarisi)
+
+### Çözülen Temel Sorunlar ve Yapılandırma Mantığı:
+1. **Infinite Recursion (Sonsuz Döngü) Hatasının Çözümü:**
+   Supabase RLS (Row Level Security) kurallarında yöneticileri tespit etmek için tablo sorgusu yapan eski yapı, veritabanını sonsuz döngüye sokuyordu. Bu sorun, `is_super_admin()` adlı PostgreSQL fonksiyonunun tabloya gitmeden doğrudan JWT (JSON Web Token) içindeki email adresini okuyarak (Örn: volkanbulut73@gmail.com) yetki vermesiyle kökünden çözüldü. Recursive RLS kuralları tamamen silinip yerine sadece `is_super_admin()` şartı arayan kurallar eklendi.
+2. **Kullanıcı Rolleri ve `app_role` (Flow / Ledger İzolasyonu):**
+   Önceden `profiles` tablosunda Müşavir ve Esnaf'ı birbirinden ayıran bir sütun yoktu. Bu eksiklik hem Admin paneli filtrelerini bozuyor hem de giriş yetkilendirmelerini zayıflatıyordu.
+   - Tabloya `app_role` sütunu eklendi (`flow` veya `ledger`).
+   - Yönetim (Admin) ekranındaki "Kullanıcı Yönetimi" tablosu, doğrudan bu sütunu baz alarak filtreleme yapacak şekilde güncellendi.
+3. **Google Kimlik Senkronizasyonu (Auth Tetikleyicisi):**
+   Kullanıcılar Google (OAuth) ile kayıt olduklarında veritabanı "auth.users" tablosuna isimlerini yazıyor fakat ana (halka açık) `profiles` tablosunda İsim (`authorized_person`) ve E-posta (`email`) alanları boş kalıyordu.
+   - Bir `AFTER INSERT` trigger'ı (`handle_new_user`) yazılarak, "auth.users" tablosundaki veriler (Google adı ve e-postası) otomatik olarak `profiles` tablosuna aktarılmaya başlandı.
+   - Admin Panelinde bu veriler; "İşletme Adı", "Yetkili (Ad Soyad)", "E-posta" ve "Telefon" olarak yatayda kaydırılabilir ayrı kolonlar halinde şık bir tasarımla listelendi.
+4. **Ledger Çin Seddi (Giriş Güvenlik Duvarı - Firewall):**
+   - Esnaf (Flow) uygulamasına kayıt olan bir kişinin kazara veya bilerek Müşavir (Ledger) uygulamasına girmesi ciddi bir güvenlik açığıydı.
+   - Ledger uygulamasının kalbindeki `middleware.ts` güncellenerek; bir kullanıcının profili `app_role: 'flow'` ise Ledger sistemi onu kapıdan içeri sokmadan anında (otomatik logout ile) `login` ekranına geri püskürtecek şekilde yapılandırıldı. (Login ekranına özel *'Bu hesap Flow uygulamasına aittir'* uyarı mesajı eklendi).
+5. **Admin Panel Edge Function Entegrasyonu:**
+   Kullanıcıları yasaklamak (Ban) veya silmek (Delete) için kullanılan butonlar, arka planda güvenli işlem yapması için `admin-manager` Edge fonksiyonunu çağırıyordu ancak Payload (isim) uyuşmazlığı nedeniyle çalışmıyordu. Frontend komutları `update-status` ve `targetUserId` olacak şekilde Supabase Edge Function API'sinin tam anladığı dile dönüştürüldü.
