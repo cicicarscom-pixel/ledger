@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Building2, Activity, ShieldAlert, LogOut } from 'lucide-react';
+import { logout } from '@/app/login/actions';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -31,19 +32,25 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={"group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 \"}
+                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-primary/10 text-primary glow-cyan border border-primary/20'
+                    : 'text-text-muted hover:bg-card hover:text-white border border-transparent'
+                }`}
               >
-                <Icon className={"h-5 w-5 shrink-0 \"} />
+                <Icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-white'}`} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
         <div className="pb-6 pt-4 border-t border-border mt-auto">
-          <button className="w-full group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/10 transition-all duration-200 border border-transparent hover:border-danger/20">
-            <LogOut className="h-5 w-5 shrink-0" />
-            Çıkış Yap
-          </button>
+          <form action={logout}>
+            <button type="submit" className="w-full group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/10 transition-all duration-200 border border-transparent hover:border-danger/20">
+              <LogOut className="h-5 w-5 shrink-0" />
+              Çıkış Yap
+            </button>
+          </form>
         </div>
       </div>
     </div>
