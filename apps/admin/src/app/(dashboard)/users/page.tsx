@@ -11,11 +11,8 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
   
   let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
 
-  if (group === 'flow') {
-    query = query.eq('role', 'taxpayer');
-  } else if (group === 'ledger') {
-    query = query.eq('role', 'accountant');
-  }
+  // profiles tablosunda role sutunu olmadigi icin simdilik filtrelemeyi atliyoruz.
+  // Ileride 'organization_members' uzerinden veya auth.users metadata'dan eklenebilir.
   
   const { data: users, error } = await query;
 
@@ -89,12 +86,8 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                 </td>
                 <td className="px-6 py-4 text-text-muted">{user.email || 'Email yok'}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
-                    user.role === 'accountant' 
-                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
-                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  }`}>
-                    {user.role === 'accountant' ? 'Müşavir' : (user.role || 'Esnaf')}
+                  <span className="px-2.5 py-1 rounded-md text-xs font-medium border bg-white/5 text-text-muted border-border">
+                    Belirsiz
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -128,7 +121,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                 </td>
               </tr>
             ))}
-            {(!users || users.length === 0) && (
+            {(!users || users.length === 0) && !error && (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
                   Sistemde {group === 'all' ? '' : (group === 'flow' ? 'Flow' : 'Ledger')} kullanıcısı bulunamadı.
