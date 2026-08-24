@@ -1,5 +1,6 @@
 import { Search, UserX, Ban, Mail, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
+import { toggleUserStatus, deleteUser } from './actions';
 
 export default async function UsersPage() {
   const supabase = createClient();
@@ -73,18 +74,22 @@ export default async function UsersPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    {user.account_status === 'suspended' ? (
-                      <button className="p-2 hover:bg-success/10 rounded-lg text-text-muted hover:text-success transition-colors" title="Yasağı Kaldır">
-                        <CheckCircle2 className="h-4 w-4" />
+                    <form action={toggleUserStatus.bind(null, user.id, user.account_status)}>
+                      {user.account_status === 'suspended' ? (
+                        <button type="submit" className="p-2 hover:bg-success/10 rounded-lg text-text-muted hover:text-success transition-colors" title="Yasağı Kaldır">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button type="submit" className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors" title="Askıya Al">
+                          <Ban className="h-4 w-4" />
+                        </button>
+                      )}
+                    </form>
+                    <form action={deleteUser.bind(null, user.id)}>
+                      <button type="submit" className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors" title="Kalıcı Sil">
+                        <UserX className="h-4 w-4" />
                       </button>
-                    ) : (
-                      <button className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors" title="Askıya Al">
-                        <Ban className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors" title="Kalıcı Sil">
-                      <UserX className="h-4 w-4" />
-                    </button>
+                    </form>
                   </div>
                 </td>
               </tr>
