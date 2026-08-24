@@ -19,14 +19,19 @@ export default async function AdminDashboard() {
   ]);
 
   const hasError = esnafRes.error || musavirRes.error || orgRes.error || zernioRes.error;
-  const errMsg = hasError ? JSON.stringify(hasError) : null;
+  const errMsg = hasError ? JSON.stringify({
+    esnaf: esnafRes.error,
+    musavir: musavirRes.error,
+    org: orgRes.error,
+    zernio: zernioRes.error
+  }, null, 2) : null;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {hasError && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm mb-4 break-words">
-          <strong className="block mb-1">Veritabanı Hatası (Supabase Dashboard):</strong>
-          {errMsg}
+          <strong className="block mb-1">Veritabanı Hatası Detayı:</strong>
+          <pre className="whitespace-pre-wrap">{errMsg}</pre>
         </div>
       )}
 
