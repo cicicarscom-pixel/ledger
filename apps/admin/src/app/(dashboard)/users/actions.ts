@@ -3,12 +3,12 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function toggleUserStatus(targetUserId: string, currentStatus: string) {
+export async function toggleUserStatus(targetUserId: string, currentStatus: string, formData?: FormData): Promise<void> {
   const supabase = createClient()
   
   const action = currentStatus === 'suspended' ? 'unban' : 'ban'
   
-  const { data, error } = await supabase.functions.invoke('admin-manager', {
+  const { error } = await supabase.functions.invoke('admin-manager', {
     body: {
       action,
       target_user_id: targetUserId
@@ -17,17 +17,15 @@ export async function toggleUserStatus(targetUserId: string, currentStatus: stri
 
   if (error) {
     console.error('Edge Function Error:', error)
-    return { error: 'İşlem başarısız oldu' }
+  } else {
+    revalidatePath('/users')
   }
-
-  revalidatePath('/users')
-  return { success: true }
 }
 
-export async function deleteUser(targetUserId: string) {
+export async function deleteUser(targetUserId: string, formData?: FormData): Promise<void> {
   const supabase = createClient()
   
-  const { data, error } = await supabase.functions.invoke('admin-manager', {
+  const { error } = await supabase.functions.invoke('admin-manager', {
     body: {
       action: 'delete',
       target_user_id: targetUserId
@@ -36,9 +34,7 @@ export async function deleteUser(targetUserId: string) {
 
   if (error) {
     console.error('Edge Function Error:', error)
-    return { error: 'Silme işlemi başarısız oldu' }
+  } else {
+    revalidatePath('/users')
   }
-
-  revalidatePath('/users')
-  return { success: true }
 }
