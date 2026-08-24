@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Base Colors */
+    --color-primary: #00C8FF;
+    --color-surface: #0E1117;
+    --color-border: rgba(255, 255, 255, 0.05);
+    --color-text: #FFFFFF;
+    --color-text-muted: #8B949E;
+    
+    /* Status Colors */
+    --color-success: #22C55E;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+    
+    /* Components */
+    --color-card: rgba(255, 255, 255, 0.03);
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --glow-primary: 0 0 15px rgba(0, 200, 255, 0.15);
+    --glow-success: 0 0 15px rgba(34, 197, 94, 0.15);
+}
+
+/* Global Scroll System (Linear-style) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    border: 2px solid var(--color-surface);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.glow-cyan {
+    box-shadow: 0 0 24px -4px rgba(0, 216, 255, 0.15);
+}
+.glow-cyan-strong {
+    box-shadow: 0 0 40px 0px rgba(0, 216, 255, 0.4);
+}
+
+.shimmer {
+    position: relative;
+    overflow: hidden;
+}
+.shimmer::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent 45%,
+        rgba(255,255,255,0.05) 50%,
+        transparent 55%
+    );
+    animation: shimmer-anim 4s infinite linear;
+}
+@keyframes shimmer-anim {
+    0% { transform: translateX(-100%) translateY(-100%); }
+    100% { transform: translateX(100%) translateY(100%); }
+}
+
+.line-flow {
+    stroke-dasharray: 10;
+    animation: dash 2s linear infinite;
+}
+@keyframes dash {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+.circuit-lines {
+    background-image: radial-gradient(circle at 1px 1px, rgba(0, 216, 255, 0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+}
+
+.phone-shadow {
+    filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.5));
+}
+
+.path-line {
+    background: linear-gradient(90deg, transparent, rgba(0, 216, 255, 0.2), rgba(0, 216, 255, 0.8), rgba(0, 216, 255, 0.2), transparent);
+    background-size: 200% 100%;
+    animation: move-gradient 3s linear infinite;
+}
+@keyframes move-gradient {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+@keyframes move-gradient-v {
+    0% { background-position: 0 100%; }
+    100% { background-position: 0 -100%; }
+}
