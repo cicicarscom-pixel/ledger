@@ -25,7 +25,12 @@ export async function login(formData: FormData) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        cookies: {},
+        cookies: {
+          getAll() {
+            return []
+          },
+          setAll() {}
+        },
         global: {
           headers: {
             Authorization: `Bearer ${authData.session.access_token}`
