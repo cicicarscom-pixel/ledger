@@ -1,4 +1,4 @@
-import { Search, UserX, Ban, CheckCircle2, Phone, Mail, Building2 } from 'lucide-react';
+import { Search, UserX, Ban, CheckCircle2, Phone, Mail, Building2, ShieldAlert } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
 import Link from 'next/link';
@@ -11,6 +11,13 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
   const group = searchParams.group || 'all';
   
   let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
+
+  // app_role filtrelemesi
+  if (group === 'flow') {
+    query = query.eq('app_role', 'flow');
+  } else if (group === 'ledger') {
+    query = query.eq('app_role', 'ledger');
+  }
 
   const { data: users, error } = await query;
 
@@ -49,19 +56,24 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
         >
           Flow (Esnaf)
         </Link>
+        <Link 
+          href="/users?group=ledger" 
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'ledger' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          Ledger (Müşavir)
+        </Link>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Fareyle sürükle-bırak yatay kaydırma sarmalayıcısı */}
         <DraggableTableContainer>
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-surface/50 text-text-muted border-b border-border">
               <tr>
+                <th className="px-6 py-4 font-medium">Uygulama</th>
                 <th className="px-6 py-4 font-medium">Yetkili (Ad Soyad)</th>
                 <th className="px-6 py-4 font-medium">İşletme Adı</th>
                 <th className="px-6 py-4 font-medium">E-posta</th>
                 <th className="px-6 py-4 font-medium">Telefon</th>
-                <th className="px-6 py-4 font-medium">AI Planı</th>
                 <th className="px-6 py-4 font-medium">Durum</th>
                 <th className="px-6 py-4 font-medium text-right sticky right-0 bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.1)]">İşlemler</th>
               </tr>
@@ -69,6 +81,21 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
             <tbody className="divide-y divide-border">
               {users?.map((user: any) => (
                 <tr key={user.id} className="hover:bg-surface/30 transition-colors">
+                  <td className="px-6 py-4">
+                    {user.app_role === 'ledger' ? (
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-bold border bg-blue-500/10 text-blue-400 border-blue-500/20 uppercase">
+                        LEDGER
+                      </span>
+                    ) : user.app_role === 'flow' ? (
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 uppercase">
+                        FLOW
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-bold border bg-white/5 text-text-muted border-white/10 uppercase">
+                        BELİRSİZ
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {user.avatar_url ? (
@@ -80,7 +107,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                       )}
                       <div className="font-medium text-white flex items-center gap-2">
                         {user.authorized_person || 'İsimsiz Yetkili'}
-                        {user.is_super_admin && <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">ADMIN</span>}
+                        {user.is_super_admin && <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded flex items-center gap-1"><ShieldAlert className="w-3 h-3"/> ADMIN</span>}
                       </div>
                     </div>
                   </td>
@@ -109,11 +136,6 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                     ) : (
                       <span className="text-text-muted/40 italic">-</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-md text-xs font-medium border bg-white/5 text-purple-400 border-white/10 uppercase">
-                      {user.ai_plan || 'free'}
-                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
