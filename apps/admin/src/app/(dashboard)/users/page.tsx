@@ -1,6 +1,18 @@
-import { Search, UserX, Ban, Mail } from 'lucide-react';
+import { Search, UserX, Ban, Mail, CheckCircle2 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/server';
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  const supabase = createClient();
+  
+  const { data: users, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, account_status, is_super_admin')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Kullanıcıları çekerken hata:', error);
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <header className="flex items-center justify-between">
@@ -27,35 +39,41 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {[1,2,3,4,5].map((i) => (
-              <tr key={i} className="hover:bg-surface/30 transition-colors">
+            {users?.map((user: any) => (
+              <tr key={user.id} className="hover:bg-surface/30 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                      U{i}
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase">
+                      {user.full_name ? user.full_name.substring(0,2) : 'U'}
                     </div>
-                    <span className="font-medium text-white">Test User {i}</span>
+                    <span className="font-medium text-white">
+                      {user.full_name || 'İsimsiz Kullanıcı'}
+                      {user.is_super_admin && <span className="ml-2 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">ADMIN</span>}
+                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-text-muted">user{i}@example.com</td>
+                <td className="px-6 py-4 text-text-muted">{user.email || 'Email yok'}</td>
                 <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    Esnaf
+                  <span className={"px-2.5 py-1 rounded-md text-xs font-medium border \"}>
+                    {user.role === 'accountant' ? 'Müşavir' : 'Esnaf'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-success/10 text-success border border-success/20">
-                    Aktif
+                  <span className={"px-2.5 py-1 rounded-md text-xs font-medium border \"}>
+                    {user.account_status === 'suspended' ? 'Askıda' : 'Aktif'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    <button className="p-2 hover:bg-surface rounded-lg text-text-muted hover:text-white transition-colors" title="Şifre Sıfırla">
-                      <Mail className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors" title="Askıya Al">
-                      <Ban className="h-4 w-4" />
-                    </button>
+                    {user.account_status === 'suspended' ? (
+                      <button className="p-2 hover:bg-success/10 rounded-lg text-text-muted hover:text-success transition-colors" title="Yasağı Kaldır">
+                        <CheckCircle2 className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors" title="Askıya Al">
+                        <Ban className="h-4 w-4" />
+                      </button>
+                    )}
                     <button className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors" title="Kalıcı Sil">
                       <UserX className="h-4 w-4" />
                     </button>
@@ -63,6 +81,13 @@ export default function UsersPage() {
                 </td>
               </tr>
             ))}
+            {(!users || users.length === 0) && (
+              <tr>
+                <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
+                  Sistemde kayıtlı kullanıcı bulunamadı.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

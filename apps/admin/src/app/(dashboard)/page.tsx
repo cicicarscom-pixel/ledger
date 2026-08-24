@@ -1,4 +1,15 @@
-export default function AdminDashboard() {
+import { createClient } from '@/utils/supabase/server';
+
+export default async function AdminDashboard() {
+  const supabase = createClient();
+
+  // Fetch real metrics from Supabase
+  const [{ count: esnafCount }, { count: musavirCount }, { count: orgCount }] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'taxpayer'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'accountant'),
+    supabase.from('organizations').select('*', { count: 'exact', head: true })
+  ]);
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <header className="flex items-center justify-between">
@@ -10,16 +21,16 @@ export default function AdminDashboard() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
           </span>
-          <span className="text-sm font-medium text-success">Sistem Aktif</span>
+          <span className="text-sm font-medium text-success">Sistem Aktif (Canlı Veri)</span>
         </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { title: 'Toplam Esnaf (Flow)', val: '1,248', change: '+12' },
-          { title: 'Toplam Müşavir', val: '43', change: '+2' },
-          { title: 'Aktif Zernio Bağlantısı', val: '892', change: '+45' },
-          { title: 'Günlük AI İşlemi', val: '14.5K', change: '+2.1K' }
+          { title: 'Toplam Esnaf (Flow)', val: esnafCount || 0, change: '+Aktif' },
+          { title: 'Toplam Müşavir', val: musavirCount || 0, change: '+Aktif' },
+          { title: 'Bağlı İşletme', val: orgCount || 0, change: 'Sistemde' },
+          { title: 'Günlük AI İşlemi', val: 'Canlı', change: 'Yakında' }
         ].map((stat, i) => (
           <div key={i} className="p-6 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/50 transition-colors relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
