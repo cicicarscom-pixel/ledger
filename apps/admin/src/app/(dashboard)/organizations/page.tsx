@@ -6,13 +6,7 @@ export default async function OrganizationsPage() {
 
   const { data: orgs, error } = await supabase
     .from('organizations')
-    .select(
-      id, 
-      name, 
-      created_at,
-      taxpayer_user_id,
-      profiles:taxpayer_user_id (full_name)
-    )
+    .select('id, name, created_at, taxpayer_user_id, profiles:taxpayer_user_id (full_name)')
     .order('created_at', { ascending: false });
 
   if (error) {

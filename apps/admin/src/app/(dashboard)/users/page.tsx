@@ -54,12 +54,20 @@ export default async function UsersPage() {
                 </td>
                 <td className="px-6 py-4 text-text-muted">{user.email || 'Email yok'}</td>
                 <td className="px-6 py-4">
-                  <span className={"px-2.5 py-1 rounded-md text-xs font-medium border \"}>
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
+                    user.role === 'accountant' 
+                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  }`}>
                     {user.role === 'accountant' ? 'Müşavir' : 'Esnaf'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={"px-2.5 py-1 rounded-md text-xs font-medium border \"}>
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
+                    user.account_status === 'suspended'
+                      ? 'bg-danger/10 text-danger border-danger/20'
+                      : 'bg-success/10 text-success border-success/20'
+                  }`}>
                     {user.account_status === 'suspended' ? 'Askıda' : 'Aktif'}
                   </span>
                 </td>
