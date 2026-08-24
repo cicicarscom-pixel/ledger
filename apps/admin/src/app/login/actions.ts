@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 
 export async function login(formData: FormData) {
   const supabase = createClient()
@@ -18,9 +19,22 @@ export async function login(formData: FormData) {
     return { error: 'E-posta veya şifre hatalı' }
   }
 
-  // Check if super admin
-  if (authData.user) {
-    const { data: profile } = await supabase
+  // Check if super admin using the fresh session token to bypass SSR cookie caching issues
+  if (authData.user && authData.session) {
+    const supabaseWithAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {},
+        global: {
+          headers: {
+            Authorization: `Bearer ${authData.session.access_token}`
+          }
+        }
+      }
+    )
+
+    const { data: profile } = await supabaseWithAuth
       .from('profiles')
       .select('is_super_admin')
       .eq('id', authData.user.id)
