@@ -5,36 +5,30 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboard() {
   const supabase = createClient();
 
-  // Fetch real metrics from Supabase without head: true to avoid empty errors (406 Not Acceptable quirks)
+  // count: 'exact' bazi Supabase surumlerinde RLS ile cakisip recursion hatasi verebiliyor.
+  // Bu yuzden dogrudan veriyi cekip .length ile sayiyoruz.
   const [
     esnafRes, 
     musavirRes, 
-    orgRes,
-    zernioRes
+    orgRes
   ] = await Promise.all([
-    // profiles tablosunda role olmadigi icin simdilik sadece profiles count olarak donuyorum.
-    // Ileride organization_members uzerinden eklendiginde degistirilebilir.
-    supabase.from('profiles').select('id', { count: 'exact' }),
-    supabase.from('profiles').select('id', { count: 'exact' }),
-    supabase.from('organizations').select('id', { count: 'exact' }),
-    // integration semasina JS clientin erisimi olmadigi icin onu public uzerinden ya da rpc ile cozmek lazim.
-    // Simdilik o hatayi onlemek adina sahte bir promises atiyoruz
-    Promise.resolve({ data: null, error: null, count: 0 })
+    supabase.from('profiles').select('id'),
+    supabase.from('profiles').select('id'),
+    supabase.from('organizations').select('id')
   ]);
 
-  const hasError = esnafRes.error || musavirRes.error || orgRes.error || zernioRes.error;
+  const hasError = esnafRes.error || musavirRes.error || orgRes.error;
   const errMsg = hasError ? JSON.stringify({
     esnaf: esnafRes.error,
     musavir: musavirRes.error,
-    org: orgRes.error,
-    zernio: zernioRes.error
+    org: orgRes.error
   }, null, 2) : null;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {hasError && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm mb-4 break-words">
-          <strong className="block mb-1">Veritabanı Hatası Detayı (Gerçek Hata):</strong>
+          <strong className="block mb-1">Veritabanı Hatası Detayı:</strong>
           <pre className="whitespace-pre-wrap">{errMsg}</pre>
         </div>
       )}
@@ -54,10 +48,10 @@ export default async function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { title: 'Toplam Esnaf (Flow)', val: esnafRes.count || 0, change: '+Aktif' },
-          { title: 'Toplam Müşavir', val: musavirRes.count || 0, change: '+Aktif' },
-          { title: 'Bağlı İşletme', val: orgRes.count || 0, change: 'Sistemde' },
-          { title: 'Bağlı Zernio Hesabı', val: zernioRes.count || 0, change: 'Sosyal Medya' }
+          { title: 'Toplam Esnaf (Flow)', val: esnafRes.data?.length || 0, change: '+Aktif' },
+          { title: 'Toplam Müşavir', val: musavirRes.data?.length || 0, change: '+Aktif' },
+          { title: 'Bağlı İşletme', val: orgRes.data?.length || 0, change: 'Sistemde' },
+          { title: 'Bağlı Zernio Hesabı', val: 0, change: 'Yakında' }
         ].map((stat, i) => (
           <div key={i} className="p-6 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/50 transition-colors relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>

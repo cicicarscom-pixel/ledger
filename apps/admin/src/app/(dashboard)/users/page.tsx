@@ -1,4 +1,4 @@
-import { Search, UserX, Ban, Mail, CheckCircle2 } from 'lucide-react';
+import { Search, UserX, Ban, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
 import Link from 'next/link';
@@ -11,9 +11,6 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
   
   let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
 
-  // profiles tablosunda role sutunu olmadigi icin simdilik filtrelemeyi atliyoruz.
-  // Ileride 'organization_members' uzerinden veya auth.users metadata'dan eklenebilir.
-  
   const { data: users, error } = await query;
 
   return (
@@ -37,35 +34,11 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="flex items-center space-x-2 bg-surface/30 p-1 rounded-xl w-max border border-border">
-        <Link 
-          href="/users?group=all" 
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'all' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
-        >
-          Tümü
-        </Link>
-        <Link 
-          href="/users?group=flow" 
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'flow' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
-        >
-          Flow (Esnaf)
-        </Link>
-        <Link 
-          href="/users?group=ledger" 
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${group === 'ledger' ? 'bg-primary/20 text-primary' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
-        >
-          Ledger (Müşavir)
-        </Link>
-      </div>
-
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface/50 text-text-muted border-b border-border">
             <tr>
-              <th className="px-6 py-4 font-medium">Kullanıcı</th>
-              <th className="px-6 py-4 font-medium">E-posta</th>
-              <th className="px-6 py-4 font-medium">Rol</th>
+              <th className="px-6 py-4 font-medium">Kullanıcı ID / Ham Veri (Debug)</th>
               <th className="px-6 py-4 font-medium">Durum</th>
               <th className="px-6 py-4 font-medium text-right">İşlemler</th>
             </tr>
@@ -74,21 +47,12 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
             {users?.map((user: any) => (
               <tr key={user.id} className="hover:bg-surface/30 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase">
-                      {user.full_name ? user.full_name.substring(0,2) : 'U'}
-                    </div>
-                    <span className="font-medium text-white">
-                      {user.full_name || 'İsimsiz Kullanıcı'}
-                      {user.is_super_admin && <span className="ml-2 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">ADMIN</span>}
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-white">{user.id} {user.is_super_admin && <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">ADMIN</span>}</span>
+                    <span className="text-xs text-text-muted bg-black/20 p-2 rounded overflow-hidden max-w-lg break-all">
+                      {JSON.stringify(user)}
                     </span>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-text-muted">{user.email || 'Email yok'}</td>
-                <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-medium border bg-white/5 text-text-muted border-border">
-                    Belirsiz
-                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
@@ -123,8 +87,8 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
             ))}
             {(!users || users.length === 0) && !error && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
-                  Sistemde {group === 'all' ? '' : (group === 'flow' ? 'Flow' : 'Ledger')} kullanıcısı bulunamadı.
+                <td colSpan={3} className="px-6 py-8 text-center text-text-muted">
+                  Kullanıcı bulunamadı.
                 </td>
               </tr>
             )}
