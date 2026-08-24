@@ -13,7 +13,7 @@ export default async function AdminDashboard() {
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'taxpayer'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'accountant'),
     supabase.from('organizations').select('*', { count: 'exact', head: true }),
-    supabase.from('zernio_profiles').select('*', { count: 'exact', head: true }).schema('integration')
+    supabase.schema('integration').from('zernio_profiles').select('*', { count: 'exact', head: true })
   ]);
 
   return (
