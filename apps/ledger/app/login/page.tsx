@@ -1,87 +1,94 @@
-"use client";
+'use client';
 
-import React, { useState, useTransition } from "react";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LedgerLoginPage() {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+export default function LoginPage() {
+  const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (searchParams?.get('error') === 'flow_blocked') {
+      setError("🚫 Bu hesap Flow (Esnaf) uygulamasına aittir. Müşavir paneline giriş yapamazsınız.");
+    }
+  }, [searchParams]);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setIsPending(true);
     setError(null);
     const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const supabase = createClient();
     
-    startTransition(async () => {
-      try {
-        const supabase = createClient();
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: formData.get('email') as string,
-          password: formData.get('password') as string,
-        });
-
-        if (authError) {
-          setError("E-posta veya şifre hatalı.");
-          return;
-        }
-
-        router.push("/clients");
-        router.refresh();
-      } catch (err: any) {
-        console.error("Giriş Hatası:", err);
-        setError("Sunucuya bağlanılırken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.");
-      }
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
-  };
+
+    if (signInError) {
+      setIsPending(false);
+      setError(signInError.message);
+    } else {
+      router.push('/dashboard');
+      router.refresh();
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[#070B14] text-white selection:bg-[#00F0FF]/30 selection:text-white font-sans flex overflow-hidden relative">
-      
-      {/* Background Ambience */}
-      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#00F0FF]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[50%] bg-[#8A2BE2]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
-      <div className="fixed inset-0 bg-[url('/noise.svg')] opacity-[0.03] pointer-events-none z-0 mix-blend-overlay"></div>
-
-      {/* Left Column (Visuals) */}
-      <div className="hidden lg:flex flex-1 relative z-10 flex-col justify-between p-12 overflow-hidden border-r border-white/5 bg-[#0A0D14]/50 backdrop-blur-md">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-2"
-        >
-          <img src="/ledger/ledger1logo.png" alt="Workigom Ledger" className="h-20 w-auto object-contain" />
-        </motion.div>
-
-        <div className="relative z-10 my-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
-          >
-            <h1 className="text-[42px] font-extrabold leading-tight mb-4 tracking-tight">
-              Finansal zekanızı <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0080FF]">otomatikleştiren</span> güç.
+    <div className="min-h-screen bg-[#07090E] flex flex-col lg:flex-row overflow-hidden font-jakarta">
+      {/* Sol Panel: Gorseller */}
+      <div className="hidden lg:flex lg:w-[55%] relative flex-col justify-between p-12">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0A0D14] via-[#07090E] to-[#04060A] z-0"></div>
+        
+        <div className="absolute top-0 right-0 w-full h-[500px] bg-[#00F0FF]/10 blur-[120px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-full h-[500px] bg-[#4318FF]/10 blur-[120px] rounded-full pointer-events-none translate-y-1/3 -translate-x-1/3"></div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-16">
+            <img src="/ledger/ledger1logo.png" alt="Workigom Ledger" className="h-44 w-auto object-contain" />
+          </div>
+          
+          <div className="max-w-md">
+            <h1 className="text-[40px] font-black text-white leading-[1.1] mb-6">
+              Yeni Nesil <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0080FF]">
+                AI Muhasebe
+              </span>
             </h1>
-            <p className="text-[#8E95B3] text-[16px] max-w-[400px] leading-relaxed">
-              Ön muhasebe, gelir-gider takibi ve yapay zeka destekli raporlama ile işletmenizin geleceğini bugünden görün.
+            <p className="text-[#8E95B3] text-[16px] leading-relaxed">
+              Mükelleflerinizle olan tüm tahsilat, onay ve fatura süreçlerini tek bir platformdan yönetin. Yapay zeka ile saatler süren işleri dakikalara indirin.
             </p>
-          </motion.div>
+          </div>
+        </div>
 
-          {/* Abstract floating UI representation */}
+        {/* Dashboard Mockup (Visual) */}
+        <div className="relative z-10 mt-12 pl-12 flex-1">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="w-full h-[250px] relative mt-12 perspective-1000"
+            initial={{ opacity: 0, x: 50, rotateY: 20 }}
+            animate={{ opacity: 1, x: 0, rotateY: -10 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="absolute top-0 left-12 right-[-20%] bottom-[-10%] bg-[#0D1017] border border-[#232B45] rounded-tl-2xl shadow-[0_30px_60px_rgba(0,0,0,0.6)] overflow-hidden"
+            style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#00F0FF]/10 to-transparent border border-white/10 rounded-2xl transform rotate-x-12 rotate-y-[-12deg] shadow-2xl overflow-hidden flex flex-col p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div className="w-24 h-4 bg-white/10 rounded-full animate-pulse"></div>
-                <div className="w-12 h-4 bg-[#00F0FF]/30 rounded-full"></div>
+            <div className="h-10 border-b border-[#232B45] flex items-center px-4 gap-2 bg-[#0A0D14]/80">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
+            </div>
+            <div className="p-6 flex gap-6 h-full">
+              <div className="w-48 flex flex-col gap-3">
+                <div className="h-8 bg-[#232B45]/50 rounded-lg w-full mb-4"></div>
+                <div className="h-3 bg-[#232B45]/30 rounded w-3/4"></div>
+                <div className="h-3 bg-[#232B45]/30 rounded w-5/6"></div>
+                <div className="h-3 bg-[#232B45]/30 rounded w-full"></div>
+                <div className="h-3 bg-[#232B45]/30 rounded w-2/3"></div>
               </div>
               <div className="flex-1 flex gap-4 items-end">
                 <div className="w-1/4 h-[40%] bg-gradient-to-t from-[#00F0FF]/20 to-[#00F0FF]/60 rounded-t-md relative group"><div className="absolute inset-x-0 top-0 border-t-2 border-[#00F0FF]"></div></div>
@@ -90,20 +97,6 @@ export default function LedgerLoginPage() {
                 <div className="w-1/4 h-[90%] bg-gradient-to-t from-[#00F0FF]/20 to-[#00F0FF]/80 rounded-t-md relative shadow-[0_0_20px_rgba(0,240,255,0.4)]"><div className="absolute inset-x-0 top-0 border-t-2 border-[#00F0FF] shadow-[0_0_10px_#00F0FF]"></div></div>
               </div>
             </div>
-            
-            <motion.div 
-              animate={{ y: [-10, 10, -10] }}
-              transition={{ repeat: Infinity, duration: 5 }}
-              className="absolute -right-8 top-12 w-[180px] bg-[#0A0D14]/90 backdrop-blur-xl border border-[#00F0FF]/30 rounded-xl p-4 shadow-[0_15px_30px_rgba(0,0,0,0.5)] flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#25D366]/20 flex items-center justify-center border border-[#25D366]/30">
-                <span className="material-symbols-outlined text-[#25D366] text-[20px]">check_circle</span>
-              </div>
-              <div>
-                <div className="text-white text-[12px] font-bold">Tahsilat Alındı</div>
-                <div className="text-[#00F0FF] text-[14px] font-black">+ 12.500 ₺</div>
-              </div>
-            </motion.div>
           </motion.div>
         </div>
 
@@ -131,6 +124,12 @@ export default function LedgerLoginPage() {
             </p>
           </div>
 
+          {error && (
+            <div className="bg-error/10 border border-error/50 text-error px-4 py-3 rounded-xl text-[13px] font-medium text-center mb-6">
+              {error}
+            </div>
+          )}
+
           <button 
             type="button" 
             onClick={async () => {
@@ -139,7 +138,7 @@ export default function LedgerLoginPage() {
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${window.location.origin}/ledger/auth/callback?next=/ledger/dashboard`,
+                    redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
                   },
                 })
                 if (error) throw error
@@ -156,7 +155,6 @@ export default function LedgerLoginPage() {
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             <span className="relative z-10">Google ile Giriş Yap</span>
-            <div className="absolute inset-0 bg-white/20 -translate-x-[150%] skew-x-[-20deg] group-hover:animate-[shine_1.5s_ease-in-out]"></div>
           </button>
 
           <div className="flex items-center gap-4 mb-6">
@@ -166,12 +164,6 @@ export default function LedgerLoginPage() {
           </div>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-error/10 border border-error/50 text-error px-4 py-3 rounded-xl text-[13px] font-medium text-center">
-                {error}
-              </div>
-            )}
-            
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] font-bold text-gray-300">E-posta Adresi</label>
               <input 
@@ -203,20 +195,8 @@ export default function LedgerLoginPage() {
               className={`w-full text-center bg-gradient-to-r from-[#00F0FF] to-[#0080FF] text-white font-bold py-3.5 px-4 rounded-xl mt-2 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-[1.02] relative overflow-hidden group ${isPending ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               <span className="relative z-10">{isPending ? "Giriş Yapılıyor..." : "Giriş Yap"}</span>
-              {!isPending && (
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
-                  initial={{ x: "-100%" }}
-                  animate={{ x: "200%" }}
-                  transition={{ repeat: Infinity, duration: 2, repeatDelay: 3 }}
-                />
-              )}
             </button>
           </form>
-
-          <p className="text-center text-[14px] text-[#8E95B3] mt-8">
-            Henüz hesabınız yok mu? <Link href="/register" className="text-white font-bold hover:text-[#00F0FF] transition-colors">Ücretsiz Hesap Oluştur</Link>
-          </p>
         </motion.div>
       </div>
 

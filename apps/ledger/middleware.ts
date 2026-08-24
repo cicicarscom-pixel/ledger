@@ -38,7 +38,28 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      // Profilin app_role bilgisini cekiyoruz
+      const { data: profile } = await supabase.from('profiles').select('app_role').eq('id', user.id).single()
+      
+      // Eger kullanici 'flow' rolundeyse ve cikis yapmak disinda bir islem yapiyorsa onu engelle
+      const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register') || request.nextUrl.pathname.startsWith('/auth')
+      const isRootPage = request.nextUrl.pathname === '/'
+      
+      // Engelleme mantigi: Ledger admin ve app sayfalarina erismeye calisiyorsa
+      if (profile?.app_role === 'flow') {
+         // Eger halihazirda login sayfasinda degilse oraya postala ve error bas
+         if (!isAuthPage) {
+           await supabase.auth.signOut()
+           const url = request.nextUrl.clone()
+           url.pathname = '/login'
+           url.searchParams.set('error', 'flow_blocked')
+           return NextResponse.redirect(url)
+         }
+      }
+    }
   } catch (err) {
     console.error('Middleware error:', err)
   }
