@@ -88,7 +88,7 @@ export class HandleIncomingMessageUseCase {
               zernio_comment_id: replyRes?.data?.id || `ai_mock_${Date.now()}`,
               zernio_post_id: postId,
               content: aiResponse,
-              author_name: 'AI Esnaf Profil',
+              author_name: 'Workigom Flow Profil',
               // If we have parent_id or something similar, map it
             });
           }

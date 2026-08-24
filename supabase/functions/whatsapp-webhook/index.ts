@@ -20,7 +20,7 @@ const appointmentService = new AppointmentService(
 
 // Helper to ask Gemini
 async function askGemini(prompt: string, apiKey: string, systemPrompt?: string) {
-  const defaultSystemPrompt = "Sen AI Esnaf dijital asistanısın. Esnafın işlerini yönetmesine WhatsApp üzerinden yardımcı oluyorsun. Kısa, net ve samimi cevaplar ver.";
+  const defaultSystemPrompt = "Sen Workigom Flow dijital asistanısın. Esnafın işlerini yönetmesine WhatsApp üzerinden yardımcı oluyorsun. Kısa, net ve samimi cevaplar ver.";
   
   // Strict rule injection for Booking Engine
   const strictBookingRule = `

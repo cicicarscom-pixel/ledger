@@ -1,5 +1,5 @@
 -- ==============================================================================
--- AI ESNAF - Supabase PostgreSQL Schema
+-- Workigom Flow - Supabase PostgreSQL Schema
 -- ==============================================================================
 
 -- DİKKAT: Bu komutlar mevcut tabloları siler (Geliştirme aşaması için güvenlidir).
