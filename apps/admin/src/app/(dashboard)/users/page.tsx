@@ -1,7 +1,8 @@
-import { Search, UserX, Ban, CheckCircle2, Phone, Mail, Building2, User } from 'lucide-react';
+import { Search, UserX, Ban, CheckCircle2, Phone, Mail, Building2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
 import Link from 'next/link';
+import DraggableTableContainer from './DraggableTableContainer';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
   const { data: users, error } = await query;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 select-none">
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm mb-4">
           <strong className="block mb-1">Veritabanı Hatası (Supabase):</strong>
@@ -51,8 +52,8 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Sağa sola kaydırılabilir tablo yapısı */}
-        <div className="overflow-x-auto">
+        {/* Fareyle sürükle-bırak yatay kaydırma sarmalayıcısı */}
+        <DraggableTableContainer>
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-surface/50 text-text-muted border-b border-border">
               <tr>
@@ -154,7 +155,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
               )}
             </tbody>
           </table>
-        </div>
+        </DraggableTableContainer>
       </div>
     </div>
   )
