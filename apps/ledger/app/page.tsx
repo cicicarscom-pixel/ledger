@@ -196,10 +196,10 @@ export default async function LedgerLandingPage() {
                 <h3 className="text-2xl font-bold text-[#8C3FE8] mb-4">Saniyeler İçinde Elinizde</h3>
                 <p className="text-[#A3B1C6] text-sm mb-6">Mükellefleriniz diledikleri tarih aralığındaki fatura, ödeme, borç ve hesap bilgilerine AI asistanınızdan anında ulaşabilir.</p>
                 <div className="flex flex-wrap gap-2 mb-6">
-                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Mart 2024'teki ödemelerim</span>
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Bu ayki ödemelerim</span>
                   <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Geçen yıla ait faturalarım</span>
                   <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Toplam borcum ne kadar?</span>
-                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> 2024 gelir-gider raporum</span>
+                  <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">search</span> Bu yılki gelir-gider raporum</span>
                 </div>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
@@ -259,7 +259,7 @@ export default async function LedgerLandingPage() {
                     </div>
                   </div>
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-xs text-gray-500">Tarih Aralığı: 01 Mayıs 2024 - 31 Mayıs 2024</p>
+                    <p className="text-xs text-gray-500">Tarih Aralığı: Son 30 Gün</p>
                     <button className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-xs transition-colors flex items-center gap-2">
                       Detaylı Raporu İndir
                       <span className="material-symbols-outlined text-[14px]">download</span>
@@ -347,7 +347,7 @@ export default async function LedgerLandingPage() {
                 <li><Link className="hover:text-white transition-colors" href="#">Hakkımızda</Link></li>
                 <li><Link className="hover:text-white transition-colors" href="#">İletişim</Link></li>
                 <li><Link className="hover:text-white transition-colors" href="#">Kariyer</Link></li>
-                <li><Link className="hover:text-white transition-colors" href="#">Gizlilik Politikası</Link></li>
+                <li><Link className="hover:text-white transition-colors" href="https://www.workigom.com/policy">Gizlilik Politikası</Link></li>
               </ul>
             </div>
             <div className="lg:col-span-1">
@@ -360,7 +360,7 @@ export default async function LedgerLandingPage() {
             </div>
           </div>
           <div className="border-t border-white/5 pt-6 flex justify-between items-center text-[10px] text-[#A3B1C6]">
-            <p>© 2024 Workigom Ledger. Tüm hakları saklıdır.</p>
+            <p>© {new Date().getFullYear()} Workigom Ledger. Tüm hakları saklıdır.</p>
           </div>
         </div>
       </footer>
