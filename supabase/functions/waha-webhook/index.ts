@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
-import { HandleIncomingMessageUseCase } from "../shared/application/usecases/HandleIncomingMessageUseCase.ts";
+import { createMessageUseCase } from "../shared/container.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const useCase = new HandleIncomingMessageUseCase();
+const useCase = createMessageUseCase(supabaseAdmin);
 
 serve(async (req) => {
   try {

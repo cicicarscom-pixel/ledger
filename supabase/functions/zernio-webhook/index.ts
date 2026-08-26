@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { HandleIncomingMessageUseCase } from "../shared/application/usecases/HandleIncomingMessageUseCase.ts";
+// import removed
 
 // Zernio webhook events typically have this structure (generalized)
 interface ZernioWebhookEvent {
@@ -185,7 +185,8 @@ serve(async (req) => {
         }
 
         if (direction === 'incoming' || direction === 'inbound') {
-          const useCase = new HandleIncomingMessageUseCase();
+          const { createMessageUseCase } = await import('../shared/container.ts');
+          const useCase = createMessageUseCase(supabase);
           
           await useCase.execute(supabase, {
             merchantId: profileId,
