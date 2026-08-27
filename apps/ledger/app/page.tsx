@@ -2,7 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/utils/supabase/server';\nimport { LandingHeader } from '@/components/LandingHeader';\nimport { LandingFooter } from '@/components/LandingFooter';
+import { createClient } from '@/utils/supabase/server';
+import { LandingHeader } from '@/components/LandingHeader';
+import { LandingFooter } from '@/components/LandingFooter';
 
 export default async function LedgerLandingPage() {
   const cookieStore = cookies();
