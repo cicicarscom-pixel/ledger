@@ -43,29 +43,35 @@ export default async function LedgerLandingPage() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#8C3FE8]/20 blur-[120px] rounded-full pointer-events-none"></div>
           <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
             <div className="w-full lg:w-1/2 text-left mb-12 lg:mb-0">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-6">
-                <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">MALİMÜŞAVİRLER İÇİN AI DESTEKLİ MÜKELLEF YÖNETİM PLATFORMU</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#00F0FF]/30 bg-[#00F0FF]/10 mb-6">
+                <span className="text-xs font-bold text-[#00F0FF] uppercase tracking-wider">MALİ MÜŞAVİRLER İÇİN TAMAMEN ÜCRETSİZ AI PLATFORMU</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
-                Malimüşavirler İçin İşler <br/>
-                <span className="gradient-text">Daha Akıllı Daha Kolay</span>
+                Mali Müşavirler İçin İşler <br/>
+                <span className="gradient-text">Artık Sıfır Maliyetli</span>
               </h1>
               <p className="text-base text-[#A3B1C6] mb-8 max-w-lg">
-                Mükellefleriniz ile ilişkinizi düzenleyen ve takip eden bir platformunuz var. Mükelleflerinizin tek tıkla fatura yükleyebildiği, o faturaları anında istediğiniz formatta işleyip muhasebe programınıza uygun çıktı veren. Tüm mükelleflerinizi 7/24 takip edip tüm soru ve sorunlarını çözen akıllı asistan destekli eşsiz bir platform.
+                Mükellefleriniz ile ilişkinizi düzenleyen ve takip eden platformunuz <strong>artık tamamen ücretsiz</strong>. Mükelleflerinizin tek tıkla fatura yükleyebildiği, faturaları anında işleyip muhasebe programınıza çıktı veren, 7/24 AI destekli eşsiz bir asistan.
               </p>
               <div className="flex flex-wrap gap-6 mb-10 text-sm text-gray-300">
-                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">schedule</span> 7/24 Destek</span>
-                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">lock</span> Güvenli Altyapı</span>
-                <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#00F0FF] text-sm">bolt</span> Tek Tıkla İşlem</span>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">verified</span>
+                  Limitsiz Mükellef
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#8C3FE8] text-[18px]">bolt</span>
+                  Sınırsız AI OCR
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">money_off</span>
+                  Ömür Boyu 0₺
+                </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link className="bg-[#8C3FE8] hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="/register">
-                  14 Gün Ücretsiz Dene
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                </Link>
-                <Link className="border border-white/20 hover:bg-white/5 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm" href="#">
-                  <span className="material-symbols-outlined text-sm">play_circle</span>
-                  Canlı Demo İzle
+                <Link className="bg-[#8C3FE8] hover:bg-purple-600 text-white px-8 py-3 rounded-lg font-medium transition-colors text-center shadow-[0_0_20px_rgba(140,63,232,0.4)]" href="/register">Hemen Ücretsiz Başla</Link>
+                <Link className="border border-white/20 hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-center" href="#demo">
+                  <span className="material-symbols-outlined text-[18px]">play_circle</span>
+                  Demo İzle
                 </Link>
               </div>
             </div>
