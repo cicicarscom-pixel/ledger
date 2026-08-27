@@ -80,37 +80,79 @@ serve(async (req) => {
 
     switch (action) {
       case 'get-connect-url': {
-        const supabaseId = payload.profileId || 'AI_Esnaf_Shared';
-        const profileName = `User_${supabaseId}`;
-        let zernioProfileId = null;
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) throw new ZernioError("Missing Authorization header", 401);
+        
+        // Resolve user
+        const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        if (authError || !user) throw new ZernioError("Unauthorized", 401);
 
-        console.log(`Listing profiles to find or create '${profileName}'...`);
-        let profiles: any[] = [];
-        try {
-          const listRes: any = await zernio.profiles.listProfiles();
-          profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        } catch(e: any) {
-          console.log("listProfiles error", e.message);
-        }
+        // Fetch user's active organization
+        const { data: membership } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        if (!membership?.organization_id) throw new ZernioError("Kullanıcı herhangi bir organizasyona bağlı değil.", 403);
+        const orgId = membership.organization_id;
+        const platform = payload.platform;
+
+        console.log(`Resolving Zernio Profile for Org: ${orgId}, Platform: ${platform}`);
         
-        const existing = profiles.find((p: any) => p.name === profileName);
-        
-        if (existing) {
-           zernioProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
-        } else {
-           const profileRes: any = await zernio.profiles.createProfile(profileName);
-           zernioProfileId = profileRes.data?.profile?.id || profileRes.data?.profile?._id || profileRes.data?.id || profileRes.data?._id || profileRes.id || profileRes._id || profileRes.profileId;
-        }
-        
-        if (!zernioProfileId) {
-          console.error("Failed to extract Zernio Profile ID from:", existing ? 'existing' : 'createProfile response');
-          throw new ZernioError("Zernio Profil ID'si alınamadı. (undefined). Lütfen logları kontrol edin.", 500);
+        // 1. Lock & Resolve via RPC
+        const { data: resolved, error: rpcError } = await supabase.rpc('resolve_zernio_profile_for_platform', {
+          p_org_id: orgId,
+          p_platform: platform
+        });
+
+        if (rpcError || !resolved) {
+          console.error("RPC Error:", rpcError);
+          throw new ZernioError("Zernio profil slotu ayarlanamadı.", 500);
         }
 
-        console.log("Getting connect URL for Zernio Profile:", zernioProfileId, "platform:", payload.platform);
+        let finalZernioProfileId = resolved.zernio_profile_id;
+
+        // 2. If new slot, create deterministically in Zernio
+        if (resolved.is_new) {
+          const profileName = `wg_${orgId}_${resolved.profile_slot}`;
+          const idempotencyKey = `zernio-profile:${orgId}:${resolved.profile_slot}`;
+          
+          console.log(`Creating NEW Zernio Profile: ${profileName} with Idempotency Key: ${idempotencyKey}`);
+          
+          // Use raw fetch to pass Idempotency-Key header, as SDK might not expose it
+          const zernioRes = await fetch('https://zernio.com/api/v1/profiles', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('ZERNIO_API_KEY')}`,
+              'Content-Type': 'application/json',
+              'Idempotency-Key': idempotencyKey
+            },
+            body: JSON.stringify({ name: profileName })
+          });
+
+          if (!zernioRes.ok) {
+            const errText = await zernioRes.text();
+            throw new ZernioError(`Zernio API Error: ${errText}`, zernioRes.status);
+          }
+
+          const zernioData = await zernioRes.json();
+          finalZernioProfileId = zernioData.profile?.id || zernioData.profile?._id || zernioData.id || zernioData._id;
+
+          if (!finalZernioProfileId) throw new ZernioError("Created profile ID is missing", 500);
+
+          // Update the reserved slot in DB
+          await supabase.from('zernio_profiles').update({
+            zernio_profile_id: finalZernioProfileId,
+            status: 'active'
+          }).eq('id', resolved.mapping_id);
+        }
+
+        console.log(`Getting Connect URL for Zernio Profile: ${finalZernioProfileId}, platform: ${platform}`);
         const urlRes: any = await zernio.accounts.getConnectUrl({ 
-           platform: payload.platform, 
-           profileId: zernioProfileId, 
+           platform: platform, 
+           profileId: finalZernioProfileId, 
            redirectUrl: payload.redirectUrl 
         });
         
@@ -118,75 +160,104 @@ serve(async (req) => {
           ...urlRes,
           ...(urlRes.data || {}),
           authUrl: urlRes.data?.authUrl || urlRes.data?.url || urlRes.authUrl || urlRes.url,
-          profileId: zernioProfileId 
+          profileId: finalZernioProfileId 
         };
         break;
       }
 
       case 'sync-accounts': {
-        const supabaseId = payload.organizationId || payload.userId || 'AI_Esnaf_Shared';
-        const profileName = `User_${supabaseId}`;
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) throw new ZernioError("Missing Authorization header", 401);
         
-        const listRes: any = await zernio.profiles.listProfiles();
-        const profiles = listRes.data?.profiles || listRes.profiles || listRes.data || [];
-        const existing = profiles.find((p: any) => p.name === profileName);
-        
-        if (!existing) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        if (authError || !user) throw new ZernioError("Unauthorized", 401);
+
+        const { data: membership } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        if (!membership?.organization_id) {
           result = { accounts: [] };
           break;
         }
-        
-        const zernioProfileId = existing.id || existing.profileId || existing._id || existing.uuid;
-        
-        const accRes: any = await zernio.accounts.listAccounts(zernioProfileId);
-        const accounts = accRes.data?.accounts || accRes.accounts || accRes.data || [];
-        
-        const userId = supabaseId; // Since we are using User ID as the root tenant
-        if (userId) {
-          if (accounts.length > 0) {
-            const mappedAccounts = accounts.map((acc: any) => ({
-              profile_id: userId,
-              zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
-              platform: acc.platform || 'unknown',
-              account_name: acc.username || acc.displayName || acc.name || acc.platform,
-              status: 'active'
-            }));
-            
-            const { error } = await supabase.from('social_accounts').upsert(
-              mappedAccounts,
-              { onConflict: 'zernio_account_id' }
-            );
-            
-            if (error && error.code === '42P10') {
-                console.warn('[sync-accounts] UNIQUE constraint eksik. Geçici fallback aktif.');
-                for (const acc of mappedAccounts) {
-                  const { data: ex } = await supabase.from('social_accounts')
-                    .select('id').eq('zernio_account_id', acc.zernio_account_id).maybeSingle();
-                  if (!ex) {
-                    await supabase.from('social_accounts').insert(acc);
-                  }
-                }
-            } else if (error) {
-                console.error('[sync-accounts] Upsert error:', error);
-            }
 
-            // DELETE accounts that no longer exist in Zernio
-            const currentAccountIds = mappedAccounts.map((a: any) => a.zernio_account_id);
-            if (currentAccountIds.length > 0) {
-              const { data: userAccounts } = await supabase.from('social_accounts').select('id, zernio_account_id').eq('profile_id', userId);
-              if (userAccounts) {
-                const accountsToDelete = userAccounts.filter((a: any) => !currentAccountIds.includes(a.zernio_account_id)).map((a: any) => a.id);
-                if (accountsToDelete.length > 0) {
-                  await supabase.from('social_accounts').delete().in('id', accountsToDelete);
-                }
+        const orgId = membership.organization_id;
+
+        // Fetch ALL active Zernio Profiles for this organization
+        const { data: activeProfiles } = await supabase
+          .from('zernio_profiles')
+          .select('id, zernio_profile_id')
+          .eq('organization_id', orgId)
+          .eq('status', 'active');
+
+        if (!activeProfiles || activeProfiles.length === 0) {
+          result = { accounts: [] };
+          break;
+        }
+
+        let allAccounts: any[] = [];
+        const syncedAccountIds: string[] = [];
+
+        // Sync from Zernio for each profile
+        for (const profile of activeProfiles) {
+          try {
+            const accRes: any = await zernio.accounts.listAccounts(profile.zernio_profile_id);
+            const accounts = accRes.data?.accounts || accRes.accounts || accRes.data || [];
+            allAccounts = allAccounts.concat(accounts);
+
+            if (accounts.length > 0) {
+              const mappedAccounts = accounts.map((acc: any) => ({
+                organization_id: orgId,
+                zernio_profile_mapping_id: profile.id,
+                zernio_profile_id: profile.zernio_profile_id,
+                zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
+                platform: acc.platform || 'unknown',
+                username: acc.username || acc.displayName || acc.name || acc.platform,
+                is_active: true,
+                needs_reconnection: false,
+                last_seen_at: new Date().toISOString()
+              }));
+              
+              for (const acc of mappedAccounts) {
+                syncedAccountIds.push(acc.zernio_account_id);
               }
+              
+              await supabase.from('social_accounts').upsert(
+                mappedAccounts,
+                { onConflict: 'zernio_account_id' }
+              );
             }
-          } else {
-             await supabase.from('social_accounts').delete().eq('profile_id', userId);
+          } catch (e) {
+            console.error(`Failed to sync accounts for Zernio Profile: ${profile.zernio_profile_id}`, e);
+          }
+        }
+
+        // Soft Reconciliation: Mark locally existing but currently missing accounts as suspect
+        // rather than hard deleting them.
+        if (syncedAccountIds.length > 0) {
+          const { data: existingLocalAccounts } = await supabase
+            .from('social_accounts')
+            .select('id, zernio_account_id')
+            .eq('organization_id', orgId);
+
+          if (existingLocalAccounts) {
+            const missingIds = existingLocalAccounts
+              .filter(a => !syncedAccountIds.includes(a.zernio_account_id))
+              .map(a => a.id);
+            
+            if (missingIds.length > 0) {
+              await supabase.from('social_accounts')
+                .update({ sync_missing_since: new Date().toISOString() })
+                .in('id', missingIds)
+                .is('sync_missing_since', null); // only update if not already marked
+            }
           }
         }
         
-        result = { accounts, profileId };
+        result = { accounts: allAccounts };
         break;
       }
 
