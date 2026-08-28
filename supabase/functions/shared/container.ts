@@ -12,6 +12,9 @@ import { AppointmentRepository } from "./infrastructure/repositories/Appointment
 import { AppointmentService } from "./domain/appointment/AppointmentService.ts";
 import { DriveKnowledgeRepository } from "./infrastructure/repositories/DriveKnowledgeRepository.ts";
 import { DriveKnowledgeService } from "./domain/knowledge/DriveKnowledgeService.ts";
+import { PersonaRepository } from "./ai/persona/PersonaRepository.ts";
+import { PersonaService } from "./ai/persona/PersonaService.ts";
+import { PersonaPromptBuilder } from "./ai/persona/PersonaPromptBuilder.ts";
 
 import { CreatePendingAppointmentTool } from "./ai/tools/appointments/CreatePendingAppointmentTool.ts";
 import { ListAvailableSlotsTool } from "./ai/tools/appointments/ListAvailableSlotsTool.ts";
@@ -29,6 +32,15 @@ export function createMessageUseCase(supabaseAdmin: SupabaseClient): HandleIncom
   
   const driveRepository = new DriveKnowledgeRepository(supabaseAdmin);
   const driveKnowledgeService = new DriveKnowledgeService(driveRepository);
+
+  // Persona Engine (Phase 3 wiring). Safe even before the Phase 1 migration
+  // is applied to the live database: PersonaRepository swallows query errors
+  // and returns null, so PersonaService.resolveForMerchant() resolves to
+  // null and PromptBuilder's fallback chain (guardrail #6) takes over —
+  // nothing here can break an existing merchant's bot.
+  const personaRepository = new PersonaRepository(supabaseAdmin);
+  const personaService = new PersonaService(personaRepository);
+  const personaPromptBuilder = new PersonaPromptBuilder();
 
   // Tools
   const createPendingAppointmentTool = new CreatePendingAppointmentTool(appointmentService);
@@ -51,7 +63,7 @@ export function createMessageUseCase(supabaseAdmin: SupabaseClient): HandleIncom
   ]);
 
   const toolExecutor = new ToolExecutor(toolRegistry);
-  const promptBuilder = new PromptBuilder();
+  const promptBuilder = new PromptBuilder(personaPromptBuilder);
 
   const aiOrchestrator = new AIOrchestrator({
     geminiClient,
@@ -64,6 +76,7 @@ export function createMessageUseCase(supabaseAdmin: SupabaseClient): HandleIncom
     aiOrchestrator,
     wahaClient,
     zernioClient,
-    logger
+    logger,
+    personaService
   });
 }

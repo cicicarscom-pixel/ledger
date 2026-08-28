@@ -3,12 +3,14 @@ import { ZernioClient } from '../../infrastructure/clients/ZernioClient.ts';
 import { CommunicationLoggerRepository } from '../../infrastructure/repositories/CommunicationLoggerRepository.ts';
 import { AIOrchestrator } from '../../ai/AIOrchestrator.ts';
 import { AIContext } from '../../ai/types.ts';
+import { PersonaService } from '../../ai/persona/PersonaService.ts';
 
 interface Dependencies {
   aiOrchestrator: AIOrchestrator;
   wahaClient: WahaClient;
   zernioClient: ZernioClient;
   logger: CommunicationLoggerRepository;
+  personaService: PersonaService;
 }
 
 export class HandleIncomingMessageUseCase {
@@ -50,6 +52,21 @@ export class HandleIncomingMessageUseCase {
       return;
     }
 
+    // 2b. Persona Engine (Phase 3): resolve a persona config for this
+    // merchant, if any. This is always "production" mode here — this is the
+    // real customer-message path (Phase 4's Live Test uses its own
+    // persona-test function with executionMode "simulation", not this use
+    // case). A null result just means "no usable persona right now" for any
+    // reason (none configured, table not migrated yet, transient DB error);
+    // PromptBuilder's own fallback chain (guardrail #6) decides what to do
+    // with that — this use case never needs to know the details.
+    let personaConfig = null;
+    try {
+      personaConfig = await this.deps.personaService.resolveForMerchant(merchantId, 'production');
+    } catch (error) {
+      console.error('[HandleIncomingMessageUseCase] PersonaService resolution failed, falling back to legacy prompt:', error);
+    }
+
     // 3. Build AI Context
     const aiContext: AIContext = {
       organizationId: merchantId,
@@ -58,6 +75,7 @@ export class HandleIncomingMessageUseCase {
       now: new Date(),
       timezone: "Europe/Istanbul", // Should be fetched from settings if available
       botSettings: botSettings,
+      personaConfig,
       channel: {
         source: source,
         platform: platform || (source === 'whatsapp' ? 'whatsapp' : 'unknown'),
