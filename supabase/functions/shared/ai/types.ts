@@ -1,4 +1,4 @@
-import { PersonaRenderConfig } from "./persona/PersonaTypes.ts";
+import { ExecutionMode, PersonaRenderConfig } from "./persona/PersonaTypes.ts";
 
 export interface ToolCall {
   id?: string;
@@ -38,4 +38,12 @@ export interface AIContext {
   botSettings: Record<string, any>;
   channel: ChannelContext;
   personaConfig?: PersonaRenderConfig | null;
+  // Phase 4: "production" (default, real customer messages) or "simulation"
+  // (persona-test / Live Test). Write tools (e.g. CreatePendingAppointmentTool)
+  // MUST check this and never create real side effects in simulation mode —
+  // see AppointmentService.createPendingAppointment(). Undefined behaves as
+  // "production" everywhere this is checked, so existing call sites that
+  // don't set it (there are none left — HandleIncomingMessageUseCase sets it
+  // explicitly) are unaffected.
+  executionMode?: ExecutionMode;
 }

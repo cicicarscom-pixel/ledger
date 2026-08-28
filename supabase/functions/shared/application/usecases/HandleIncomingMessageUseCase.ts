@@ -76,6 +76,7 @@ export class HandleIncomingMessageUseCase {
       timezone: "Europe/Istanbul", // Should be fetched from settings if available
       botSettings: botSettings,
       personaConfig,
+      executionMode: 'production', // real customer message — never simulation
       channel: {
         source: source,
         platform: platform || (source === 'whatsapp' ? 'whatsapp' : 'unknown'),

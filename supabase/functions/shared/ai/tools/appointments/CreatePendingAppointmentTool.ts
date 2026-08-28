@@ -26,6 +26,10 @@ export class CreatePendingAppointmentTool implements ITool {
       customerId: context.customerId,
       serviceId,
       startsAt,
+      // Phase 4 guardrail: forwards the caller's mode so a Live Test
+      // (persona-test, executionMode "simulation") never creates a real
+      // appointment row — see AppointmentService.createPendingAppointment().
+      executionMode: context.executionMode,
     });
 
     return {
