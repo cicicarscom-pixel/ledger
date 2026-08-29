@@ -29,14 +29,46 @@ export class PersonaService {
   constructor(private readonly repository: PersonaRepository) {}
 
   /**
+   * PHASE 7: a narrow, explicit exception to the publish-gate, added to
+   * replace what Antigravity kept doing by hand instead (twice — Phase 3 and
+   * Phase 5 — temporarily flipping a persona to "published" just to exercise
+   * the REAL waha-webhook/zernio-webhook path, then flipping it back). That
+   * pattern is exactly what guardrail #9 exists to prevent: a window, however
+   * short, where an unvetted persona is live for every real customer.
+   *
+   * Instead: a small, env-configured allowlist of merchant ids (the actual
+   * dev/test account used throughout this project, e.g.) may resolve a
+   * status="testing" (NOT "draft") persona even in "production" execution
+   * mode. This lets Phase 7's compliance suite send real WhatsApp/Instagram
+   * messages through the unmodified production code path — the same
+   * HandleIncomingMessageUseCase every real customer goes through — without
+   * the persona ever being reachable by anyone outside this allowlist.
+   * "draft" is deliberately EXCLUDED from this exception: a persona must be
+   * consciously promoted draft -> testing (one manual SQL statement, never
+   * automated) before even the test merchant can reach it in production —
+   * that promotion is the actual signal "I've reviewed this enough to try it
+   * live." Only a full "published" promotion (after this suite passes) opens
+   * it to real customers generally.
+   */
+  private static isComplianceTestMerchant(merchantId: string): boolean {
+    const raw = Deno.env.get("PERSONA_COMPLIANCE_TEST_MERCHANT_IDS") ?? "";
+    return raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .includes(merchantId);
+  }
+
+  /**
    * Resolves the persona config for one merchant, or null when:
    *  - the merchant has no organization_ai_settings row yet, or
    *  - persona_id is null (== "Standart", not a persona — see plan §1.3), or
    *  - the referenced persona row no longer exists, or
    *  - the persona isn't active, or
    *  - executionMode is "production" AND the persona's status isn't
-   *    "published" yet (draft/testing personas may only be resolved in
-   *    "simulation" mode — Phase 4's Live Test).
+   *    "published" (or "testing" for the compliance-test merchant allowlist
+   *    above) yet — draft personas may only be resolved in "simulation" mode
+   *    (Phase 4's Live Test).
    *
    * A null return means: the caller (PromptBuilder, Phase 3) falls through to
    * the next layer of ITS OWN fallback chain (legacy bot_settings.system_prompt,
@@ -61,7 +93,9 @@ export class PersonaService {
       return null;
     }
 
-    return this.resolveFromRows(persona, orgSettings, executionMode);
+    return this.resolveFromRows(persona, orgSettings, executionMode, {
+      allowTestingStatus: PersonaService.isComplianceTestMerchant(merchantId),
+    });
   }
 
   /**
@@ -73,15 +107,20 @@ export class PersonaService {
     persona: PersonaRow,
     orgSettings: OrganizationAiSettingsRow | null,
     executionMode: ExecutionMode = "production",
+    options?: { allowTestingStatus?: boolean },
   ): PersonaRenderConfig | null {
     if (!persona.is_active) {
       return null;
     }
 
-    if (executionMode === "production" && persona.status !== "published") {
+    const statusAllowedInProduction =
+      persona.status === "published" ||
+      (options?.allowTestingStatus === true && persona.status === "testing");
+
+    if (executionMode === "production" && !statusAllowedInProduction) {
       console.warn(
         `[PersonaService] persona slug=${persona.slug} has status="${persona.status}", ` +
-          `not "published" — refusing to use it in production. Falling back.`,
+          `not usable in production for this merchant — falling back.`,
       );
       return null;
     }

@@ -93,3 +93,39 @@ Deno.test("falls back to the persona's own defaults when there is no org row", (
   const result = service.resolveFromRows(personaRow({ default_persona_intensity: 42 }), null, "production");
   assertEquals(result?.personaIntensity, 42);
 });
+
+// PHASE 7: the compliance-test merchant allowlist exception (resolveFromRows'
+// 4th param). resolveForMerchant() is the one that actually reads the
+// PERSONA_COMPLIANCE_TEST_MERCHANT_IDS env var and computes this flag — these
+// tests exercise resolveFromRows() directly with the flag already computed,
+// since resolveFromRows never touches Deno.env or the database itself.
+
+Deno.test("allows a 'testing' persona in production mode when allowTestingStatus is set (compliance-test merchant)", () => {
+  const result = service.resolveFromRows(personaRow({ status: "testing" }), null, "production", {
+    allowTestingStatus: true,
+  });
+  assertEquals(result?.slug, "einstein");
+});
+
+Deno.test("refuses a 'testing' persona in production mode when allowTestingStatus is NOT set (any other merchant)", () => {
+  const result = service.resolveFromRows(personaRow({ status: "testing" }), null, "production");
+  assertEquals(result, null);
+});
+
+Deno.test("refuses a 'testing' persona in production mode even with allowTestingStatus explicitly false", () => {
+  const result = service.resolveFromRows(personaRow({ status: "testing" }), null, "production", {
+    allowTestingStatus: false,
+  });
+  assertEquals(result, null);
+});
+
+Deno.test("still refuses a 'draft' persona in production mode EVEN for the compliance-test merchant", () => {
+  // The allowlist exception is scoped to "testing" only — "draft" must never
+  // reach production, not even for the designated test merchant. A persona
+  // has to be consciously promoted draft -> testing first (manual SQL, never
+  // automated) before the test merchant can reach it live.
+  const result = service.resolveFromRows(personaRow({ status: "draft" }), null, "production", {
+    allowTestingStatus: true,
+  });
+  assertEquals(result, null);
+});
