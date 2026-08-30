@@ -1,11 +1,9 @@
 import { ITool, ToolResult } from '../types.ts';
 import { AIContext } from '../../types.ts';
-// Assume BusinessServiceRepository will handle the fetching, or a BusinessService for now.
-// I'll create a basic mock for this to satisfy the contract.
 
 export class ListBusinessServicesTool implements ITool {
   name = "list_business_services";
-  description = "Lists the services offered by the business.";
+  description = "Lists the active services and prices offered by the business.";
   
   schema = {
     type: "object",
@@ -16,20 +14,26 @@ export class ListBusinessServicesTool implements ITool {
   constructor(private readonly supabase: any) {}
 
   async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
-    // In a full implementation, this would call a domain service.
-    // For now, returning mock discovery contract data as requested by user.
-    const services = [
-      {
-        id: "svc_haircut",
-        name: "SaÃ§ Kesimi",
-        durationMinutes: 30,
-        price: 500
-      }
-    ];
+    try {
+      const { data: services, error } = await this.supabase
+        .from('business_services')
+        .select('id, name, duration_minutes, price, currency, unit, description')
+        .eq('merchant_id', context.organizationId)
+        .eq('is_visible', true);
 
-    return {
-      status: "SUCCESS",
-      data: { services }
-    };
+      if (error) {
+        console.error("[ListBusinessServicesTool] Database error:", error);
+        return { status: "ERROR", message: "Hizmet listesi çekilirken geçici bir sistem hatasý oluþtu." };
+      }
+
+      return {
+        status: "SUCCESS",
+        data: { services: services || [] }
+      };
+
+    } catch (error) {
+      console.error("[ListBusinessServicesTool] Exception:", error);
+      return { status: "ERROR", message: "Hizmet listesi alýnamadý." };
+    }
   }
 }
