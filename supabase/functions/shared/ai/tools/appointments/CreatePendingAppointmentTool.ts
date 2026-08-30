@@ -10,9 +10,10 @@ export class CreatePendingAppointmentTool implements ITool {
     type: "object",
     properties: {
       serviceId: { type: "string", description: "The ID of the selected service." },
-      startsAt: { type: "string", description: "The requested date and time in ISO 8601 format." }
+      startsAt: { type: "string", description: "The requested date and time in ISO 8601 format." },
+      customerName: { type: "string", description: "Customer's full name, must be collected via conversation before calling this tool." }
     },
-    required: ["serviceId", "startsAt"]
+    required: ["serviceId", "startsAt", "customerName"]
   };
 
   constructor(private readonly appointmentService: AppointmentService) {}
@@ -20,10 +21,12 @@ export class CreatePendingAppointmentTool implements ITool {
   async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
     const serviceId = args.serviceId as string;
     const startsAt = args.startsAt as string;
+    const customerName = args.customerName as string;
 
     const result = await this.appointmentService.createPendingAppointment({
       organizationId: context.organizationId,
       customerId: context.customerId,
+      customerName,
       serviceId,
       startsAt,
       // Phase 4 guardrail: forwards the caller's mode so a Live Test

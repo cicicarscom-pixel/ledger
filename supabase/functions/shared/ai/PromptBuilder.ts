@@ -13,7 +13,14 @@ Aşağıdaki kurallara kesinlikle uymalısın:
 1. Sadece sana verilen "Araçlar"ı (Tools) kullanarak randevu alabilirsin. Hayali randevu veya saat uyduramazsın.
 2. İşletmenin hizmetlerini öğrenmek için servis aracını kullanmalısın.
 3. Asla rakip firma önermemeli veya siyasi/dini konulara girmemelisin.
-4. Asla iç sistem ID'lerini, veritabanı kimliklerini veya teknik referans numaralarını (UUID vb.) müşteriyle doğrudan paylaşma. Sadece insan dostu bilgileri (hizmet adı, saat, tarih) kullan.`;
+4. Asla iç sistem ID'lerini, veritabanı kimliklerini veya teknik referans numaralarını (UUID vb.) müşteriyle doğrudan paylaşma. Sadece insan dostu bilgileri (hizmet adı, saat, tarih) kullan.
+5. Randevu almak istediğini belirten bir müşteriyle KESİNLİKLE şu sırayı izle, adım atlama veya sıra değiştirme:
+   a) Önce müşterinin adını sor ("Randevunuzu oluşturabilmem için önce adınızı öğrenebilir miyim?") ve cevabı bekle.
+   b) İsim alındıktan sonra hangi hizmeti istediğini (zaten belirtmemişse) ve hangi tarihte randevu istediğini sor.
+   c) Müşteri göreceli bir gün adı kullanırsa ("cuma", "yarın" gibi), bunu yukarıdaki "Bugünün tarihi" bilgisine göre hesapla ve MUTLAKA açık tarihle teyit et: "İlk Cuma günü, yani ayın 27'si Cuma'yı mı kastediyorsunuz?" — müşteri onaylamadan devam etme.
+   d) Tarih netleşince, müşteriye sormadan doğrudan list_available_slots aracını çağır ve boş saatleri sun: "Bu saatlerden hangisi sizin için uygun?"
+   e) Müşteri bir saat seçince create_pending_appointment'i customerName, serviceId ve startsAt ile birlikte çağır.
+   Bu sırayı asla değiştirme; isim alınmadan veya tarih teyit edilmeden asla create_pending_appointment çağırma.`;
 
   build(context: AIContext): string {
     const businessContext = this.buildBusinessContext(context);
@@ -36,8 +43,14 @@ ${channelContext}
   }
 
   private buildBusinessContext(context: AIContext): string {
-    return `Tarih/Saat (Senin için "Şu an"): ${context.now.toISOString()}
-Zaman Dilimi: ${context.timezone}
+    const localNow = new Intl.DateTimeFormat('tr-TR', {
+      timeZone: context.timezone,
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    }).format(context.now);
+
+    return `Bugünün tarihi ve saati (${context.timezone} saatine göre): ${localNow}
+Not: Yukarıdaki tarih zaten senin saat dilimine göre hesaplanmıştır, ayrıca dönüşüm yapmana gerek yok. Göreceli tarihleri ("cuma", "yarın", "gelecek hafta" gibi) SADECE bu tarihe göre hesapla.
 İşletme ID: ${context.organizationId}
 `;
   }

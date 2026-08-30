@@ -1,7 +1,7 @@
 import { AIContext } from '../types.ts';
 
 export interface ToolResult {
-  status: "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "ERROR" | "NOT_FOUND";
+  status: "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "CUSTOMER_NAME_REQUIRED" | "ERROR" | "NOT_FOUND" | "DB_ERROR";
   data?: any;
   message?: string;
 }

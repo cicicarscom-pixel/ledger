@@ -1,6 +1,6 @@
 import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
 
-export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "DB_ERROR";
+export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "CUSTOMER_NAME_REQUIRED" | "DB_ERROR";
 
 export class AppointmentService {
   constructor(private readonly appointmentRepository: AppointmentRepository) {}
@@ -8,6 +8,7 @@ export class AppointmentService {
   async createPendingAppointment(params: {
     organizationId: string;
     customerId?: string;
+    customerName?: string;
     serviceId: string;
     startsAt: string;
     // Phase 4 (Persona Engine Live Test) guardrail: when this is "simulation",
@@ -20,6 +21,10 @@ export class AppointmentService {
   }): Promise<AppointmentResult> {
     if (!params.customerId) {
       return "CUSTOMER_REQUIRED";
+    }
+
+    if (!params.customerName || params.customerName.trim() === "") {
+      return "CUSTOMER_NAME_REQUIRED";
     }
 
     if (!params.startsAt) {
@@ -52,6 +57,7 @@ export class AppointmentService {
       await this.appointmentRepository.createPendingAppointment({
         organizationId: params.organizationId,
         customerId: params.customerId,
+        customerName: params.customerName,
         serviceId: params.serviceId,
         startsAt: params.startsAt,
       });

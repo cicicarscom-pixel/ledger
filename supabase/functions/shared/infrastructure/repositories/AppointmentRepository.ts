@@ -21,6 +21,7 @@ export class AppointmentRepository {
   async createPendingAppointment(params: {
     organizationId: string;
     customerId: string;
+    customerName: string;
     serviceId: string;
     startsAt: string;
   }): Promise<any> {
@@ -29,6 +30,7 @@ export class AppointmentRepository {
       .insert({
         organization_id: params.organizationId,
         customer_phone: params.customerId, // Using customerId as phone for now
+        customer_name: params.customerName,
         service_id: params.serviceId,
         date: params.startsAt,
         status: 'Pending',
