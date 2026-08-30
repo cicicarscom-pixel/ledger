@@ -2,7 +2,7 @@ export class CommunicationLoggerRepository {
   async logInteraction(
     supabaseClient: any,
     merchantId: string,
-    platform: 'whatsapp' | 'social',
+    platform: string,
     senderId: string,
     userMessage: string,
     aiResponse: string
@@ -25,7 +25,7 @@ export class CommunicationLoggerRepository {
   async getRecentHistory(
     supabaseClient: any,
     merchantId: string,
-    platform: 'whatsapp' | 'social',
+    platform: string,
     senderId: string,
     limit: number = 5
   ): Promise<{ role: string, parts: { text: string }[] }[]> {

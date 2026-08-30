@@ -100,7 +100,7 @@ export class HandleIncomingMessageUseCase {
       const history = await this.deps.logger.getRecentHistory(
         supabaseClient,
         merchantId,
-        source,
+        platform || source, // Use fine-grained platform (e.g. 'instagram') if available
         senderId,
         5 // fetch last 5 turns (10 messages)
       );
@@ -164,7 +164,7 @@ export class HandleIncomingMessageUseCase {
     await this.deps.logger.logInteraction(
       supabaseClient,
       merchantId,
-      source,
+      platform || source, // Save the fine-grained platform so memory doesn't cross-contaminate
       senderId,
       userMessage,
       aiResponse
