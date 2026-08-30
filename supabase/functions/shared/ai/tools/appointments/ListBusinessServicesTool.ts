@@ -26,9 +26,19 @@ export class ListBusinessServicesTool implements ITool {
         return { status: "ERROR", message: "Hizmet listesi çekilirken geçici bir sistem hatasý oluþtu." };
       }
 
+      if (!services || services.length === 0) {
+        return {
+          status: "SUCCESS",
+          data: { 
+            services: [], 
+            system_note: "DÝKKAT: Ýþletmenin veritabanýnda henüz kayýtlý hiçbir hizmeti bulunmamaktadýr. Kullanýcýya hizmetleri sorulduðunda ASLA varsayýlan hizmetler (cilt bakýmý, manikür, saç kesimi vb.) uydurmayýn. Doðrudan 'Þu an sistemimizde kayýtlý hizmet bulunmamaktadýr' þeklinde yanýt verin."
+          }
+        };
+      }
+
       return {
         status: "SUCCESS",
-        data: { services: services || [] }
+        data: { services: services }
       };
 
     } catch (error) {
