@@ -21,4 +21,39 @@ export class CommunicationLoggerRepository {
       console.error("CommunicationLoggerRepository Error:", error);
     }
   }
+
+  async getRecentHistory(
+    supabaseClient: any,
+    merchantId: string,
+    platform: 'whatsapp' | 'social',
+    senderId: string,
+    limit: number = 5
+  ): Promise<{ role: string, parts: { text: string }[] }[]> {
+    const { data, error } = await supabaseClient
+      .from('ai_communication_logs')
+      .select('user_message, ai_response')
+      .eq('merchant_id', merchantId)
+      .eq('platform', platform)
+      .eq('sender_id', senderId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) {
+      console.error("[CommunicationLoggerRepository] getRecentHistory Error:", error);
+      return [];
+    }
+
+    // Data is from newest to oldest, reverse it to chronological order
+    const history: { role: string, parts: { text: string }[] }[] = [];
+    data.reverse().forEach((row: any) => {
+      if (row.user_message) {
+        history.push({ role: 'user', parts: [{ text: row.user_message }] });
+      }
+      if (row.ai_response) {
+        history.push({ role: 'model', parts: [{ text: row.ai_response }] });
+      }
+    });
+
+    return history;
+  }
 }

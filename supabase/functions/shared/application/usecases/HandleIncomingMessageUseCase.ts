@@ -94,10 +94,18 @@ export class HandleIncomingMessageUseCase {
       }
     };
 
-    // 4. Delegate to AIOrchestrator
+    // 4. Fetch Chat History & Delegate to AIOrchestrator
     let aiResponse = "";
     try {
-      aiResponse = await this.deps.aiOrchestrator.handleMessage(aiContext, userMessage);
+      const history = await this.deps.logger.getRecentHistory(
+        supabaseClient,
+        merchantId,
+        source,
+        senderId,
+        5 // fetch last 5 turns (10 messages)
+      );
+      
+      aiResponse = await this.deps.aiOrchestrator.handleMessage(aiContext, userMessage, history);
     } catch (error) {
       console.error("[HandleIncomingMessageUseCase] AI Orchestrator failed:", error);
       return;

@@ -1,6 +1,6 @@
 import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
 
-export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED";
+export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "DB_ERROR";
 
 export class AppointmentService {
   constructor(private readonly appointmentRepository: AppointmentRepository) {}
@@ -57,9 +57,9 @@ export class AppointmentService {
       });
 
       return "SUCCESS";
-    } catch (error) {
-      console.error("[AppointmentService] Error creating appointment:", error);
-      return "INVALID_DATE"; // Fallback error for now
+    } catch (error: any) {
+      console.error("[AppointmentService] DB Error creating appointment:", error.message || error);
+      return "DB_ERROR"; // Allows the prompt builder or tool executor to relay a systemic failure rather than blaming the date
     }
   }
 

@@ -16,13 +16,17 @@ export class AIOrchestrator {
 
   constructor(private readonly deps: AIOrchestratorDeps) {}
 
-  async handleMessage(context: AIContext, userMessage: string): Promise<string> {
+  async handleMessage(
+    context: AIContext, 
+    userMessage: string, 
+    history: { role: string, parts: { text: string }[] }[] = []
+  ): Promise<string> {
     const systemPrompt = this.deps.promptBuilder.build(context);
     const tools = this.deps.toolRegistry.getAllSchemas();
     
-    // In a real system, you would fetch chat history here.
-    // For this implementation, we just pass the new message.
+    // Pass chat history, then append the new user message.
     const messages: any[] = [
+      ...history,
       { role: "user", parts: [{ text: userMessage }] }
     ];
 
