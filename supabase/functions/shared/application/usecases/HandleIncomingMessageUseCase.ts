@@ -38,6 +38,15 @@ export class HandleIncomingMessageUseCase {
       .select('*')
       .eq('merchant_id', merchantId)
       .single();
+      
+    // Fetch organization AI settings for timezone
+    const { data: orgAiSettings } = await supabaseClient
+      .from('organization_ai_settings')
+      .select('timezone')
+      .eq('merchant_id', merchantId)
+      .maybeSingle();
+      
+    const resolvedTimezone = orgAiSettings?.timezone || 'Europe/Istanbul';
 
     if (botError) {
       console.warn("[HandleIncomingMessageUseCase] Bot settings fetch error or not found.");
@@ -73,7 +82,7 @@ export class HandleIncomingMessageUseCase {
       customerId: senderId, // For Waha, this is phone number. For Zernio, conversation/user ID.
       merchantId: merchantId,
       now: new Date(),
-      timezone: "Europe/Istanbul", // Should be fetched from settings if available
+      timezone: resolvedTimezone,
       botSettings: botSettings,
       personaConfig,
       executionMode: 'production', // real customer message — never simulation
