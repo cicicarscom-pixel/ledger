@@ -19,15 +19,15 @@ serve(async (req) => {
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
-      const from = payload.payload?.from;
-      const body = payload.payload?.body;
-      const isFromMe = payload.payload?.fromMe;
+      const from = payload.payload?.from || payload.data?.from;
+      const body = payload.payload?.body || payload.data?.body;
+      const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
-      // GRUP ve DURUM (Status) KorumasÄ±:
+      // GRUP ve DURUM (Status) Koruması:
       const isGroup = from && from.includes('@g.us');
       const isBroadcast = from && from.includes('@broadcast');
 
-      // Sadece dÄ±ÅŸarÄ±dan gelen (mÃ¼ÅŸteri), grup/durum olmayan, kiÅŸisel mesajlarÄ±na yanÄ±t ver (@c.us)
+      // Sadece dışarıdan gelen (müşteri), grup/durum olmayan, kişisel mesajlarına yanıt ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
         console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
 
@@ -41,7 +41,7 @@ serve(async (req) => {
       }
     }
 
-    // WAHA isteklerini hiÃ§bir zaman timeout'a dÃ¼ÅŸÃ¼rmemek iÃ§in hemen 200 dÃ¶nÃ¼yoruz
+    // WAHA isteklerini hiçbir zaman timeout'a düşürmemek için hemen 200 dönüyoruz
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
