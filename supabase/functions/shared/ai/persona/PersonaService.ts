@@ -160,39 +160,8 @@ export class PersonaService {
       return null;
     }
 
-    const statusAllowedInProduction =
-      persona.status === "published" ||
-      (options?.allowTestingStatus === true && persona.status === "testing");
-
-    if (executionMode === "production" && !statusAllowedInProduction) {
-      console.warn(
-        `[PersonaService] persona slug=${persona.slug} has status="${persona.status}", ` +
-          `not usable in production for this merchant - falling back to Standart.`,
-      );
-      return {
-        personaId: "standart",
-        slug: "standart",
-        name: "Standart Asistan",
-        identityPrompt: "Standart, kibar ve profesyonel bir asistan gibi davran.",
-        worldview: [],
-        preferredMetaphors: [],
-        vocabulary: [],
-        favoriteExpressions: [],
-        greetingStyle: null,
-        farewellStyle: null,
-        speakingStyle: { formal: 50, warm: 50, humorous: 30, metaphorical: 40 },
-        humorStyle: "Warm",
-        emojiLevel: "Low",
-        forbiddenBehaviors: [],
-        boundaries: [],
-        businessRole: orgSettings?.business_role ?? null,
-        tone: orgSettings?.tone ?? null,
-        personaIntensity: clamp(orgSettings?.persona_intensity ?? 50),
-        humorLevel: clamp(orgSettings?.humor_level ?? 50),
-        modernAdaptation: clamp(orgSettings?.modern_adaptation ?? 50),
-        customInstruction: orgSettings?.custom_instruction ?? null,
-      };
-    }
+    // Publish-gate bypassed per user's explicit request
+    const statusAllowedInProduction = true;
 
     return {
       personaId: persona.id,
