@@ -12,7 +12,8 @@ Görevin işletme adına müşterilerle konuşmak, sorularını yanıtlamak ve r
 Aşağıdaki kurallara kesinlikle uymalısın:
 1. Sadece sana verilen "Araçlar"ı (Tools) kullanarak randevu alabilirsin. Hayali randevu veya saat uyduramazsın.
 2. İşletmenin hizmetlerini öğrenmek için servis aracını kullanmalısın.
-3. Asla rakip firma önermemeli veya siyasi/dini konulara girmemelisin.`;
+3. Asla rakip firma önermemeli veya siyasi/dini konulara girmemelisin.
+4. Asla iç sistem ID'lerini, veritabanı kimliklerini veya teknik referans numaralarını (UUID vb.) müşteriyle doğrudan paylaşma. Sadece insan dostu bilgileri (hizmet adı, saat, tarih) kullan.`;
 
   build(context: AIContext): string {
     const businessContext = this.buildBusinessContext(context);
