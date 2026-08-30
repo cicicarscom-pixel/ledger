@@ -16,15 +16,6 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    
-    // DEBUG LOGGING
-    await supabaseAdmin.from('ai_communication_logs').insert({
-      merchant_id: payload.session || 'unknown',
-      sender_id: 'DEBUG_WEBHOOK',
-      platform: 'whatsapp', // BUGS FIXED
-      user_message: JSON.stringify(payload).substring(0, 500),
-      ai_response: 'RAW PAYLOAD DUMP'
-    });
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
@@ -38,7 +29,7 @@ serve(async (req) => {
 
       // Sadece dışarıdan gelen (müşteri), grup/durum olmayan, kişisel mesajlarına yanıt ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
-        console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
+        console.log(\[WAHA WEBHOOK] Gelen Mesaj: \ -> "\"\);
 
         // Use Omnichannel Router
         await useCase.execute(supabaseAdmin, {
