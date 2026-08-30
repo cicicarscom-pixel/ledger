@@ -16,12 +16,21 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
+    
+    // DEBUG LOGGING
+    await supabaseAdmin.from('ai_communication_logs').insert({
+      merchant_id: payload.session || 'unknown',
+      sender_id: 'DEBUG_WEBHOOK',
+      platform: 'whatsapp', // BUGS FIXED
+      user_message: JSON.stringify(payload).substring(0, 500),
+      ai_response: 'RAW PAYLOAD DUMP'
+    });
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
-      const from = payload.payload?.from;
-      const body = payload.payload?.body;
-      const isFromMe = payload.payload?.fromMe;
+      const from = payload.payload?.from || payload.data?.from;
+      const body = payload.payload?.body || payload.data?.body;
+      const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
       // GRUP ve DURUM (Status) Koruması:
       const isGroup = from && from.includes('@g.us');
