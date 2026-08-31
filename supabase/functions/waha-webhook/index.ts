@@ -20,7 +20,10 @@ serve(async (req) => {
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
-      const from = payload.payload?.remoteJidAlt || payload.data?.remoteJidAlt || payload.payload?.from || payload.data?.from;
+      const rawFromPayload = payload.payload ?? payload.data;
+      const remoteJidAlt: string | undefined = rawFromPayload?._data?.key?.remoteJidAlt;
+      const realPhoneFromAlt = remoteJidAlt ? remoteJidAlt.replace('@s.whatsapp.net', '@c.us') : null;
+      const from = realPhoneFromAlt || rawFromPayload?.from;
       const body = payload.payload?.body || payload.data?.body;
       const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
