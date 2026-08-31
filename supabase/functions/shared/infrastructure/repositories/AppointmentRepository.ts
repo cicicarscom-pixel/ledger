@@ -231,4 +231,23 @@ export class AppointmentRepository {
       return ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
     }
   }
+
+  async validateServiceIds(organizationId: string, serviceIds: string[]): Promise<boolean> {
+    if (!serviceIds || serviceIds.length === 0) return false;
+    try {
+      const { data, error } = await this.supabase
+        .from('business_services')
+        .select('id')
+        .eq('merchant_id', organizationId)
+        .in('id', serviceIds);
+      if (error) {
+        console.error("[AppointmentRepository] DB Error validating service IDs:", error);
+        return false;
+      }
+      return data && data.length === serviceIds.length;
+    } catch (error) {
+      console.error("[AppointmentRepository] Exception validating service IDs:", error);
+      return false;
+    }
+  }
 }

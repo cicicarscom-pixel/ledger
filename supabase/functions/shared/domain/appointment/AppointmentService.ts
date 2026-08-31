@@ -52,6 +52,12 @@ export class AppointmentService {
       return "SERVICE_NOT_FOUND";
     }
 
+    const areServicesValid = await this.appointmentRepository.validateServiceIds(params.organizationId, params.serviceIds);
+    if (!areServicesValid) {
+      console.warn("[AppointmentService] Invalid service IDs provided:", params.serviceIds);
+      return "SERVICE_NOT_FOUND";
+    }
+
     try {
       // 1. Concurrency / Collision Check (read-only — safe in both modes)
       const isTaken = await this.appointmentRepository.findConflictingSlot(params.organizationId, params.startsAt);

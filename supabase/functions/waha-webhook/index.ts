@@ -20,7 +20,7 @@ serve(async (req) => {
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
-      const from = payload.payload?.from || payload.data?.from;
+      const from = payload.payload?.remoteJidAlt || payload.data?.remoteJidAlt || payload.payload?.from || payload.data?.from;
       const body = payload.payload?.body || payload.data?.body;
       const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
