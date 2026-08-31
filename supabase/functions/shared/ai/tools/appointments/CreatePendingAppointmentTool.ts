@@ -9,11 +9,11 @@ export class CreatePendingAppointmentTool implements ITool {
   schema = {
     type: "object",
     properties: {
-      serviceId: { type: "string", description: "The ID of the selected service." },
+      serviceIds: { type: "array", items: { type: "string" }, description: "The IDs of the selected services." },
       startsAt: { type: "string", description: "The requested date and time in ISO 8601 format." },
       customerName: { type: "string", description: "Customer's full name, must be collected via conversation before calling this tool." }
     },
-    required: ["serviceId", "startsAt", "customerName"]
+    required: ["serviceIds", "startsAt", "customerName"]
   };
 
   constructor(private readonly appointmentService: AppointmentService) {}
@@ -22,7 +22,7 @@ export class CreatePendingAppointmentTool implements ITool {
     if (context.appointmentModuleEnabled === false) {
       return { status: "MODULE_DISABLED", message: "Appointment/reservation feature is disabled for this business." };
     }
-    const serviceId = args.serviceId as string;
+    const serviceIds = args.serviceIds as string[];
     const startsAt = args.startsAt as string;
     const customerName = args.customerName as string;
 
@@ -30,7 +30,7 @@ export class CreatePendingAppointmentTool implements ITool {
       organizationId: context.organizationId,
       customerId: context.customerId,
       customerName,
-      serviceId,
+      serviceIds,
       startsAt,
       // Phase 4 guardrail: forwards the caller's mode so a Live Test
       // (persona-test, executionMode "simulation") never creates a real

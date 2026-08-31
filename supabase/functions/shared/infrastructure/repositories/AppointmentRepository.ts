@@ -22,21 +22,24 @@ export class AppointmentRepository {
     organizationId: string;
     customerId: string;
     customerName: string;
-    serviceId: string;
+    serviceIds: string[];
     startsAt: string;
   }): Promise<any> {
+    const primaryServiceId = params.serviceIds.length > 0 ? params.serviceIds[0] : null;
+
+    // 1. Insert into appointments
     const { data, error } = await this.supabase
       .from('appointments')
       .insert({
         organization_id: params.organizationId,
         customer_phone: params.customerId,
         customer_name: params.customerName,
-        service_id: params.serviceId,
+        service_id: primaryServiceId, // for backwards compatibility
         date: params.startsAt,
         status: 'Pending',
         booking_token: crypto.randomUUID()
       })
-      .select()
+      .select('id')
       .single();
 
     if (error) {
@@ -44,13 +47,41 @@ export class AppointmentRepository {
       throw error;
     }
 
-    // ADIM 2: Upsert customer record
+    // 2. Insert into appointment_services
+    if (params.serviceIds.length > 0 && data?.id) {
+      const serviceInserts = params.serviceIds.map(sid => ({
+        appointment_id: data.id,
+        organization_id: params.organizationId,
+        service_id: sid
+      }));
+      
+      const { error: asError } = await this.supabase
+        .from('appointment_services')
+        .insert(serviceInserts);
+        
+      if (asError) {
+        console.error("[AppointmentRepository] Error inserting appointment_services:", asError);
+      }
+    }
+
+    // 3. Upsert customer record
     await this.upsertCustomer(params.organizationId, params.customerId, params.customerName);
 
-    const serviceName = await this.getServiceName(params.serviceId);
+    // 4. Fetch all service names for notification
+    let serviceNames = "Bilinmeyen Hizmet";
+    if (params.serviceIds.length > 0) {
+      const { data: services } = await this.supabase
+        .from('business_services')
+        .select('name')
+        .in('id', params.serviceIds);
+      if (services && services.length > 0) {
+        serviceNames = services.map((s: any) => s.name).join(' + ');
+      }
+    }
+
     await this.notifyMerchant(
       params.organizationId, 'Yeni Randevu Oluşturuldu',
-      `${this.formatLocalTime(params.startsAt)} - ${params.customerName} adına "${serviceName}" hizmeti için randevu oluşturuldu.`
+      `${this.formatLocalTime(params.startsAt)} - ${params.customerName} adına "${serviceNames}" hizmeti için randevu oluşturuldu.`
     );
 
     return data;
@@ -118,18 +149,18 @@ export class AppointmentRepository {
     }
   }
 
-  async getAvailableSlots(organizationId: string, date: string, serviceId: string): Promise<string[]> {
+  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[]): Promise<string[]> {
     try {
-      // 1. Get service duration (fallback to 30 mins)
+      // 1. Get total service duration (fallback to 30 mins)
       let durationMins = 30;
-      if (serviceId) {
-        const { data: service } = await this.supabase
+      if (serviceIds && serviceIds.length > 0) {
+        const { data: services } = await this.supabase
           .from('business_services')
           .select('duration_minutes')
-          .eq('id', serviceId)
-          .maybeSingle();
-        if (service && service.duration_minutes) {
-          durationMins = service.duration_minutes;
+          .in('id', serviceIds);
+        
+        if (services && services.length > 0) {
+          durationMins = services.reduce((sum: number, s: any) => sum + (s.duration_minutes || 0), 0) || 30;
         }
       }
 
@@ -141,9 +172,19 @@ export class AppointmentRepository {
       while (currentHour < 18) {
         const hrStr = currentHour.toString().padStart(2, '0');
         const mnStr = currentMin.toString().padStart(2, '0');
+        
+        // Ensure the slot + total duration doesn't exceed 18:00
+        const endHour = currentHour + Math.floor((currentMin + durationMins) / 60);
+        const endMin = (currentMin + durationMins) % 60;
+        if (endHour > 18 || (endHour === 18 && endMin > 0)) {
+          break; // Stop generating slots if the appointment would end after 18:00
+        }
+
         slots.push(`${hrStr}:${mnStr}`);
         
-        currentMin += durationMins;
+        // Step to next slot (e.g., every 30 mins, or by total duration if preferred)
+        // Stepping by base 30 mins to offer more options
+        currentMin += 30;
         while (currentMin >= 60) {
           currentHour += 1;
           currentMin -= 60;

@@ -26,7 +26,7 @@ export class AppointmentService {
     organizationId: string;
     customerId?: string;
     customerName?: string;
-    serviceId: string;
+    serviceIds: string[];
     startsAt: string;
     // Phase 4 (Persona Engine Live Test) guardrail: when this is "simulation",
     // this method MUST NOT write a real row to the appointments table. It
@@ -48,7 +48,7 @@ export class AppointmentService {
       return "INVALID_DATE";
     }
 
-    if (!params.serviceId) {
+    if (!params.serviceIds || params.serviceIds.length === 0) {
       return "SERVICE_NOT_FOUND";
     }
 
@@ -65,7 +65,7 @@ export class AppointmentService {
       // database write is suppressed here.
       if (params.executionMode === "simulation") {
         console.log(
-          `[AppointmentService] SIMULATION MODE — skipping real insert (org=${params.organizationId}, service=${params.serviceId}, startsAt=${params.startsAt})`,
+          `[AppointmentService] SIMULATION MODE — skipping real insert (org=${params.organizationId}, services=${params.serviceIds.join(',')}, startsAt=${params.startsAt})`,
         );
         return "SUCCESS";
       }
@@ -75,7 +75,7 @@ export class AppointmentService {
         organizationId: params.organizationId,
         customerId: params.customerId,
         customerName: params.customerName,
-        serviceId: params.serviceId,
+        serviceIds: params.serviceIds,
         startsAt: params.startsAt,
       });
 
@@ -86,7 +86,7 @@ export class AppointmentService {
     }
   }
 
-  async getAvailableSlots(organizationId: string, date: string, serviceId: string): Promise<string[]> {
-    return this.appointmentRepository.getAvailableSlots(organizationId, date, serviceId);
+  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[]): Promise<string[]> {
+    return this.appointmentRepository.getAvailableSlots(organizationId, date, serviceIds);
   }
 }
