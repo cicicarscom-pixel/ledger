@@ -6,7 +6,8 @@ export class GeminiClient {
   async generateResponse(
     systemPrompt: string, 
     messages: Array<{ role: 'user' | 'model'; parts: Array<any> }>,
-    tools: Array<Record<string, unknown>> = []
+    tools: Array<Record<string, unknown>> = [],
+    retryCount = 0
   ): Promise<GeminiTurnResult> {
     
     const payload: any = {
@@ -52,7 +53,10 @@ export class GeminiClient {
     const textPart = parts.find((p: any) => p.text);
     if (!textPart || !textPart.text) {
       const finishReason = result.candidates?.[0]?.finishReason;
-      console.error("[GeminiClient] Boş yanıt: ne metin ne araç çağrısı geldi. finishReason:", finishReason);
+      console.error(`[GeminiClient] Boş yanıt (deneme ${retryCount + 1}): ne metin ne araç çağrısı geldi. finishReason:`, finishReason);
+      if (retryCount < 1) {
+        return this.generateResponse(systemPrompt, messages, tools, retryCount + 1);
+      }
       throw new Error(`Gemini boş yanıt döndürdü (finishReason: ${finishReason})`);
     }
     return {
