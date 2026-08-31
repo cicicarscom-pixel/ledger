@@ -148,7 +148,11 @@ export class HandleIncomingMessageUseCase {
     // 5. Send Response via Appropriate Channel
     try {
       if (source === 'whatsapp') {
-        await this.deps.wahaClient.sendWhatsAppMessage(merchantId, senderId, aiResponse);
+        if (!aiResponse || aiResponse.trim() === '') {
+          console.warn('[HandleIncomingMessageUseCase] Boş aiResponse, WhatsApp gönderimi atlandı.');
+        } else {
+          await this.deps.wahaClient.sendWhatsAppMessage(merchantId, senderId, aiResponse);
+        }
       } else if (source === 'social') {
         if (isComment && postId && zernioAccountId) {
           // Like and reply to comment

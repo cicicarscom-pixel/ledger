@@ -50,9 +50,14 @@ export class GeminiClient {
     }
 
     const textPart = parts.find((p: any) => p.text);
+    if (!textPart || !textPart.text) {
+      const finishReason = result.candidates?.[0]?.finishReason;
+      console.error("[GeminiClient] Boş yanıt: ne metin ne araç çağrısı geldi. finishReason:", finishReason);
+      throw new Error(`Gemini boş yanıt döndürdü (finishReason: ${finishReason})`);
+    }
     return {
       type: "text",
-      text: textPart ? textPart.text : ""
+      text: textPart.text
     };
   }
 }
