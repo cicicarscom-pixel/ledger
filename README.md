@@ -271,3 +271,12 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
    - Ledger uygulamasÄ±nÄ±n kalbindeki `middleware.ts` gÃ¼ncellenerek; bir kullanÄ±cÄ±nÄ±n profili `app_role: 'flow'` ise Ledger sistemi onu kapÄ±dan iÃ§eri sokmadan anÄ±nda (otomatik logout ile) `login` ekranÄ±na geri pÃ¼skÃ¼rtecek ÅŸekilde yapÄ±landÄ±rÄ±ldÄ±. (Login ekranÄ±na Ã¶zel *'Bu hesap Flow uygulamasÄ±na aittir'* uyarÄ± mesajÄ± eklendi).
 5. **Admin Panel Edge Function Entegrasyonu:**
    KullanÄ±cÄ±larÄ± yasaklamak (Ban) veya silmek (Delete) iÃ§in kullanÄ±lan butonlar, arka planda gÃ¼venli iÅŸlem yapmasÄ± iÃ§in `admin-manager` Edge fonksiyonunu Ã§aÄŸÄ±rÄ±yordu ancak Payload (isim) uyuÅŸmazlÄ±ÄŸÄ± nedeniyle Ã§alÄ±ÅŸmÄ±yordu. Frontend komutlarÄ± `update-status` ve `targetUserId` olacak ÅŸekilde Supabase Edge Function API'sinin tam anladÄ±ÄŸÄ± dile dÃ¶nÃ¼ÅŸtÃ¼rÃ¼ldÃ¼.
+
+### [31.08.2026] AI Asistan Randevu ve Kültürel Hitap Modülleri (TAM PAKET)
+1. **Müşteri Tanıma:** AI'nin tekrar eden müşterileri tanıması ve isimlerini `customers` tablosuna kaydetmesi sağlandı.
+2. **Kültürel Hitap Entegrasyonu:** `SYSTEM_POLICY` üzerinden dil/cinsiyet bazlı hitap yeteneği kazandırıldı.
+3. **Randevu Modülü Ayarı:** Randevu Özelliğini API bazında kapatabilme mekanizması eklendi.
+4. **Randevu Güncelleme:** Mevcut randevunun güncellenmesi için `UpdateAppointmentTool` eklendi.
+5. **İşletme Bildirimleri:** Randevu işlemlerinde `notifications` tablosuna bildirim düşmesi sağlandı.
+6. **Hata Düzeltmeleri:** `whatsapp-webhook` ve Vercel/NextJS hataları giderildi.
+
