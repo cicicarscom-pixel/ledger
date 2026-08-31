@@ -109,8 +109,7 @@ export class AppointmentRepository {
     const { error } = await this.supabase.from('customers').upsert({
       organization_id: organizationId,
       phone: phone,
-      name: name,
-      updated_at: new Date().toISOString()
+      name: name
     }, { onConflict: 'organization_id,phone' });
 
     if (error) {
