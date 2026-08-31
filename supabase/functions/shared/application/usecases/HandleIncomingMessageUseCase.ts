@@ -4,6 +4,7 @@ import { CommunicationLoggerRepository } from '../../infrastructure/repositories
 import { AIOrchestrator } from '../../ai/AIOrchestrator.ts';
 import { AIContext } from '../../ai/types.ts';
 import { PersonaService } from '../../ai/persona/PersonaService.ts';
+import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
 
 interface Dependencies {
   aiOrchestrator: AIOrchestrator;
@@ -11,6 +12,7 @@ interface Dependencies {
   zernioClient: ZernioClient;
   logger: CommunicationLoggerRepository;
   personaService: PersonaService;
+  appointmentRepository: AppointmentRepository;
 }
 
 export class HandleIncomingMessageUseCase {
@@ -42,11 +44,12 @@ export class HandleIncomingMessageUseCase {
     // Fetch organization AI settings for timezone
     const { data: orgAiSettings } = await supabaseClient
       .from('organization_ai_settings')
-      .select('timezone')
+      .select('timezone, appointment_module_enabled')
       .eq('merchant_id', merchantId)
       .maybeSingle();
       
     const resolvedTimezone = orgAiSettings?.timezone || 'Europe/Istanbul';
+    const appointmentModuleEnabled = orgAiSettings?.appointment_module_enabled ?? true;
 
     if (botError) {
       console.warn("[HandleIncomingMessageUseCase] Bot settings fetch error or not found.");
@@ -76,6 +79,30 @@ export class HandleIncomingMessageUseCase {
       console.error('[HandleIncomingMessageUseCase] PersonaService resolution failed, falling back to legacy prompt:', error);
     }
 
+    // 2c. Customer Profile Lookup (Phase 5)
+    const { data: existingCustomer } = await supabaseClient
+      .from('customers')
+      .select('name, created_at')
+      .eq('organization_id', merchantId)
+      .eq('phone', senderId)
+      .maybeSingle();
+
+    const pastAppointments = [];
+    if (existingCustomer) {
+      const { data: appts } = await supabaseClient
+        .from('appointments')
+        .select('service_id, date, status')
+        .eq('organization_id', merchantId)
+        .eq('customer_phone', senderId)
+        .order('date', { ascending: false })
+        .limit(5);
+      if (appts) {
+        pastAppointments.push(...appts);
+      }
+    }
+
+    const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(merchantId, senderId).catch(() => []);
+
     // 3. Build AI Context
     const aiContext: AIContext = {
       organizationId: merchantId,
@@ -85,6 +112,13 @@ export class HandleIncomingMessageUseCase {
       timezone: resolvedTimezone,
       botSettings: botSettings,
       personaConfig,
+      customerProfile: {
+        isReturning: !!existingCustomer,
+        name: existingCustomer?.name || null,
+        pastAppointments,
+      },
+      appointmentModuleEnabled,
+      activeAppointments,
       executionMode: 'production', // real customer message — never simulation
       channel: {
         source: source,

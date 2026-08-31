@@ -1,9 +1,26 @@
 import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
 
-export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "CUSTOMER_NAME_REQUIRED" | "DB_ERROR";
+export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "CUSTOMER_NAME_REQUIRED" | "DB_ERROR" | "APPOINTMENT_NOT_FOUND";
 
 export class AppointmentService {
   constructor(private readonly appointmentRepository: AppointmentRepository) {}
+
+  async rescheduleAppointment(params: { organizationId: string; customerId?: string; appointmentId: string; newStartsAt: string; executionMode?: "production" | "simulation"; }): Promise<AppointmentResult> {
+    if (!params.customerId) return "CUSTOMER_REQUIRED";
+    if (!params.newStartsAt) return "INVALID_DATE";
+    if (!params.appointmentId) return "APPOINTMENT_NOT_FOUND";
+    try {
+      const isTaken = await this.appointmentRepository.findConflictingSlot(params.organizationId, params.newStartsAt);
+      if (isTaken) return "SLOT_ALREADY_TAKEN";
+      if (params.executionMode === "simulation") { console.log(`[AppointmentService] SIMULATION MODE — skipping real reschedule`); return "SUCCESS"; }
+      const updated = await this.appointmentRepository.updateAppointmentDateTime(params.organizationId, params.appointmentId, params.customerId, params.newStartsAt);
+      if (!updated) return "APPOINTMENT_NOT_FOUND";
+      return "SUCCESS";
+    } catch (error: any) {
+      console.error("[AppointmentService] DB Error rescheduling appointment:", error.message || error);
+      return "DB_ERROR";
+    }
+  }
 
   async createPendingAppointment(params: {
     organizationId: string;

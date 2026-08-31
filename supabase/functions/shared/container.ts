@@ -20,11 +20,13 @@ import { CreatePendingAppointmentTool } from "./ai/tools/appointments/CreatePend
 import { ListAvailableSlotsTool } from "./ai/tools/appointments/ListAvailableSlotsTool.ts";
 import { ListBusinessServicesTool } from "./ai/tools/appointments/ListBusinessServicesTool.ts";
 import { SearchDriveKnowledgeTool } from "./ai/tools/rag/SearchDriveKnowledgeTool.ts";
+import { UpdateAppointmentTool } from "./ai/tools/appointments/UpdateAppointmentTool.ts";
 
 interface AiPipeline {
   aiOrchestrator: AIOrchestrator;
   personaRepository: PersonaRepository;
   personaService: PersonaService;
+  appointmentRepository: AppointmentRepository;
 }
 
 // Shared by BOTH the real message-handling pipeline (createMessageUseCase,
@@ -57,6 +59,7 @@ function buildAiPipeline(supabaseAdmin: SupabaseClient): AiPipeline {
   const createPendingAppointmentTool = new CreatePendingAppointmentTool(appointmentService);
   const listAvailableSlotsTool = new ListAvailableSlotsTool(appointmentService);
   const listBusinessServicesTool = new ListBusinessServicesTool(supabaseAdmin);
+  const updateAppointmentTool = new UpdateAppointmentTool(appointmentService);
   const searchDriveKnowledgeTool = new SearchDriveKnowledgeTool(driveKnowledgeService, {
     // Temporary mock embedText until actual embedding provider is hooked up
     embedText: async (text: string) => {
@@ -70,6 +73,7 @@ function buildAiPipeline(supabaseAdmin: SupabaseClient): AiPipeline {
     createPendingAppointmentTool,
     listAvailableSlotsTool,
     listBusinessServicesTool,
+    updateAppointmentTool,
     searchDriveKnowledgeTool
   ]);
 
@@ -83,7 +87,7 @@ function buildAiPipeline(supabaseAdmin: SupabaseClient): AiPipeline {
     promptBuilder
   });
 
-  return { aiOrchestrator, personaRepository, personaService };
+  return { aiOrchestrator, personaRepository, personaService, appointmentRepository };
 }
 
 export function createMessageUseCase(supabaseAdmin: SupabaseClient): HandleIncomingMessageUseCase {
@@ -91,14 +95,15 @@ export function createMessageUseCase(supabaseAdmin: SupabaseClient): HandleIncom
   const zernioClient = new ZernioClient();
   const logger = new CommunicationLoggerRepository();
 
-  const { aiOrchestrator, personaService } = buildAiPipeline(supabaseAdmin);
+  const { aiOrchestrator, personaService, appointmentRepository } = buildAiPipeline(supabaseAdmin);
 
   return new HandleIncomingMessageUseCase({
     aiOrchestrator,
     wahaClient,
     zernioClient,
     logger,
-    personaService
+    personaService,
+    appointmentRepository
   });
 }
 

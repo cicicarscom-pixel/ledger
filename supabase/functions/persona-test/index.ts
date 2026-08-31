@@ -177,6 +177,7 @@ serve(async (req) => {
       timezone: "Europe/Istanbul",
       botSettings: botSettings ?? {},
       personaConfig,
+      appointmentModuleEnabled: body.appointmentModuleEnabled ?? true,
       executionMode: "simulation", // guardrail #8 — never a real side effect
       channel: {
         source: "persona-test",

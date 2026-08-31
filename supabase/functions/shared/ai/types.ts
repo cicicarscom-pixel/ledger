@@ -38,6 +38,17 @@ export interface AIContext {
   botSettings: Record<string, any>;
   channel: ChannelContext;
   personaConfig?: PersonaRenderConfig | null;
+  customerProfile?: {
+    name: string | null;
+    isReturning: boolean;
+    pastAppointments: Array<{
+      service_id: string;
+      date: string;
+      status: string;
+    }>;
+  };
+  appointmentModuleEnabled?: boolean; // false = randevu/rezervasyon tamamen kapalı. undefined = true gibi davranır.
+  activeAppointments?: Array<{ id: string; service_id: string; date: string; status: string }>; // müşterinin var olan aktif randevuları — sadece update_appointment için
   // Phase 4: "production" (default, real customer messages) or "simulation"
   // (persona-test / Live Test). Write tools (e.g. CreatePendingAppointmentTool)
   // MUST check this and never create real side effects in simulation mode —

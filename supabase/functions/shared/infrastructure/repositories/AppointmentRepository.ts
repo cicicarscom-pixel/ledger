@@ -29,7 +29,7 @@ export class AppointmentRepository {
       .from('appointments')
       .insert({
         organization_id: params.organizationId,
-        customer_phone: params.customerId, // Using customerId as phone for now
+        customer_phone: params.customerId,
         customer_name: params.customerName,
         service_id: params.serviceId,
         date: params.startsAt,
@@ -40,11 +40,83 @@ export class AppointmentRepository {
       .single();
 
     if (error) {
-      console.error("[AppointmentRepository] Error inserting appointment:", error);
+      console.error("[AppointmentRepository] Error creating appointment:", error);
       throw error;
     }
 
+    // ADIM 2: Upsert customer record
+    await this.upsertCustomer(params.organizationId, params.customerId, params.customerName);
+
+    const serviceName = await this.getServiceName(params.serviceId);
+    await this.notifyMerchant(
+      params.organizationId, 'Yeni Randevu Oluşturuldu',
+      `${this.formatLocalTime(params.startsAt)} - ${params.customerName} adına "${serviceName}" hizmeti için randevu oluşturuldu.`
+    );
+
     return data;
+  }
+
+  async findActiveByPhone(organizationId: string, phone: string): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('appointments')
+      .select('id, service_id, date, status')
+      .eq('organization_id', organizationId)
+      .eq('customer_phone', phone)
+      .in('status', ['Pending', 'Approved'])
+      .order('date', { ascending: true })
+      .limit(5);
+    if (error) { console.error("[AppointmentRepository] Error fetching active appointments:", error); return []; }
+    return data || [];
+  }
+  
+  private async getServiceName(serviceId: string): Promise<string> {
+    if (!serviceId) return 'Hizmet';
+    const { data } = await this.supabase.from('business_services').select('name').eq('id', serviceId).maybeSingle();
+    return data?.name || 'Hizmet';
+  }
+  
+  private formatLocalTime(dateStr: string): string {
+    const match = dateStr.match(/T?(\d{2}):(\d{2})/);
+    return match ? `${match[1]}:${match[2]}` : dateStr;
+  }
+  
+  private async notifyMerchant(organizationId: string, title: string, message: string): Promise<void> {
+    const { error } = await this.supabase.from('notifications').insert({ profile_id: organizationId, title, message, type: 'appointment' });
+    if (error) console.error("[AppointmentRepository] Error creating merchant notification:", error);
+    // Bildirim hatası ASLA randevu işlemini geri almaz veya başarısız göstermez.
+  }
+  
+  async updateAppointmentDateTime(organizationId: string, appointmentId: string, customerPhone: string, newStartsAt: string): Promise<any> {
+    const { data: existing, error: fetchError } = await this.supabase
+      .from('appointments').select('*')
+      .eq('id', appointmentId).eq('organization_id', organizationId).eq('customer_phone', customerPhone)
+      .maybeSingle();
+    if (fetchError) { console.error("[AppointmentRepository] Error fetching appointment before reschedule:", fetchError); throw fetchError; }
+    if (!existing) return null;
+  
+    const { data, error } = await this.supabase.from('appointments').update({ date: newStartsAt }).eq('id', appointmentId).select().single();
+    if (error) { console.error("[AppointmentRepository] Error updating appointment date:", error); throw error; }
+  
+    const serviceName = await this.getServiceName(existing.service_id);
+    await this.notifyMerchant(
+      organizationId, 'Randevu Güncellendi',
+      `${existing.customer_name || 'Müşteri'}'in "${serviceName}" için ${this.formatLocalTime(existing.date)} saatindeki randevusu ${this.formatLocalTime(newStartsAt)}'a alındı.`
+    );
+    return data;
+  }
+
+  async upsertCustomer(organizationId: string, phone: string, name: string): Promise<void> {
+    const { error } = await this.supabase.from('customers').upsert({
+      organization_id: organizationId,
+      phone: phone,
+      name: name,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'organization_id,phone' });
+
+    if (error) {
+      console.error("[AppointmentRepository] Error upserting customer:", error);
+      // We don't throw here to avoid failing the appointment creation
+    }
   }
 
   async getAvailableSlots(organizationId: string, date: string, serviceId: string): Promise<string[]> {

@@ -14,6 +14,9 @@ export class ListBusinessServicesTool implements ITool {
   constructor(private readonly supabase: any) {}
 
   async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+    if (context.appointmentModuleEnabled === false) {
+      return { status: "MODULE_DISABLED", message: "Appointment/reservation feature is disabled for this business." };
+    }
     try {
       const { data: services, error } = await this.supabase
         .from('business_services')
@@ -47,3 +50,4 @@ export class ListBusinessServicesTool implements ITool {
     }
   }
 }
+

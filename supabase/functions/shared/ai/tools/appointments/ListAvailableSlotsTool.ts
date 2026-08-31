@@ -18,6 +18,9 @@ export class ListAvailableSlotsTool implements ITool {
   constructor(private readonly appointmentService: AppointmentService) {}
 
   async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+    if (context.appointmentModuleEnabled === false) {
+      return { status: "MODULE_DISABLED", message: "Appointment/reservation feature is disabled for this business." };
+    }
     const date = args.date as string;
     const serviceId = args.serviceId as string;
 
