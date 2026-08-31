@@ -16,6 +16,7 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
+    console.log('[WAHA WEBHOOK RAW PAYLOAD]', JSON.stringify(payload));
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
@@ -23,11 +24,11 @@ serve(async (req) => {
       const body = payload.payload?.body || payload.data?.body;
       const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
-      // GRUP ve DURUM (Status) Korumasý:
+      // GRUP ve DURUM (Status) Korumasï¿½:
       const isGroup = from && from.includes('@g.us');
       const isBroadcast = from && from.includes('@broadcast');
 
-      // Sadece dýþarýdan gelen (müþteri), grup/durum olmayan, kiþisel mesajlarýna yanýt ver (@c.us)
+      // Sadece dï¿½ï¿½arï¿½dan gelen (mï¿½ï¿½teri), grup/durum olmayan, kiï¿½isel mesajlarï¿½na yanï¿½t ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
         console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
 
@@ -41,7 +42,7 @@ serve(async (req) => {
       }
     }
 
-    // WAHA isteklerini hiçbir zaman timeout'a düþürmemek için hemen 200 dönüyoruz
+    // WAHA isteklerini hiï¿½bir zaman timeout'a dï¿½ï¿½ï¿½rmemek iï¿½in hemen 200 dï¿½nï¿½yoruz
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
