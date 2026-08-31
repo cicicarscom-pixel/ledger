@@ -17,27 +17,14 @@ serve(async (req) => {
     if (!bodyText) throw new Error("Empty body")
 
     const bodyJson = JSON.parse(bodyText)
-    const { prompt, image, mimeType, mode, customInstruction } = bodyJson
+    const { prompt, image, mimeType } = bodyJson
 
     const apiKey = Deno.env.get('LEDGER_GEMINI_API_KEY') || Deno.env.get('GEMINI_API_KEY')
     if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
 
     const ai = new GoogleGenAI({ apiKey })
 
-    let systemInstruction = "";
-    if (mode === 'playground') {
-      systemInstruction = customInstruction || "Sen bir yapay zeka asistanısın.";
-    } else if (mode === 'social') {
-      systemInstruction = "Sen yaratıcı bir sosyal medya metin yazarı ve uzmanısın.";
-    } else {
-      systemInstruction = `Lütfen faturadan veya işlem açıklamasından şu bilgileri çıkar ve sadece JSON formatında yanıt ver:
-{
-  "amount": (sayı olarak tutar, ondalık ayırıcı olarak nokta kullan. Sadece sayı.),
-  "date": (YYYY-MM-DD formatında tarih, yoksa bugünün tarihi),
-  "title": (Belge veya işlemin kısa başlığı/açıklaması),
-  "type": (gelir ise "income", gider ise "expense")
-}`
-    }
+    const systemInstruction = "Sen yaratıcı bir sosyal medya metin yazarı ve uzmanısın."
 
     const inputParts: any[] = [
       { type: "text", text: systemInstruction },
@@ -59,35 +46,16 @@ serve(async (req) => {
 
     const generatedText = interaction.output_text || ""
 
-    if (mode === 'playground' || mode === 'social') {
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          text: generatedText
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    let parsedResult = {}
-    try {
-       const cleanText = generatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-       parsedResult = JSON.parse(cleanText)
-    } catch(e) {
-       console.warn("Failed to parse output as JSON", generatedText)
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true,
-        debug_parsedResult: parsedResult,
         text: generatedText
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error: any) {
-    console.error("Gemini Chat Error:", error)
+    console.error("Flow Gemini Chat Error:", error)
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
