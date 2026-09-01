@@ -746,6 +746,24 @@ serve(async (req) => {
         result = await zernio.comments.replyToComment(accountId, payload.postId, payload.commentId, payload.message);
         break;
       }
+        case 'send-private-reply': {
+          let accountId = payload.accountId;
+          if (!accountId && callerOrgId && payload.platform) {
+             const { data: socialAcc } = await supabase
+                .from('social_accounts')
+                .select('zernio_account_id')
+                .eq('profile_id', callerOrgId)
+                .ilike('platform', payload.platform)
+                .limit(1);
+             if (socialAcc && socialAcc.length > 0) {
+                 accountId = socialAcc[0].zernio_account_id;
+             }
+          }
+          if (!accountId) throw new Error("Missing accountId for send-private-reply");
+          result = await zernio.comments.sendPrivateReply(accountId, payload.postId, payload.commentId, payload.message);
+          break;
+        }
+
 
       // ==========================================
       // CACHED ANALYTICS ENDPOINTS
