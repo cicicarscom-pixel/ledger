@@ -22,11 +22,7 @@ serve(async (req) => {
 
     // 1. Get all active social accounts
     const { data: accounts, error: accErr } = await supabase
-      .schema('integration')
-      .from('social_accounts')
-      .select('*')
-      .eq('is_active', true)
-      .eq('enabled', true);
+      .rpc('get_active_social_accounts_for_sync');
 
     if (accErr || !accounts) {
       throw new Error(`Failed to fetch social accounts: ${accErr?.message}`);
