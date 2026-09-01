@@ -652,10 +652,37 @@ serve(async (req) => {
           }
         }
 
+        // --- SECURE PLATFORM TARGETING ---
+        const { data: connectedAccounts } = await supabase
+           .from('social_accounts')
+           .select('platform, zernio_account_id')
+           .eq('profile_id', callerOrgId);
+        
+        const accountsMap = new Map();
+        if (connectedAccounts) {
+           connectedAccounts.forEach((acc) => {
+              accountsMap.set(acc.platform.toLowerCase(), acc.zernio_account_id);
+           });
+        }
+
+        let securePlatforms: any[] = [];
+        if (Array.isArray(payload.platforms)) {
+           for (const requestedPlatform of payload.platforms) {
+              const pName = typeof requestedPlatform === 'string' ? requestedPlatform.toLowerCase() : requestedPlatform.platform.toLowerCase();
+              const accId = accountsMap.get(pName);
+              if (!accId) {
+                 throw new ZernioError(`Forbidden: Organizasyonun bağlı bir '${pName}' hesabı bulunamadı. Lütfen hesap bağlantısını kontrol edin.`, 403);
+              }
+              securePlatforms.push({ platform: pName, accountId: accId });
+           }
+        } else {
+           throw new ZernioError("Bad Request: platforms dizisi eksik veya hatalı", 400);
+        }
+
         const createPostPayload = {
           title: payload.title,
           content: payload.content,
-          platforms: payload.platforms,
+          platforms: securePlatforms,
           scheduledFor: payload.scheduledFor,
           timezone: payload.timezone,
           publishNow: payload.publishNow,
