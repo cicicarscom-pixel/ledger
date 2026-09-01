@@ -11,6 +11,12 @@ serve(async (req) => {
       throw new Error("Missing Supabase environment variables");
     }
 
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const providedToken = authHeader.replace('Bearer ', '');
+    if (providedToken !== supabaseKey) {
+      return new Response(JSON.stringify({ error: "Forbidden: service-role only" }), { status: 403 });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
     const zernio = new ZernioClient();
 
