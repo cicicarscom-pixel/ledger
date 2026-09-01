@@ -78,6 +78,45 @@ serve(async (req) => {
       return freshData;
     }
 
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new ZernioError("Missing Authorization header", 401);
+    
+    // Resolve user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (authError || !user) throw new ZernioError("Unauthorized", 401);
+
+    // Fetch user's active organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single();
+
+    if (!membership?.organization_id) throw new ZernioError("Kullanıcı herhangi bir organizasyona bağlı değil.", 403);
+    const callerOrgId = membership.organization_id;
+
+    // --- GLOBAL OWNERSHIP VALIDATION ---
+    // If action includes an accountId, verify it belongs to the callerOrgId
+    const globalAccountId = payload.accountId || payload.query?.accountId;
+    if (globalAccountId && action !== 'disconnect-account') {
+       const { data: acc } = await supabase.from('social_accounts')
+         .select('profile_id').eq('zernio_account_id', globalAccountId).maybeSingle();
+       if (!acc || acc.profile_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
+    } else if (globalAccountId && action === 'disconnect-account') {
+       const { data: acc } = await supabase.from('social_accounts')
+         .select('profile_id').eq('zernio_account_id', globalAccountId).maybeSingle();
+       if (!acc || acc.profile_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
+    }
+    
+    // If action is delete-post, verify post belongs to callerOrgId
+    if (action === 'delete-post' && payload.postId) {
+       const { data: post } = await supabase.from('posts')
+         .select('profile_id').eq('zernio_post_id', payload.postId).maybeSingle();
+       if (!post || post.profile_id !== callerOrgId) throw new ZernioError("Forbidden: Post not owned by this organization.", 403);
+    }
+
     switch (action) {
       case 'get-connect-url': {
         const authHeader = req.headers.get('Authorization');
@@ -262,7 +301,7 @@ serve(async (req) => {
       }
 
       case 'sync-posts': {
-        const { organizationId } = payload;
+        const organizationId = callerOrgId;
         if (!organizationId) {
           result = { posts: [], error: 'organizationId is required' };
           break;
@@ -286,7 +325,7 @@ serve(async (req) => {
         const postsRes: any = await zernio.posts.listPosts(profileId);
         const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
         
-        const { userId } = payload;
+        const userId = callerOrgId;
         if (userId) {
            const mappedPosts = postsList.map((p: any) => {
                let mediaList = p.mediaItems?.map((m: any) => m.url) || [];
@@ -335,7 +374,7 @@ serve(async (req) => {
       }
       
       case 'get-inbox-pictures': {
-        const { organizationId } = payload;
+        const organizationId = callerOrgId;
         if (!organizationId) {
           result = { pictures: {}, error: 'organizationId is required' };
           break;
@@ -395,7 +434,7 @@ serve(async (req) => {
       }
 
       case 'sync-comments': {
-        const { organizationId } = payload;
+        const organizationId = callerOrgId;
         if (!organizationId) {
           result = { comments: [], error: 'organizationId is required' };
           break;
@@ -507,7 +546,7 @@ serve(async (req) => {
       }
       
       case 'sync-messages': {
-        const { organizationId } = payload;
+        const organizationId = callerOrgId;
         if (!organizationId) {
           result = { conversations: [], error: 'organizationId is required' };
           break;
@@ -531,7 +570,7 @@ serve(async (req) => {
         const inboxRes: any = await zernio.inbox.listInboxConversations(profileId);
         const convList = inboxRes.data?.data || [];
         
-        const { userId } = payload;
+        const userId = callerOrgId;
         if (userId && convList.length > 0) {
            const mappedMessages = convList.map((m: any) => {
               return {
@@ -647,11 +686,11 @@ serve(async (req) => {
 
       case 'send-message': {
         let accountId = payload.accountId;
-        if (!accountId && payload.userId && payload.platform) {
+        if (!accountId && callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
               .from('social_accounts')
               .select('zernio_account_id')
-              .eq('profile_id', payload.userId)
+              .eq('profile_id', callerOrgId)
               .ilike('platform', payload.platform)
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
@@ -665,11 +704,11 @@ serve(async (req) => {
 
       case 'reply-comment': {
         let accountId = payload.accountId;
-        if (!accountId && payload.userId && payload.platform) {
+        if (!accountId && callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
               .from('social_accounts')
               .select('zernio_account_id')
-              .eq('profile_id', payload.userId)
+              .eq('profile_id', callerOrgId)
               .ilike('platform', payload.platform)
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
@@ -802,7 +841,7 @@ serve(async (req) => {
       }
 
       case 'create-profile': {
-        const { userId } = payload;
+        const userId = callerOrgId;
         if (!userId) throw new ZernioError("Missing userId", 400);
         
         const { error } = await supabase.from('profiles').upsert({ 
