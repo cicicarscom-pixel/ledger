@@ -174,7 +174,7 @@ export class HandleIncomingMessageUseCase {
         } else {
           // Direct Message
           if (!zernioAccountId) {
-            const { data: accounts } = await supabaseClient.from('social_accounts').select('zernio_account_id').eq('profile_id', merchantId).limit(1);
+            const { data: accounts } = await supabaseClient.schema('integration').from('social_accounts').select('zernio_account_id').eq('organization_id', merchantId).limit(1);
             if (accounts && accounts.length > 0) zernioAccountId = accounts[0].zernio_account_id;
           }
           if (zernioAccountId) {

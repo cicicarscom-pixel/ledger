@@ -101,13 +101,13 @@ serve(async (req) => {
     // If action includes an accountId, verify it belongs to the callerOrgId
     const globalAccountId = payload.accountId || payload.query?.accountId;
     if (globalAccountId && action !== 'disconnect-account') {
-       const { data: acc } = await supabase.from('social_accounts')
-         .select('profile_id').eq('zernio_account_id', globalAccountId).maybeSingle();
-       if (!acc || acc.profile_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
+       const { data: acc } = await supabase.schema('integration').from('social_accounts')
+         .select('organization_id').eq('zernio_account_id', globalAccountId).maybeSingle();
+       if (!acc || acc.organization_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
     } else if (globalAccountId && action === 'disconnect-account') {
-       const { data: acc } = await supabase.from('social_accounts')
-         .select('profile_id').eq('zernio_account_id', globalAccountId).maybeSingle();
-       if (!acc || acc.profile_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
+       const { data: acc } = await supabase.schema('integration').from('social_accounts')
+         .select('organization_id').eq('zernio_account_id', globalAccountId).maybeSingle();
+       if (!acc || acc.organization_id !== callerOrgId) throw new ZernioError("Forbidden: Account not owned by this organization.", 403);
     }
     
     // If action is delete-post, verify post belongs to callerOrgId
@@ -227,6 +227,7 @@ serve(async (req) => {
 
         // Fetch ALL active Zernio Profiles for this organization
         const { data: activeProfiles } = await supabase
+          .schema('integration')
           .from('zernio_profiles')
           .select('id, zernio_profile_id')
           .eq('organization_id', orgId)
@@ -264,7 +265,7 @@ serve(async (req) => {
                 syncedAccountIds.push(acc.zernio_account_id);
               }
               
-              await supabase.from('social_accounts').upsert(
+              await supabase.schema('integration').from('social_accounts').upsert(
                 mappedAccounts,
                 { onConflict: 'zernio_account_id' }
               );
@@ -278,6 +279,7 @@ serve(async (req) => {
         // rather than hard deleting them.
         if (syncedAccountIds.length > 0) {
           const { data: existingLocalAccounts } = await supabase
+            .schema('integration')
             .from('social_accounts')
             .select('id, zernio_account_id')
             .eq('organization_id', orgId);
@@ -286,9 +288,9 @@ serve(async (req) => {
             const missingIds = existingLocalAccounts
               .filter(a => !syncedAccountIds.includes(a.zernio_account_id))
               .map(a => a.id);
-            
+
             if (missingIds.length > 0) {
-              await supabase.from('social_accounts')
+              await supabase.schema('integration').from('social_accounts')
                 .update({ sync_missing_since: new Date().toISOString() })
                 .in('id', missingIds)
                 .is('sync_missing_since', null); // only update if not already marked
@@ -654,9 +656,10 @@ serve(async (req) => {
 
         // --- SECURE PLATFORM TARGETING ---
         const { data: connectedAccounts } = await supabase
+           .schema('integration')
            .from('social_accounts')
            .select('platform, zernio_account_id')
-           .eq('profile_id', callerOrgId);
+           .eq('organization_id', callerOrgId);
         
         const accountsMap = new Map();
         if (connectedAccounts) {
@@ -715,9 +718,10 @@ serve(async (req) => {
         let accountId = payload.accountId;
         if (!accountId && callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
+              .schema('integration')
               .from('social_accounts')
               .select('zernio_account_id')
-              .eq('profile_id', callerOrgId)
+              .eq('organization_id', callerOrgId)
               .ilike('platform', payload.platform)
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
@@ -733,9 +737,10 @@ serve(async (req) => {
         let accountId = payload.accountId;
         if (!accountId && callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
+              .schema('integration')
               .from('social_accounts')
               .select('zernio_account_id')
-              .eq('profile_id', callerOrgId)
+              .eq('organization_id', callerOrgId)
               .ilike('platform', payload.platform)
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
@@ -750,9 +755,10 @@ serve(async (req) => {
           let accountId = payload.accountId;
           if (!accountId && callerOrgId && payload.platform) {
              const { data: socialAcc } = await supabase
+                .schema('integration')
                 .from('social_accounts')
                 .select('zernio_account_id')
-                .eq('profile_id', callerOrgId)
+                .eq('organization_id', callerOrgId)
                 .ilike('platform', payload.platform)
                 .limit(1);
              if (socialAcc && socialAcc.length > 0) {
@@ -889,7 +895,7 @@ serve(async (req) => {
         if (!accountId) throw new ZernioError("Missing accountId", 400);
         
         await zernio.accounts.disconnectAccount(accountId);
-        await supabase.from('social_accounts').delete().eq('zernio_account_id', accountId);
+        await supabase.schema('integration').from('social_accounts').delete().eq('zernio_account_id', accountId);
 
         result = { success: true };
         break;
