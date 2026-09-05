@@ -262,17 +262,20 @@ serve(async (req) => {
                 username: acc.username || acc.displayName || acc.name || acc.platform,
                 is_active: true,
                 needs_reconnection: false,
-                last_seen_at: new Date().toISOString()
+                last_synced_at: new Date().toISOString()
               }));
-              
+
               for (const acc of mappedAccounts) {
                 syncedAccountIds.push(acc.zernio_account_id);
               }
-              
-              await supabase.schema('integration').from('social_accounts').upsert(
+
+              const { error: upsertAccountsErr } = await supabase.schema('integration').from('social_accounts').upsert(
                 mappedAccounts,
                 { onConflict: 'zernio_account_id' }
               );
+              if (upsertAccountsErr) {
+                console.error(`Failed to upsert social_accounts for Zernio Profile: ${profile.zernio_profile_id}`, upsertAccountsErr);
+              }
             }
           } catch (e) {
             console.error(`Failed to sync accounts for Zernio Profile: ${profile.zernio_profile_id}`, e);
