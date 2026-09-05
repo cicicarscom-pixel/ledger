@@ -182,10 +182,14 @@ serve(async (req) => {
           if (!finalZernioProfileId) throw new ZernioError("Created profile ID is missing", 500);
 
           // Update the reserved slot in DB
-          await supabase.from('zernio_profiles').update({
+          const { error: profileUpdateErr } = await supabase.schema('integration').from('zernio_profiles').update({
             zernio_profile_id: finalZernioProfileId,
             status: 'active'
           }).eq('id', resolved.mapping_id);
+
+          if (profileUpdateErr) {
+            console.error(`Failed to persist Zernio profile id for mapping ${resolved.mapping_id}:`, profileUpdateErr);
+          }
         }
 
         console.log(`Getting Connect URL for Zernio Profile: ${finalZernioProfileId}, platform: ${platform}`);
