@@ -33,6 +33,52 @@ serve(async (req) => {
      * 2. If valid, fast returns it.
      * 3. If stale or miss, calls the Zernio API, upserts the cache, and returns it.
      */
+    /**
+     * Builds a human-readable Zernio profile label so the platform admin can identify
+     * which real Workigom business/user a profile belongs to from Zernio's own dashboard
+     * (needed to find and ban/force-logout a specific user). Format: "İşletme Adı — email".
+     * The email portion guarantees practical uniqueness per Zernio's per-workspace name
+     * constraint (see 409 profile_name_conflict history); the slot suffix additionally
+     * guards against collisions when one org has multiple profile slots.
+     */
+    async function buildReadableProfileLabel(orgId: string, profileSlot: number): Promise<string> {
+      let businessName: string | null = null;
+      let email: string | null = null;
+
+      try {
+        const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).maybeSingle();
+        businessName = org?.name || null;
+
+        const { data: member } = await supabase
+          .from('organization_members')
+          .select('user_id')
+          .eq('organization_id', orgId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (member?.user_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('business_name, email')
+            .eq('id', member.user_id)
+            .maybeSingle();
+          if (profile?.business_name) businessName = profile.business_name;
+          if (profile?.email) email = profile.email;
+        }
+      } catch (e) {
+        console.error(`Failed to resolve readable profile label for org ${orgId}:`, e);
+      }
+
+      if (!businessName) businessName = `Org-${orgId.slice(0, 8)}`;
+
+      const base = email ? `${businessName} — ${email}` : businessName;
+      // Slot suffix only when this org has more than one Zernio profile slot, to keep
+      // the common (single-slot) case as clean as possible while still guaranteeing
+      // per-org uniqueness for multi-slot orgs.
+      return profileSlot > 1 ? `${base} (#${profileSlot})` : base;
+    }
+
     async function fetchAnalyticsWithCache(accountId: string, platform: string, metricType: string, fetchFn: () => Promise<any>) {
       if (!accountId || !platform) {
          // Fallback if we don't have enough keys to cache properly
@@ -155,9 +201,9 @@ serve(async (req) => {
 
         // 2. If new slot, create deterministically in Zernio
         if (resolved.is_new) {
-          const profileName = `wg_${orgId}_${resolved.profile_slot}`;
+          const profileName = await buildReadableProfileLabel(orgId, resolved.profile_slot);
           const idempotencyKey = `zernio-profile:${orgId}:${resolved.profile_slot}`;
-          
+
           console.log(`Creating NEW Zernio Profile: ${profileName} with Idempotency Key: ${idempotencyKey}`);
           
           // Use raw fetch to pass Idempotency-Key header, as SDK might not expose it
@@ -193,18 +239,28 @@ serve(async (req) => {
         }
 
         console.log(`Getting Connect URL for Zernio Profile: ${finalZernioProfileId}, platform: ${platform}`);
-        const urlRes: any = await zernio.accounts.getConnectUrl({ 
-           platform: platform, 
-           profileId: finalZernioProfileId, 
-           redirectUrl: payload.redirectUrl 
-        });
         
-        result = { 
-          ...urlRes,
-          ...(urlRes.data || {}),
-          authUrl: urlRes.data?.authUrl || urlRes.data?.url || urlRes.authUrl || urlRes.url,
-          profileId: finalZernioProfileId 
-        };
+        let authUrl = null;
+        
+        if (platform === 'snapchat') {
+          // Bypass SDK for snapchat as it might not be supported in the currently installed SDK version
+          authUrl = `https://zernio.com/api/v1/connect/snapchat?profileId=${finalZernioProfileId}&redirect_url=${encodeURIComponent(payload.redirectUrl || '')}`;
+          result = { authUrl, profileId: finalZernioProfileId };
+        } else {
+          const urlRes: any = await zernio.accounts.getConnectUrl({ 
+             platform: platform, 
+             profileId: finalZernioProfileId, 
+             redirectUrl: payload.redirectUrl 
+          });
+          
+          authUrl = urlRes.data?.authUrl || urlRes.data?.url || urlRes.authUrl || urlRes.url;
+          result = { 
+            ...urlRes,
+            ...(urlRes.data || {}),
+            authUrl,
+            profileId: finalZernioProfileId 
+          };
+        }
         break;
       }
 
