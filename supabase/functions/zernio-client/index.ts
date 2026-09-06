@@ -702,17 +702,16 @@ serve(async (req) => {
                    throw new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError)));
                  }
                  
-                 // Zernio'nun uploadMediaDirect metodu bir URL döndürür
                  const mediaUrl = uploadRes?.data?.url || uploadRes?.url;
                  if (mediaUrl) {
-                    finalMediaItems.push({ url: mediaUrl });
+                    finalMediaItems.push({ url: mediaUrl, type: mimeType.startsWith("video/") ? "video" : "image", mimeType: mimeType });
                  } else {
                     throw new Error("Resim yüklenemedi, Zernio'dan URL dönmedi: " + JSON.stringify(uploadRes));
                  }
                }
             } else if (item.url) {
                // Normal URL ise direkt ekle
-               finalMediaItems.push({ url: item.url });
+               finalMediaItems.push({ url: item.url, type: item.type || (item.url.match(/\.(mp4|mov|avi)$/i) ? "video" : "image") });
             }
           }
         }
