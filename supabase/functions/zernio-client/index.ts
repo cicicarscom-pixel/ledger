@@ -739,7 +739,8 @@ serve(async (req) => {
               if (!accId) {
                  throw new ZernioError(`Forbidden: Organizasyonun bağlı bir '${pName}' hesabı bulunamadı. Lütfen hesap bağlantısını kontrol edin.`, 403);
               }
-              securePlatforms.push({ platform: pName, accountId: accId });
+              const specificData = typeof requestedPlatform === 'object' ? requestedPlatform.platformSpecificData : undefined;
+              securePlatforms.push({ platform: pName, accountId: accId, ...(specificData ? { platformSpecificData: specificData } : {}) });
            }
         } else {
            throw new ZernioError("Bad Request: platforms dizisi eksik veya hatalı", 400);
