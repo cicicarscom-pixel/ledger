@@ -28,7 +28,12 @@ export class ZernioError extends Error {
       case "ACCOUNT_RECONNECT_REQUIRED": return "Hesabın yetkisi düşmüş, yeniden bağlamanız gerekiyor.";
       case "ANALYTICS_NOT_AVAILABLE": return "Bu platform için analitik verisi şu an mevcut değil.";
       case "ZERNIO_UNAVAILABLE": return "Sosyal medya altyapı servisi şu an geçici olarak kullanılamıyor.";
-      default: return "Sosyal medya entegrasyon servisinde bir hata oluştu.";
+      default: 
+        // Maskeleme iptali: API'den dönen gerçek validasyon hatalarının frontend'e ulaşabilmesi için
+        // fallback mesajını doğrudan döndürüyoruz.
+        return fallback && fallback !== 'Unknown Zernio Error' 
+          ? fallback 
+          : "Sosyal medya entegrasyon servisinde bir hata oluştu.";
     }
   }
 }

@@ -80,7 +80,13 @@ serve(async (req) => {
 
     // 2. Resolve Profile ID from Zernio Account ID
     // Most events contain an accountId or profileId indicating which business received the interaction.
-    const zernioAccountId = payload.account?.id || payload.accountId || payload.data?.accountId || payload.data?.account?.id || payload.post?.accountId || payload.data?.platforms?.[0]?.accountId;
+    const zernioAccountId = payload.account?.id 
+      || payload.accountId 
+      || payload.data?.accountId 
+      || payload.data?.account?.id 
+      || payload.post?.accountId 
+      || payload.post?.platforms?.[0]?.accountId 
+      || payload.account?.accountId;
     console.log(`[webhook] Received event=${payload.event} account=${zernioAccountId || 'unknown'} ts=${payload.timestamp || new Date().toISOString()}`);
     let profileId = null;
 
@@ -448,15 +454,21 @@ serve(async (req) => {
     console.error("Zernio Webhook Error:", error.message);
     
     try {
-        const rawBody = await req.clone().text(); // Try to parse eventId again if it failed early
-        const payload = JSON.parse(rawBody);
-        const eventId = req.headers.get('x-zernio-event-id') || payload.data?.id || `${payload.event}-${payload.timestamp}`;
+        // req.clone().text() body already consumed error'undan kurtulmak için
+        // Eğer global olarak event id'yi yakalayabildiysek (örneğin eventId'yi let ile dışarı çıkarsaydık)
+        // ama şu anki yapıda sadece header'dan okumayı denemek daha güvenli.
+        const eventId = req.headers.get('x-zernio-event-id');
         if (eventId) {
-           await supabase.schema('integration').from('webhook_events').update({ 
-             status: 'failed', 
-             error: error.message,
-             processed_at: new Date().toISOString() 
-           }).eq('external_event_id', eventId);
+           const supabaseUrl = Deno.env.get("SUPABASE_URL");
+           const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+           if (supabaseUrl && supabaseKey) {
+             const supabase = createClient(supabaseUrl, supabaseKey);
+             await supabase.schema('integration').from('webhook_events').update({ 
+               status: 'failed', 
+               error: error.message,
+               processed_at: new Date().toISOString() 
+             }).eq('external_event_id', eventId);
+           }
         }
     } catch(e) {}
 
