@@ -92,3 +92,15 @@ otifications\ tablosu (RLS yetkileri ile birlikte) oluşturuldu.
 ### [21.08.2026] Müşavir Profil & Bağlantı Entegrasyonu (Flow & Ledger Senkronizasyonu)
 1. **Ledger Profil Ekranı:** Müşavirlerin kendi profil bilgilerini (İşletme Adı, Yetkili Kişi Adı Soyadı, Telefon vb.) düzenleyebilecekleri ve cihazlarından resim yükleyebilecekleri (Supabase Storage 'avatars' bucket üzerinden) '/profil' ekranı eklendi.
 2. **Flow Bağlantı Kartı:** Esnafın (Flow) "Muhasebecim" sayfasında yer alan sahte mock ekran kaldırılarak gerçek Supabase veritabanına bağlandı. Aktif bir bağlantı varsa doğrudan müşavirin profili, işletme adı ve avatarı şık bir "Bağlı" rozeti ile gösterilmektedir.
+
+
+### 07 Eylül 2026 - Zernio Analytics Entegrasyonu & Hata Ayıklama (flowweb & ledger)
+- **UI Kısıtlamaları:** Instagram için gerekli formatlar dışında görsel gönderimini engellemek adına `share/page.tsx` içerisinde görsel kırpma (crop) işlemi zorunlu hale getirildi ve kırpılmadan "Şimdi Paylaş" butonunun açılması engellendi.
+- **Frontend Race Condition (Yarış Durumu):** `fetchZernioAnalytics` içindeki `useEffect` tetiklenmelerini korumak için `useRef` tabanlı `currentRequestId` mekanizması kuruldu. Auth çözülmeden erken ateşlenen "first load fallback" tamamen kaldırıldı.
+- **Auth/Timing ve Soft Error Düzeltmeleri:**
+  - `analiz/page.tsx`'te API isteklerinden önce `supabase.auth.getSession()` ile session'ın açıkça beklenip, token'ın `Authorization` header'ında manuel geçirilmesi sağlandı.
+  - Edge function'daki (`zernio-client`) `catch` bloğu, hata durumunda hep 200 dönmesi yerine gerçek `error.status` (401, 403 vb.) dönecek şekilde düzeltildi.
+  - Frontend'de 7-9 ayrı API çağrısı `Promise.all` ile paralelleştirildi. Endpoint bazlı oluşabilecek "soft error" durumlarında (örn. `content-decay` çökmesi), diğer sağlam verileri çöpe atmak yerine sessizce atlayan ve konsola log bırakan *graceful error handling* yapısı eklendi.
+- **Backend Cache (Önbellek) Bug'ı:** `zernio-client` içindeki `analytics_cache` tablosuna yazarken platformun sabit olarak `'all'` kalması sorunu, `payload.query?.platform || 'all'` ile dinamik hale getirilerek düzeltildi.
+- **Top Performing Posts Özelliği:** Zernio SDK'sının `getAnalytics` metodu backend'e eklendi. `get-post-analytics` action'ı bu metoda bağlanarak `flowweb` analiz sayfasına gönderi bazlı detaylı metrikleri (Görüntülenme, Erişim, Beğeni, ER% vb.) sunan kapsamlı bir UI tablosu eklendi.
+- Tüm süreçte github push yapıldı ve edge function'lar Supabase CLI ile deploy edildi.

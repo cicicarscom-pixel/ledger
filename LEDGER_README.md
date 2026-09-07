@@ -124,3 +124,15 @@ Son geliştirmelerle sistem daha sağlam bir RLS, UI ve AI entegrasyonuna kavuş
 - **OdemeTakvimiScreen Yeni Tasarım:** `OdemeTakvimiScreen`, grid yapısından "Neo-Fintech Noir" tarzı, dikey listeli ve Gelir/Gider olarak ikiye bölünmüş kart tasarımına geçirildi. Giderler kırmızı (`#ff3b30`), gelirler yeşil (`#22c55e`) olarak renklendirildi.
 - **Filtreleme Mantığı Düzeltildi:** Takvim ekranında işlemlerin hem gelir hem gidere düşmesine neden olan `t.amount > 0` şartı kaldırılarak; `t.type === 'income'` / `'sales'` (gelir) ve `t.type === 'expense'` / `'ALIS'` (gider) kurallarıyla kesin bir ayrım yapıldı.
 - **Gerçek Zamanlı Güncelleme:** `AiMuhasebeScreen` (Dashboard), `transactions` tablosuna yapılan eklemeleri de dinleyecek (realtime subscription) şekilde genişletildi ve `useFocusEffect` ile ekran açıldıkça verilerin anında güncellenmesi garantilendi.
+
+
+### 07 Eylül 2026 - Zernio Analytics Entegrasyonu & Hata Ayıklama (flowweb & ledger)
+- **UI Kısıtlamaları:** Instagram için gerekli formatlar dışında görsel gönderimini engellemek adına `share/page.tsx` içerisinde görsel kırpma (crop) işlemi zorunlu hale getirildi ve kırpılmadan "Şimdi Paylaş" butonunun açılması engellendi.
+- **Frontend Race Condition (Yarış Durumu):** `fetchZernioAnalytics` içindeki `useEffect` tetiklenmelerini korumak için `useRef` tabanlı `currentRequestId` mekanizması kuruldu. Auth çözülmeden erken ateşlenen "first load fallback" tamamen kaldırıldı.
+- **Auth/Timing ve Soft Error Düzeltmeleri:**
+  - `analiz/page.tsx`'te API isteklerinden önce `supabase.auth.getSession()` ile session'ın açıkça beklenip, token'ın `Authorization` header'ında manuel geçirilmesi sağlandı.
+  - Edge function'daki (`zernio-client`) `catch` bloğu, hata durumunda hep 200 dönmesi yerine gerçek `error.status` (401, 403 vb.) dönecek şekilde düzeltildi.
+  - Frontend'de 7-9 ayrı API çağrısı `Promise.all` ile paralelleştirildi. Endpoint bazlı oluşabilecek "soft error" durumlarında (örn. `content-decay` çökmesi), diğer sağlam verileri çöpe atmak yerine sessizce atlayan ve konsola log bırakan *graceful error handling* yapısı eklendi.
+- **Backend Cache (Önbellek) Bug'ı:** `zernio-client` içindeki `analytics_cache` tablosuna yazarken platformun sabit olarak `'all'` kalması sorunu, `payload.query?.platform || 'all'` ile dinamik hale getirilerek düzeltildi.
+- **Top Performing Posts Özelliği:** Zernio SDK'sının `getAnalytics` metodu backend'e eklendi. `get-post-analytics` action'ı bu metoda bağlanarak `flowweb` analiz sayfasına gönderi bazlı detaylı metrikleri (Görüntülenme, Erişim, Beğeni, ER% vb.) sunan kapsamlı bir UI tablosu eklendi.
+- Tüm süreçte github push yapıldı ve edge function'lar Supabase CLI ile deploy edildi.
