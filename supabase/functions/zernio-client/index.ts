@@ -972,7 +972,7 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error("Zernio Edge Function Error:", error);
+    const statusCode = error.status || (typeof error.code === 'number' ? error.code : 400);
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -980,7 +980,7 @@ serve(async (req) => {
         code: error.code || 'UNKNOWN_ERROR', 
         details: error.details 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 } // Often 200 with success: false in GraphQL/RPC style
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: statusCode }
     );
   }
 });
