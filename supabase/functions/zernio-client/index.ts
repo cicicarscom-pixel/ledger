@@ -393,10 +393,12 @@ serve(async (req) => {
         const userId = callerOrgId;
         if (userId) {
            const mappedPosts = postsList.map((p: any) => {
-               let mediaList = p.mediaItems?.map((m: any) => m.url) || [];
-               if (mediaList.length === 0 && p.picture) mediaList = [p.picture];
-               if (mediaList.length === 0 && p.image) mediaList = [p.image];
-               if (mediaList.length === 0 && p.thumbnail) mediaList = [p.thumbnail];
+               // Prioritize platform CDN links over Zernio blobs if they exist
+               let mediaList = [];
+               if (p.picture) mediaList.push(p.picture);
+               else if (p.image) mediaList.push(p.image);
+               else if (p.thumbnail) mediaList.push(p.thumbnail);
+               else if (p.mediaItems && p.mediaItems.length > 0) mediaList = p.mediaItems.map((m: any) => m.url);
                const platformList = p.platforms?.map((pl: any) => typeof pl === 'string' ? pl : pl.platform) || [];
                return {
                   profile_id: userId,
@@ -410,14 +412,10 @@ serve(async (req) => {
             });
            
            const { data: existingPosts } = await supabase.from('posts').select('id, zernio_post_id').eq('profile_id', userId);
-           const existingIds = existingPosts?.map((p: any) => p.zernio_post_id) || [];
            
            if (mappedPosts.length > 0) {
-               const newPosts = mappedPosts.filter((p: any) => !existingIds.includes(p.zernio_post_id));
-               if (newPosts.length > 0) {
-                  const { error } = await supabase.from('posts').insert(newPosts);
-                  if (error) console.error("Supabase insert error (posts):", error);
-               }
+               const { error } = await supabase.from('posts').upsert(mappedPosts, { onConflict: 'zernio_post_id' });
+               if (error) console.error("Supabase upsert error (posts):", error);
            }
 
            // DELETE posts that no longer exist in Zernio

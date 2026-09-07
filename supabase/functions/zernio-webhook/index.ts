@@ -137,18 +137,27 @@ serve(async (req) => {
         const { conversationId, id: messageId, direction, platform } = messageData;
         const textContent = messageData.text || messageData.message || '';
         const senderName = messageData.sender?.name || messageData.sender?.username || messageData.senderName || 'Bilinmeyen Kullanıcı';
+        
+        // Extract participant picture
+        const conversationData = payload.conversation || {};
+        const participantPicture = conversationData.participantPicture || messageData.sender?.picture || null;
+        
         if (!profileId) throw new Error("Cannot process message without mapped profileId");
 
         // A. Upsert Conversation (manual to avoid missing unique constraint errors)
         let internalConvId = null;
         const { data: existingConv } = await supabase
           .from('conversations')
-          .select('id')
+          .select('id, participant_picture')
           .eq('zernio_conversation_id', conversationId)
           .single();
 
         if (existingConv) {
           internalConvId = existingConv.id;
+          // Update picture if missing or different
+          if (participantPicture && existingConv.participant_picture !== participantPicture) {
+            await supabase.from('conversations').update({ participant_picture: participantPicture }).eq('id', internalConvId);
+          }
         } else {
           const { data: newConv, error: newConvError } = await supabase
             .from('conversations')
@@ -157,6 +166,7 @@ serve(async (req) => {
               zernio_conversation_id: conversationId,
               platform: platform || 'unknown',
               participant_name: senderName,
+              participant_picture: participantPicture,
               status: 'active'
             })
             .select('id')
@@ -234,6 +244,7 @@ serve(async (req) => {
         const actualPostId = postId || platformPostId;
         const commentText = text || message || '';
         const authorName = author?.name || author?.username || fromName || 'Bilinmeyen';
+        const postImageUrl = payload.post?.imageUrl || null;
         
         if (!profileId) throw new Error("Cannot process comment without mapped profileId");
 
@@ -242,21 +253,25 @@ serve(async (req) => {
         if (actualPostId) {
           const { data: postData } = await supabase
             .from('posts')
-            .select('id')
+            .select('id, media_urls')
             .eq('zernio_post_id', actualPostId)
             .single();
           
           if (postData) {
             internalPostId = postData.id;
+            // Update media_urls if postImageUrl is provided and not already present
+            if (postImageUrl && (!postData.media_urls || postData.media_urls.length === 0 || postData.media_urls[0] !== postImageUrl)) {
+              await supabase.from('posts').update({ media_urls: [postImageUrl] }).eq('id', internalPostId);
+            }
           } else {
-            // Post doesn't exist yet — create a stub so the join works (using upsert to avoid race conditions)
+            // Post doesn't exist yet - create a stub so the join works (using upsert to avoid race conditions)
             const { data: newPost, error: stubError } = await supabase
               .from('posts')
               .upsert({
                 profile_id: profileId,
                 zernio_post_id: actualPostId,
                 content: '',
-                media_urls: [],
+                media_urls: postImageUrl ? [postImageUrl] : [],
                 status: 'published',
                 platforms: [platform || 'unknown'],
                 scheduled_for: new Date().toISOString()
