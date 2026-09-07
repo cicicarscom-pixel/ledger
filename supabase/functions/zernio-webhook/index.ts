@@ -80,7 +80,7 @@ serve(async (req) => {
 
     // 2. Resolve Profile ID from Zernio Account ID
     // Most events contain an accountId or profileId indicating which business received the interaction.
-    const zernioAccountId = payload.account?.id || payload.accountId || payload.data?.accountId || payload.data?.account?.id;
+    const zernioAccountId = payload.account?.id || payload.accountId || payload.data?.accountId || payload.data?.account?.id || payload.post?.accountId || payload.data?.platforms?.[0]?.accountId;
     console.log(`[webhook] Received event=${payload.event} account=${zernioAccountId || 'unknown'} ts=${payload.timestamp || new Date().toISOString()}`);
     let profileId = null;
 
@@ -105,6 +105,13 @@ serve(async (req) => {
     if (!profileId) {
       // Profil eşleşmesi yok — event'i atla (200 dön ki Zernio retry etmesin)
       console.warn(`[webhook] profileId bulunamadı, event atlandı. event=${payload.event} zernioAccountId=${zernioAccountId}`);
+      
+      await supabase.schema('integration').from('webhook_events').update({ 
+         status: 'skipped', 
+         error: 'profile_not_mapped',
+         processed_at: new Date().toISOString() 
+      }).eq('external_event_id', eventId);
+
       return new Response(JSON.stringify({ success: true, skipped: true, reason: 'profile_not_mapped' }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
@@ -212,7 +219,9 @@ serve(async (req) => {
       }
 
       case 'post.published':
-      case 'post.created': {
+      case 'post.created':
+      case 'post.scheduled':
+      case 'post.platform.published': {
         const postData = payload.post || payload.data || {};
         const { id: postId, message, text, mediaItems, platforms, createdAt, status } = postData;
         const contentText = text || message || '';
