@@ -907,32 +907,32 @@ serve(async (req) => {
       }
       case 'get-daily-metrics': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'daily_metrics', () => zernio.analytics.getDailyMetrics(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'daily_metrics', () => zernio.analytics.getDailyMetrics(payload)); 
         break; 
       }
       case 'get-content-decay': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'content_decay', () => zernio.analytics.getContentDecay(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'content_decay', () => zernio.analytics.getContentDecay(payload)); 
         break; 
       }
       case 'get-post-timeline': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'post_timeline', () => zernio.analytics.getPostTimeline(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'post_timeline', () => zernio.analytics.getPostTimeline(payload)); 
         break; 
       }
       case 'get-posting-frequency': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'posting_frequency', () => zernio.analytics.getPostingFrequency(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'posting_frequency', () => zernio.analytics.getPostingFrequency(payload)); 
         break; 
       }
       case 'get-best-times': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'best_times', () => zernio.analytics.getBestTimeToPost(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'best_times', () => zernio.analytics.getBestTimeToPost(payload)); 
         break; 
       }
       case 'get-post-analytics': { 
         const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'post_analytics', () => zernio.analytics.getPostTimeline(payload)); 
+        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'post_analytics', () => zernio.analytics.getAnalytics(payload)); 
         break; 
       }
 

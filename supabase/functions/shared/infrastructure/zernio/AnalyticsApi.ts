@@ -75,4 +75,8 @@ export class AnalyticsApi {
   async getBestTimeToPost(payload: AnalyticsPayload): Promise<ZernioResponse> {
     return withRetry(() => this.context.sdk.analytics.getBestTimeToPost(payload));
   }
+
+  async getAnalytics(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.analytics.getAnalytics(payload));
+  }
 }
