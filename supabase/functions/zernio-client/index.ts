@@ -829,7 +829,7 @@ serve(async (req) => {
 
       case 'send-message': {
         let accountId = payload.accountId;
-        if (!accountId && callerOrgId && payload.platform) {
+        if (callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
               .schema('integration')
               .from('social_accounts')
@@ -850,7 +850,7 @@ serve(async (req) => {
 
       case 'reply-comment': {
         let accountId = payload.accountId;
-        if (!accountId && callerOrgId && payload.platform) {
+        if (callerOrgId && payload.platform) {
            const { data: socialAcc } = await supabase
               .schema('integration')
               .from('social_accounts')
@@ -870,7 +870,7 @@ serve(async (req) => {
       }
         case 'send-private-reply': {
           let accountId = payload.accountId;
-          if (!accountId && callerOrgId && payload.platform) {
+          if (callerOrgId && payload.platform) {
              const { data: socialAcc } = await supabase
                 .schema('integration')
                 .from('social_accounts')
