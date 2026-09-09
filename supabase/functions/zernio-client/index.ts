@@ -315,6 +315,7 @@ serve(async (req) => {
 
         let allAccounts: any[] = [];
         const syncedAccountIds: string[] = [];
+        const conflicts: any[] = [];
 
         // Sync from Zernio for each profile
         for (const profile of activeProfiles) {
@@ -324,28 +325,60 @@ serve(async (req) => {
             allAccounts = allAccounts.concat(accounts);
 
             if (accounts.length > 0) {
-              const mappedAccounts = accounts.map((acc: any) => ({
-                organization_id: orgId,
-                zernio_profile_mapping_id: profile.id,
-                zernio_profile_id: profile.zernio_profile_id,
-                zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
-                platform: acc.platform || 'unknown',
-                username: acc.username || acc.displayName || acc.name || acc.platform,
-                is_active: true,
-                needs_reconnection: false,
-                last_synced_at: new Date().toISOString()
-              }));
+              const mappedAccounts: any[] = [];
+
+              for (const acc of accounts) {
+                const platform = acc.platform || 'unknown';
+                const username = acc.username || acc.displayName || acc.name || acc.platform;
+                const zernioAccountId = acc._id || acc.id || acc.accountId || acc.uuid;
+
+                // Cross-tenant çakışma koruması: aynı platform hesabı (username) başka
+                // bir organizasyonda zaten aktif bağlıysa, bu bağlantıyı aktif yazma.
+                // Aksi halde Zernio bu sayfa için gönderi/yorum webhook'larını iki
+                // organizasyon arasında tutarsız dağıtıyor (09.09.2026'da tespit edildi:
+                // "direniskahvesi" FB sayfası hem 0ce56e11 hem 84c54c33 altında aktifti).
+                const { data: conflictingAccount } = await supabase
+                  .schema('integration')
+                  .from('social_accounts')
+                  .select('organization_id')
+                  .eq('platform', platform)
+                  .ilike('username', username)
+                  .eq('is_active', true)
+                  .neq('organization_id', orgId)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (conflictingAccount) {
+                  conflicts.push({ platform, username, conflictingOrganizationId: conflictingAccount.organization_id });
+                  console.warn(`[sync-accounts] Cross-tenant conflict: ${platform}/${username} already active under org ${conflictingAccount.organization_id}, skipping for org ${orgId}`);
+                  continue;
+                }
+
+                mappedAccounts.push({
+                  organization_id: orgId,
+                  zernio_profile_mapping_id: profile.id,
+                  zernio_profile_id: profile.zernio_profile_id,
+                  zernio_account_id: zernioAccountId,
+                  platform,
+                  username,
+                  is_active: true,
+                  needs_reconnection: false,
+                  last_synced_at: new Date().toISOString()
+                });
+              }
 
               for (const acc of mappedAccounts) {
                 syncedAccountIds.push(acc.zernio_account_id);
               }
 
-              const { error: upsertAccountsErr } = await supabase.schema('integration').from('social_accounts').upsert(
-                mappedAccounts,
-                { onConflict: 'zernio_account_id' }
-              );
-              if (upsertAccountsErr) {
-                console.error(`Failed to upsert social_accounts for Zernio Profile: ${profile.zernio_profile_id}`, upsertAccountsErr);
+              if (mappedAccounts.length > 0) {
+                const { error: upsertAccountsErr } = await supabase.schema('integration').from('social_accounts').upsert(
+                  mappedAccounts,
+                  { onConflict: 'zernio_account_id' }
+                );
+                if (upsertAccountsErr) {
+                  console.error(`Failed to upsert social_accounts for Zernio Profile: ${profile.zernio_profile_id}`, upsertAccountsErr);
+                }
               }
             }
           } catch (e) {
@@ -376,7 +409,7 @@ serve(async (req) => {
           }
         }
         
-        result = { accounts: allAccounts };
+        result = { accounts: allAccounts, conflicts };
         break;
       }
 
