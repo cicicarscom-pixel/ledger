@@ -453,6 +453,7 @@ serve(async (req) => {
                   zernio_post_id: p._id || p.id,
                   content: p.content || '',
                   media_urls: mediaList,
+                  media_storage_source: 'zernio',
                   status: p.status || 'published',
                   platforms: platformList,
                   scheduled_for: p.scheduledFor || p.createdAt || new Date().toISOString()
@@ -758,8 +759,40 @@ serve(async (req) => {
                  }
                }
             } else if (item.url) {
-               // Normal URL ise direkt ekle
-               finalMediaItems.push({ url: item.url, type: item.type || (item.url.match(/\.(mp4|mov|avi)$/i) ? "video" : "image") });
+               let processedUrl = item.url;
+               let processedType = item.type || (item.url.match(/\.(mp4|mov|avi)$/i) ? "video" : "image");
+               let processedMime = item.mimeType;
+
+               // Eğer URL Supabase'in geçici avatars klasörüne aitse, dosyayı indirip Zernio'ya yüklüyoruz
+               if (item.url.includes('.supabase.co/storage/v1/object/public/avatars/')) {
+                  try {
+                     const res = await fetch(item.url);
+                     if (res.ok) {
+                        const arrayBuffer = await res.arrayBuffer();
+                        const bytes = new Uint8Array(arrayBuffer);
+                        const mimeType = res.headers.get('content-type') || (processedType === 'video' ? 'video/mp4' : 'image/jpeg');
+                        
+                        const uploadRes = await zernio.media.uploadMediaDirect(mimeType, bytes);
+                        const mediaUrl = uploadRes?.data?.url || uploadRes?.url;
+                        
+                        if (mediaUrl) {
+                           processedUrl = mediaUrl;
+                           processedMime = mimeType;
+                           processedType = mimeType.startsWith("video/") ? "video" : "image";
+                           
+                           // Geçici dosyayı Supabase'den sil
+                           const urlParts = item.url.split('/');
+                           const fileName = urlParts[urlParts.length - 1];
+                           if (fileName) {
+                              await supabase.storage.from('avatars').remove([fileName]);
+                           }
+                        }
+                     }
+                  } catch (e) {
+                     console.error("Geçici dosyayı Zernio'ya aktarma hatası:", e);
+                  }
+               }
+               finalMediaItems.push({ url: processedUrl, type: processedType, mimeType: processedMime });
             }
           }
         }
