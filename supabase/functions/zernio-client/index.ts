@@ -1038,7 +1038,7 @@ serve(async (req) => {
         code: error.code || 'UNKNOWN_ERROR', 
         details: error.details 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: statusCode }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   }
 });
