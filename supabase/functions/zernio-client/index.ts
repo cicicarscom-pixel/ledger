@@ -769,7 +769,9 @@ serve(async (req) => {
            .schema('integration')
            .from('social_accounts')
            .select('platform, zernio_account_id')
-           .eq('organization_id', callerOrgId);
+           .eq('organization_id', callerOrgId)
+           .eq('is_active', true)
+           .order('connected_at', { ascending: false });
         
         const accountsMap = new Map();
         if (connectedAccounts) {
@@ -834,6 +836,8 @@ serve(async (req) => {
               .select('zernio_account_id')
               .eq('organization_id', callerOrgId)
               .ilike('platform', payload.platform)
+              .eq('is_active', true)
+              .order('connected_at', { ascending: false })
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
                accountId = socialAcc[0].zernio_account_id;
@@ -853,6 +857,8 @@ serve(async (req) => {
               .select('zernio_account_id')
               .eq('organization_id', callerOrgId)
               .ilike('platform', payload.platform)
+              .eq('is_active', true)
+              .order('connected_at', { ascending: false })
               .limit(1);
            if (socialAcc && socialAcc.length > 0) {
                accountId = socialAcc[0].zernio_account_id;
@@ -871,6 +877,8 @@ serve(async (req) => {
                 .select('zernio_account_id')
                 .eq('organization_id', callerOrgId)
                 .ilike('platform', payload.platform)
+                .eq('is_active', true)
+                .order('connected_at', { ascending: false })
                 .limit(1);
              if (socialAcc && socialAcc.length > 0) {
                  accountId = socialAcc[0].zernio_account_id;
