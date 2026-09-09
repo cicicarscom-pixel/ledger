@@ -835,7 +835,7 @@ serve(async (req) => {
               .from('social_accounts')
               .select('zernio_account_id')
               .eq('organization_id', callerOrgId)
-              .ilike('platform', payload.platform)
+              .in('platform', ['instagram', 'facebook'].includes(payload.platform.toLowerCase()) ? ['instagram', 'facebook'] : [payload.platform])
               .eq('is_active', true)
               .order('connected_at', { ascending: false })
               .limit(1);
@@ -856,7 +856,7 @@ serve(async (req) => {
               .from('social_accounts')
               .select('zernio_account_id')
               .eq('organization_id', callerOrgId)
-              .ilike('platform', payload.platform)
+              .in('platform', ['instagram', 'facebook'].includes(payload.platform.toLowerCase()) ? ['instagram', 'facebook'] : [payload.platform])
               .eq('is_active', true)
               .order('connected_at', { ascending: false })
               .limit(1);
@@ -876,7 +876,7 @@ serve(async (req) => {
                 .from('social_accounts')
                 .select('zernio_account_id')
                 .eq('organization_id', callerOrgId)
-                .ilike('platform', payload.platform)
+                .in('platform', ['instagram', 'facebook'].includes(payload.platform.toLowerCase()) ? ['instagram', 'facebook'] : [payload.platform])
                 .eq('is_active', true)
                 .order('connected_at', { ascending: false })
                 .limit(1);
