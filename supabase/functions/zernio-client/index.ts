@@ -128,20 +128,35 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new ZernioError("Missing Authorization header", 401);
     
-    // Resolve user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (authError || !user) throw new ZernioError("Unauthorized", 401);
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = token === supabaseServiceKey;
+    let callerOrgId: string;
 
-    // Fetch user's active organization
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .limit(1)
-      .single();
+    if (isServiceRole) {
+      // Backend (Edge Function) call
+      if (payload.profileId) {
+        callerOrgId = payload.profileId;
+      } else if (payload.userId) {
+        callerOrgId = payload.userId;
+      } else {
+        throw new ZernioError("Service role call requires profileId or userId in payload.", 400);
+      }
+    } else {
+      // Normal user request
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) throw new ZernioError("Unauthorized", 401);
 
-    if (!membership?.organization_id) throw new ZernioError("Kullanıcı herhangi bir organizasyona bağlı değil.", 403);
-    const callerOrgId = membership.organization_id;
+      // Fetch user's active organization
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .single();
+
+      if (!membership?.organization_id) throw new ZernioError("Kullanıcı herhangi bir organizasyona bağlı değil.", 403);
+      callerOrgId = membership.organization_id;
+    }
 
     // --- GLOBAL OWNERSHIP VALIDATION ---
     // If action includes an accountId, verify it belongs to the callerOrgId
@@ -697,7 +712,9 @@ serve(async (req) => {
                  try {
                    uploadRes = await zernio.media.uploadMediaDirect(mimeType, bytes);
                  } catch (uploadError: any) {
-                   throw new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError)));
+                   const enhancedError = new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError))) as any;
+                   enhancedError.status = uploadError.statusCode || uploadError.status;
+                   throw enhancedError;
                  }
                  
                  const mediaUrl = uploadRes?.data?.url || uploadRes?.url;
