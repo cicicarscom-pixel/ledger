@@ -448,15 +448,19 @@ serve(async (req) => {
                else if (p.thumbnail) mediaList.push(p.thumbnail);
                else if (p.mediaItems && p.mediaItems.length > 0) mediaList = p.mediaItems.map((m: any) => m.url);
                const platformList = p.platforms?.map((pl: any) => typeof pl === 'string' ? pl : pl.platform) || [];
+              // Medya listesinde hâlâ bizim geçici Supabase linkimiz varsa transfer başarısız
+              // olmuş demektir — 'supabase' olarak işaretli KALMALI ki flow-cleanup-post-media
+              // bunu bulup temizleyebilsin.
+              const stillOnSupabase = mediaList.some((u: any) => typeof u === 'string' && u.includes('.supabase.co/storage/'));
                return {
                   profile_id: userId,
                   zernio_post_id: p._id || p.id,
                   content: p.content || '',
                   media_urls: mediaList,
-                  media_storage_source: 'zernio',
                   status: p.status || 'published',
                   platforms: platformList,
-                  scheduled_for: p.scheduledFor || p.createdAt || new Date().toISOString()
+                  scheduled_for: p.scheduledFor || p.createdAt || new Date().toISOString(),
+                  media_storage_source: stillOnSupabase ? 'supabase' : 'zernio'
                };
             });
            
@@ -742,28 +746,28 @@ serve(async (req) => {
                     bytes[i] = binaryStr.charCodeAt(i);
                  }
                  
-                 let uploadRes: any;
+                 const ext = mimeType.split('/')[1] || 'bin';
+                 const filename = `post_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                 
+                 let mediaUrl: string;
                  try {
-                   uploadRes = await zernio.media.uploadMediaDirect(mimeType, bytes);
+                   // Zernio'nun resmi post-medyası akışı: presign + PUT (5GB'a kadar).
+                   mediaUrl = await zernio.media.uploadViaPresignedUrl(filename, mimeType, bytes);
                  } catch (uploadError: any) {
-                   const enhancedError = new Error("Zernio uploadMediaDirect Hatası: " + (uploadError.message || JSON.stringify(uploadError))) as any;
+                   const enhancedError = new Error("Zernio medya yükleme hatası: " + (uploadError.message || JSON.stringify(uploadError))) as any;
                    enhancedError.status = uploadError.statusCode || uploadError.status;
                    throw enhancedError;
                  }
                  
-                 const mediaUrl = uploadRes?.data?.url || uploadRes?.url;
-                 if (mediaUrl) {
-                    finalMediaItems.push({ url: mediaUrl, type: mimeType.startsWith("video/") ? "video" : "image", mimeType: mimeType });
-                 } else {
-                    throw new Error("Resim yüklenemedi, Zernio'dan URL dönmedi: " + JSON.stringify(uploadRes));
-                 }
+                 finalMediaItems.push({ url: mediaUrl, type: mimeType.startsWith("video/") ? "video" : "image", mimeType: mimeType });
                }
             } else if (item.url) {
                let processedUrl = item.url;
                let processedType = item.type || (item.url.match(/\.(mp4|mov|avi)$/i) ? "video" : "image");
                let processedMime = item.mimeType;
 
-               // Eğer URL Supabase'in geçici avatars klasörüne aitse, dosyayı indirip Zernio'ya yüklüyoruz
+               // Eğer URL Supabase'in geçici avatars klasörüne aitse, dosyayı indirip Zernio'nun
+               // kendi kalıcı deposuna (presign + PUT akışıyla) aktarıyoruz.
                if (item.url.includes('.supabase.co/storage/v1/object/public/avatars/')) {
                   try {
                      const res = await fetch(item.url);
@@ -771,24 +775,25 @@ serve(async (req) => {
                         const arrayBuffer = await res.arrayBuffer();
                         const bytes = new Uint8Array(arrayBuffer);
                         const mimeType = res.headers.get('content-type') || (processedType === 'video' ? 'video/mp4' : 'image/jpeg');
+                        const urlParts = item.url.split('/');
+                        const fileName = urlParts[urlParts.length - 1];
                         
-                        const uploadRes = await zernio.media.uploadMediaDirect(mimeType, bytes);
-                        const mediaUrl = uploadRes?.data?.url || uploadRes?.url;
+                        const mediaUrl = await zernio.media.uploadViaPresignedUrl(fileName || `post_${Date.now()}.bin`, mimeType, bytes);
                         
-                        if (mediaUrl) {
-                           processedUrl = mediaUrl;
-                           processedMime = mimeType;
-                           processedType = mimeType.startsWith("video/") ? "video" : "image";
-                           
-                           // Geçici dosyayı Supabase'den sil
-                           const urlParts = item.url.split('/');
-                           const fileName = urlParts[urlParts.length - 1];
-                           if (fileName) {
-                              await supabase.storage.from('avatars').remove([fileName]);
-                           }
+                        processedUrl = mediaUrl;
+                        processedMime = mimeType;
+                        processedType = mimeType.startsWith("video/") ? "video" : "image";
+                        
+                        // Geçici dosyayı Supabase'den sil — artık Zernio'nun kendi deposunda kalıcı.
+                        if (fileName) {
+                           await supabase.storage.from('avatars').remove([fileName]);
                         }
                      }
                   } catch (e) {
+                     // Presign akışı da başarısız olursa (5GB'a kadar desteklediği için çok nadir),
+                     // orijinal Supabase URL'i ile devam ediyoruz — dosya silinmiyor, aşağıdaki
+                     // sync-posts düzeltmesi sayesinde 'supabase' olarak işaretli kalacağı için
+                     // flow-cleanup-post-media daha sonra bunu bulup temizleyebilir.
                      console.error("Geçici dosyayı Zernio'ya aktarma hatası:", e);
                   }
                }
