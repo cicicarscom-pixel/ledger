@@ -464,10 +464,23 @@ serve(async (req) => {
                };
             });
            
-           const { data: existingPosts } = await supabase.from('posts').select('id, zernio_post_id').eq('profile_id', userId);
-           
-           if (mappedPosts.length > 0) {
-               const { error } = await supabase.from('posts').upsert(mappedPosts, { onConflict: 'zernio_post_id' });
+           const { data: existingPosts } = await supabase.from('posts').select('id, zernio_post_id, status').eq('profile_id', userId);
+
+           // Yerelde zaten 'deleted' olarak işaretlenmiş gönderileri Zernio'nun
+           // listPosts yanıtıyla asla geri diriltme (resurrect etme). Zernio hâlâ
+           // bu postu döndürüyorsa (örn. "Published posts cannot be deleted"
+           // kısıtı yüzünden silinemediyse ya da deleteFromPlatforms:false ile
+           // bilerek platformda bırakıldıysa) status alanını EZME — yerel
+           // 'deleted' işareti kalıcı (sticky) kalmalı.
+           const deletedZernioIds = new Set(
+              (existingPosts || [])
+                 .filter((p: any) => p.status === 'deleted' && p.zernio_post_id)
+                 .map((p: any) => p.zernio_post_id)
+           );
+           const postsToUpsert = mappedPosts.filter((p: any) => !deletedZernioIds.has(p.zernio_post_id));
+
+           if (postsToUpsert.length > 0) {
+               const { error } = await supabase.from('posts').upsert(postsToUpsert, { onConflict: 'zernio_post_id' });
                if (error) console.error("Supabase upsert error (posts):", error);
            }
 
