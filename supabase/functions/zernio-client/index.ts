@@ -878,6 +878,19 @@ serve(async (req) => {
         break;
       }
 
+      case 'unpublish-post': {
+        const { postId, platform } = payload;
+        if (!postId || !platform) {
+          throw new Error("postId ve platform, unpublish-post action'ı için zorunludur");
+        }
+        try {
+          result = await zernio.posts.unpublishPost(postId, platform);
+        } catch (postError: any) {
+          throw new ZernioError("Zernio unpublishPost Hatası: " + postError.message, postError.status, 'UNPUBLISH_POST_FAILED');
+        }
+        break;
+      }
+
       case 'send-message': {
         let accountId = payload.accountId;
         if (callerOrgId && payload.platform) {

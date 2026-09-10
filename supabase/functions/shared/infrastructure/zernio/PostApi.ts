@@ -19,4 +19,26 @@ export class PostApi {
       query: { deleteFromPlatforms } 
     }));
   }
+
+  /**
+   * Yayınlanmış bir postu TEK bir platformdan kaldırır. Zernio'nun resmi API
+   * dokümantasyonuna göre DELETE /v1/posts/{postId} yalnızca taslak/zamanlanmış
+   * postlarda çalışır — yayınlanmış postları koşulsuz reddeder ("Published
+   * posts cannot be deleted; use the Unpublish endpoint instead"). Bu metod
+   * POST /v1/posts/{postId}/unpublish uç noktasını çağırır. Instagram, TikTok
+   * ve Snapchat'te desteklenmiyor. Post hedeflenen tüm platformlardan
+   * kaldırıldığında Zernio tarafında durumu 'cancelled' olur (post silinmez,
+   * sadece yayından kalkar).
+   *
+   * ⚠️ DİKKAT: `unpublishPost` metod adı @zernio/node SDK'sının bu sürümünde
+   * doğrulanmadı (diğer metodlarla aynı isimlendirme kalıbından tahmin
+   * edildi). Deploy etmeden önce TypeScript otokompletiyle veya SDK
+   * kaynağından gerçek metod adını teyit edin — farklıysa burada güncelleyin.
+   */
+  async unpublishPost(postId: string, platform: string): Promise<ZernioResponse> {
+    return withRetry(() => (this.context.sdk.posts.unpublishPost as any)({
+      path: { postId },
+      body: { platform }
+    }));
+  }
 }
