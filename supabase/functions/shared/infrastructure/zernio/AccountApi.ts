@@ -18,39 +18,21 @@ export class AccountApi {
     return withRetry(() => this.context.sdk.accounts.listAccounts({ query: { profileId } }));
   }
 
-  async disconnectAccount(accountId: string): Promise<void> {
-    return withRetry(async () => {
-      let success = false;
-      const sdk = this.context.sdk;
-      try {
-        if (typeof (sdk.accounts as any).deleteAccount === 'function') {
-           await (sdk.accounts as any).deleteAccount({ id: accountId });
-           success = true;
-        } else if (typeof (sdk.accounts as any).removeAccount === 'function') {
-           await (sdk.accounts as any).removeAccount({ id: accountId });
-           success = true;
-        } else if (typeof (sdk.connect as any).disconnect === 'function') {
-           await (sdk.connect as any).disconnect({ id: accountId });
-           success = true;
-        }
-      } catch (err: any) {
-        console.error("Zernio account deletion warning (SDK):", err.message);
-      }
-
-      if (!success) {
-        // Fallback to direct REST fetch
-        const fetchRes = await fetch(`https://api.zernio.com/v1/accounts/${accountId}`, {
-           method: 'DELETE',
-           headers: {
-              'Authorization': `Bearer ${this.context.apiKey}`,
-              'Content-Type': 'application/json'
-           }
-        });
-        if (!fetchRes.ok) {
-           throw new ZernioError(await fetchRes.text(), fetchRes.status, 'DISCONNECT_FAILED');
-        }
-      }
-    });
+  /**
+   * Bağlı bir sosyal medya hesabını Zernio'dan tamamen siler/bağlantısını keser.
+   * Zernio'nun resmi API dokümantasyonu: DELETE /v1/accounts/{accountId}
+   * ("Disconnects and removes a connected social account"). Önceki implementasyon
+   * üç farklı SDK metod adını tahmin ederek deniyor, hataları sessizce yutuyordu ve
+   * yanlış bir domain'e (api.zernio.com yerine zernio.com/api olmalı) REST fallback
+   * yapıyordu — bu yüzden Zernio tarafında bağlantı kopmadan yerel kayıt sessizce
+   * siliniyordu. Diğer doğrulanmış metodlarla (deletePost, unpublishPost) aynı
+   * {path:{...}} çağrı kalıbına geçirildi.
+   *
+   * ⚠️ Aynı uyarı: çağrı şeklini (path parametresinin adı `accountId` mi başka bir
+   * şey mi) deploy öncesi SDK'dan teyit edin.
+   */
+  async disconnectAccount(accountId: string): Promise<ZernioResponse> {
+    return withRetry(() => (this.context.sdk.accounts.deleteAccount as any)({ path: { accountId } }));
   }
 
   async getFollowerStats(payload: AnalyticsPayload): Promise<ZernioResponse> {

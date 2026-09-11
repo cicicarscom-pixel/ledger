@@ -1077,7 +1077,11 @@ serve(async (req) => {
         const { accountId } = payload;
         if (!accountId) throw new ZernioError("Missing accountId", 400);
         
-        await zernio.accounts.disconnectAccount(accountId);
+        try {
+          await zernio.accounts.disconnectAccount(accountId);
+        } catch (accountError: any) {
+          throw new ZernioError("Zernio disconnectAccount Hatası: " + accountError.message, accountError.status, 'DISCONNECT_ACCOUNT_FAILED');
+        }
         await supabase.schema('integration').from('social_accounts').delete().eq('zernio_account_id', accountId);
 
         result = { success: true };
