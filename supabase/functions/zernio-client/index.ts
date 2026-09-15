@@ -362,7 +362,7 @@ serve(async (req) => {
                   platform,
                   username,
                   is_active: true,
-                  needs_reconnection: false,
+                  needs_reconnection: acc.needsReconnection === true,
                   last_synced_at: new Date().toISOString()
                 });
               }
