@@ -269,68 +269,62 @@ serve(async (req) => {
 
         // Try to link to a known post, if available. If not found, create a stub.
         let internalPostId = null;
+        let postContent = payload.post?.content || payload.post?.text || payload.post?.message || '';
+        let localPostData = null;
+
         if (actualPostId) {
           const { data: postData } = await supabase
             .from('posts')
             .select('id, media_urls, content')
             .eq('zernio_post_id', actualPostId)
             .single();
-
-          // Webhook payload'ında caption/görsel gelmediyse (TikTok'ta doğrudan paylaşılmış,
-          // Zernio üzerinden oluşturulmamış "native" gönderilerde webhook bunu hiç göndermiyor —
-          // ZERNIO_COMMENT_POST_RAW ile doğrulandı), Zernio'nun REST API'sinden canlı olarak
-          // çekmeyi dene. Bu, zernio-client'taki sync-posts action'ının yaptığı ile aynı çağrı.
-          // Sadece gerçekten eksikse çalışır — normal (webhook'ta zaten dolu gelen) durumlarda
-          // fazladan bir istek atılmaz.
-          const needsRestFallback = !postContent && (!postData || !postData.content);
-          if (needsRestFallback) {
+          localPostData = postData;
+          if (postData) {
+            internalPostId = postData.id;
+            if (postData.content) postContent = postData.content;
+            // Update media_urls if postImageUrl is provided and not already present
+            if (postImageUrl && (!postData.media_urls || postData.media_urls.length === 0 || postData.media_urls[0] !== postImageUrl)) {
+              await supabase.from('posts').update({ media_urls: [postImageUrl] }).eq('id', internalPostId);
+            }
+          }
+          
+          const needsRestFallback = !postContent && (!localPostData || !localPostData.content);
+          if (needsRestFallback && zernioAccountId && actualPostId) {
+            // ESKİ YAKLAŞIM YANLIŞTI: listPosts() varsayılan olarak source=zernio
+            // filtreliyor, yani Zernio üzerinden değil doğrudan platformda (native)
+            // paylaşılmış postları HİÇBİR ZAMAN döndürmüyordu — eşleştirme denemesi
+            // bu yüzden hep boşa çıkıyordu (16.09.2026, docs.zernio.com üzerinden
+            // doğrulandı). Doğru araç: POST /v1/posts/sync-external — native post ID'yi
+            // doğrudan account bazında sorgulayıp içeriği getiriyor.
             try {
-              const { data: zernioProfile } = await supabase
-                .schema('integration')
-                .from('zernio_profiles')
-                .select('zernio_profile_id')
-                .eq('organization_id', profileId)
-                .eq('is_primary', true)
-                .maybeSingle();
-
-              if (zernioProfile?.zernio_profile_id) {
-                const zernio = new ZernioClient();
-                const postsRes: any = await zernio.posts.listPosts(zernioProfile.zernio_profile_id);
-                const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
-                const matchedPost = postsList.find((p: any) => (p._id || p.id) === actualPostId);
-                if (matchedPost) {
-                  if (!postContent && matchedPost.content) postContent = matchedPost.content;
-                  if (!postImageUrl) {
-                    postImageUrl = matchedPost.picture || matchedPost.image || matchedPost.thumbnail || null;
-                  }
-                }
+              const zernio = new ZernioClient();
+              const syncRes: any = await zernio.analytics.syncExternalPosts(zernioAccountId, actualPostId);
+              // hey-api sarmalayıcısı ({data, error, response}) kullanıldığı için asıl
+              // içerik syncRes.data altında geliyor — 16.09.2026'da @zernio/node'un
+              // gerçek tip tanımlarından doğrulandı.
+              const foundPost = syncRes?.data?.post;
+              if (syncRes?.data?.found && foundPost) {
+                if (!postContent && foundPost.content) postContent = foundPost.content;
+                // Not: sync-external yanıt şemasında dokümante edilmiş bir resim/thumbnail
+                // alanı yok (sadece content/platformPostUrl/analytics) — postImageUrl bu
+                // yoldan gelmeyebilir, mevcut diğer kaynaklar (payload.post.imageUrl vb.)
+                // dokunulmadan aynen çalışmaya devam ediyor.
+              } else {
+                console.warn(`[webhook] sync-external postu bulamadı. accountId=${zernioAccountId} postId=${actualPostId}`);
               }
             } catch (restFallbackErr) {
-              console.warn('[webhook] REST post-content fallback failed:', restFallbackErr);
+              console.warn('[webhook] sync-external fallback failed:', restFallbackErr);
             }
           }
 
-          if (postData) {
-            internalPostId = postData.id;
-            // Update media_urls and/or content if newly available and not already present
-            const postUpdates: Record<string, any> = {};
-            if (postImageUrl && (!postData.media_urls || postData.media_urls.length === 0 || postData.media_urls[0] !== postImageUrl)) {
-              postUpdates.media_urls = [postImageUrl];
-            }
-            if (postContent && !postData.content) {
-              postUpdates.content = postContent;
-            }
-            if (Object.keys(postUpdates).length > 0) {
-              await supabase.from('posts').update(postUpdates).eq('id', internalPostId);
-            }
-          } else {
+          if (!localPostData) {
             // Post doesn't exist yet - create a stub so the join works (using upsert to avoid race conditions)
             const { data: newPost, error: stubError } = await supabase
               .from('posts')
               .upsert({
                 profile_id: profileId,
                 zernio_post_id: actualPostId,
-                content: postContent,
+                content: postContent || '',
                 media_urls: postImageUrl ? [postImageUrl] : [],
                 status: 'published',
                 platforms: [platform || 'unknown'],
@@ -338,7 +332,19 @@ serve(async (req) => {
               }, { onConflict: 'zernio_post_id' })
               .select('id')
               .single();
-            if (newPost) internalPostId = newPost.id;
+            if (newPost) {
+              internalPostId = newPost.id;
+            } else if (stubError) {
+              // Bu satır olmadan post oluşturma hataları tamamen sessiz kalıyordu —
+              // 16.09.2026'daki testte tam olarak bu yüzden kök nedeni göremedik.
+              console.error(`[webhook] Post stub oluşturulamadı. zernio_post_id=${actualPostId} error=`, JSON.stringify(stubError));
+            }
+          } else if (localPostData && !localPostData.content && postContent) {
+            // Stub existed but we found content via REST fallback - update it
+            const { error: updateErr } = await supabase.from('posts').update({ content: postContent }).eq('id', internalPostId);
+            if (updateErr) {
+              console.error(`[webhook] Post content güncellenemedi. id=${internalPostId} error=`, JSON.stringify(updateErr));
+            }
           }
         }
         let finalCommentText = commentText;
@@ -391,9 +397,9 @@ serve(async (req) => {
           .select('social_bot_active')
           .eq('merchant_id', profileId)
           .single();
-
         const isOwnComment = (
           commentData.isOwn === true || 
+          commentData.isOwnAccount === true || // TikTok bu alanı kullanıyor — 16.09.2026'da gerçek webhook payload'ından doğrulandı
           commentData.direction === 'outbound' || 
           (platformUsername && authorName === platformUsername)
         );

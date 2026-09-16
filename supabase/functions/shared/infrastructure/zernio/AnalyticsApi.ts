@@ -79,4 +79,21 @@ export class AnalyticsApi {
   async getAnalytics(payload: AnalyticsPayload): Promise<ZernioResponse> {
     return withRetry(() => this.context.sdk.analytics.getAnalytics(payload));
   }
+
+  /**
+   * Zernio üzerinden değil, doğrudan platformda (native olarak) paylaşılmış bir
+   * gönderiyi Zernio'ya senkronize edip içeriğini getirir. Zernio API dokümantasyonu:
+   * POST /v1/posts/sync-external (https://docs.zernio.com/analytics/sync-external-posts,
+   * doküman sitesinde "Analytics" kategorisinde listeleniyor). `listPosts()` bu tür
+   * postları ASLA döndürmez çünkü varsayılan olarak sadece source=zernio postlarını
+   * listeler. Metod adı ve namespace'i 16.09.2026'da @zernio/node paketinin gerçek
+   * index.d.ts dosyasından doğrulandı: `analytics.syncExternalPosts` (çoğul "s" ile,
+   * `posts` değil `analytics` altında) — ilk denemede yanlışlıkla PostApi.ts'e
+   * `syncExternalPost` (tekil) olarak eklenmişti, "is not a function" hatası verdi.
+   */
+  async syncExternalPosts(accountId: string, postId: string): Promise<ZernioResponse> {
+    return withRetry(() => (this.context.sdk.analytics.syncExternalPosts as any)({
+      body: { accountId, postId }
+    }));
+  }
 }
