@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
+import { BotSettingsRepository } from "../shared/infrastructure/repositories/BotSettingsRepository.ts";
 
 // Zernio webhook events typically have this structure (generalized)
 interface ZernioWebhookEvent {
@@ -392,20 +393,7 @@ serve(async (req) => {
 
         // C. AI Task Queue (Kuyruk) Sistemine Gönder
         // Önce botun aktif olup olmadığını ve yorumun bize ait olmadığını kontrol et
-        const { data: ownerMember } = await supabase
-          .from('organization_members')
-          .select('user_id')
-          .eq('organization_id', profileId)
-          .eq('role', 'owner')
-          .maybeSingle();
-
-        const { data: botSettings } = ownerMember
-          ? await supabase
-              .from('bot_settings')
-              .select('social_bot_active')
-              .eq('merchant_id', ownerMember.user_id)
-              .maybeSingle()
-          : { data: null };
+        const { data: botSettings } = await BotSettingsRepository.resolveBotSettingsForOrg(supabase, profileId);
         const isOwnComment = (
           commentData.isOwn === true || 
           author?.isOwnAccount === true || // TikTok bu alanı kullanıyor — 16.09.2026'da gerçek webhook payload'ından doğrulandı

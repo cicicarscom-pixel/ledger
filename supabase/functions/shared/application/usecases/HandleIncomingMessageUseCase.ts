@@ -5,6 +5,7 @@ import { AIOrchestrator } from '../../ai/AIOrchestrator.ts';
 import { AIContext } from '../../ai/types.ts';
 import { PersonaService } from '../../ai/persona/PersonaService.ts';
 import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
+import { BotSettingsRepository } from '../../infrastructure/repositories/BotSettingsRepository.ts';
 
 interface Dependencies {
   aiOrchestrator: AIOrchestrator;
@@ -35,11 +36,7 @@ export class HandleIncomingMessageUseCase {
     let zernioAccountId = initialZernioAccountId;
 
     // 1. Fetch Bot Settings
-    const { data: botSettings, error: botError } = await supabaseClient
-      .from('bot_settings')
-      .select('*')
-      .eq('merchant_id', merchantId)
-      .single();
+    const { data: botSettings, error: botError } = await BotSettingsRepository.resolveBotSettingsForOrg(supabaseClient, merchantId);
       
     // Fetch organization AI settings for timezone
     const { data: orgAiSettings } = await supabaseClient
