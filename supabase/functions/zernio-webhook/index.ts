@@ -269,7 +269,6 @@ serve(async (req) => {
 
         // Try to link to a known post, if available. If not found, create a stub.
         let internalPostId = null;
-        let postContent = payload.post?.content || payload.post?.text || payload.post?.message || '';
         let localPostData = null;
 
         if (actualPostId) {
