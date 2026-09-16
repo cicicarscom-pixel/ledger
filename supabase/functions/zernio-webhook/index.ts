@@ -407,7 +407,7 @@ serve(async (req) => {
           : { data: null };
         const isOwnComment = (
           commentData.isOwn === true || 
-          commentData.isOwnAccount === true || // TikTok bu alanı kullanıyor — 16.09.2026'da gerçek webhook payload'ından doğrulandı
+          author?.isOwnAccount === true || // TikTok bu alanı kullanıyor — 16.09.2026'da gerçek webhook payload'ından doğrulandı
           commentData.direction === 'outbound' || 
           (platformUsername && authorName === platformUsername)
         );
