@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-// import removed
+import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
 
 // Zernio webhook events typically have this structure (generalized)
 interface ZernioWebhookEvent {
@@ -259,13 +259,11 @@ serve(async (req) => {
         const actualPostId = postId || platformPostId;
         const commentText = text || message || '';
         const authorName = author?.name || author?.username || fromName || 'Bilinmeyen';
-        const postImageUrl = payload.post?.imageUrl || null;
-        // Gerçek alan adı henüz doğrulanmadı (webhook'un post objesi REST'ten farklı isimlendirme
-        // kullanıyor olabilir) — bu yüzden birden fazla olası alan adını deniyoruz, EN AZINDAN
-        // biri tutarsa artık boş kalmayacak. Aşağıdaki log ile hangisinin gerçekten dolu geldiğini
-        // teyit edip bir sonraki commit'te bu listeyi gerçek alana indireceğiz.
-        const postContent = payload.post?.content || payload.post?.text || payload.post?.caption || payload.post?.description || payload.post?.title || '';
-        console.log('ZERNIO_COMMENT_POST_RAW', JSON.stringify(payload.post));
+        // ZERNIO_COMMENT_POST_RAW logu ile doğrulandı: webhook'un payload.post objesi
+        // {id, platformPostId, content, imageUrl, permalink} şeklinde temiz alan isimleri
+        // kullanıyor (tahmin ettiğimiz text/caption/description/title değil).
+        let postImageUrl = payload.post?.imageUrl || null;
+        let postContent = payload.post?.content || '';
 
         if (!profileId) throw new Error("Cannot process comment without mapped profileId");
 
@@ -277,7 +275,41 @@ serve(async (req) => {
             .select('id, media_urls, content')
             .eq('zernio_post_id', actualPostId)
             .single();
-          
+
+          // Webhook payload'ında caption/görsel gelmediyse (TikTok'ta doğrudan paylaşılmış,
+          // Zernio üzerinden oluşturulmamış "native" gönderilerde webhook bunu hiç göndermiyor —
+          // ZERNIO_COMMENT_POST_RAW ile doğrulandı), Zernio'nun REST API'sinden canlı olarak
+          // çekmeyi dene. Bu, zernio-client'taki sync-posts action'ının yaptığı ile aynı çağrı.
+          // Sadece gerçekten eksikse çalışır — normal (webhook'ta zaten dolu gelen) durumlarda
+          // fazladan bir istek atılmaz.
+          const needsRestFallback = !postContent && (!postData || !postData.content);
+          if (needsRestFallback) {
+            try {
+              const { data: zernioProfile } = await supabase
+                .schema('integration')
+                .from('zernio_profiles')
+                .select('zernio_profile_id')
+                .eq('organization_id', profileId)
+                .eq('is_primary', true)
+                .maybeSingle();
+
+              if (zernioProfile?.zernio_profile_id) {
+                const zernio = new ZernioClient();
+                const postsRes: any = await zernio.posts.listPosts(zernioProfile.zernio_profile_id);
+                const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
+                const matchedPost = postsList.find((p: any) => (p._id || p.id) === actualPostId);
+                if (matchedPost) {
+                  if (!postContent && matchedPost.content) postContent = matchedPost.content;
+                  if (!postImageUrl) {
+                    postImageUrl = matchedPost.picture || matchedPost.image || matchedPost.thumbnail || null;
+                  }
+                }
+              }
+            } catch (restFallbackErr) {
+              console.warn('[webhook] REST post-content fallback failed:', restFallbackErr);
+            }
+          }
+
           if (postData) {
             internalPostId = postData.id;
             // Update media_urls and/or content if newly available and not already present
@@ -309,7 +341,6 @@ serve(async (req) => {
             if (newPost) internalPostId = newPost.id;
           }
         }
-
         let finalCommentText = commentText;
         if (commentData.parentCommentId || commentData.isReply) {
           const parentId = commentData.parentCommentId || commentData.parentId;
