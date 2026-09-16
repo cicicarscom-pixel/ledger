@@ -486,8 +486,16 @@ serve(async (req) => {
            }
 
            // DELETE posts that no longer exist in Zernio
+           // GÜVENLİK KEMERİ: Zernio'dan boş liste dönmesi (API hatası, rate limit, taze/boş
+           // profil eşlemesi vb.) ile kullanıcının gerçekten TÜM gönderilerini silmiş olması
+           // birbirinden ayırt edilemez. Boş liste dönerse hiçbir şeyi silme — sadece logla ve
+           // bir sonraki başarılı (dolu) senkronizasyona bırak. Bu satır olmadan, geçici bir API
+           // aksaklığı yerel veritabanındaki TÜM gönderileri kalıcı olarak silebiliyor (16.09.2026'da
+           // tam olarak bu yaşandı, test verisi kaybedildi — canlı veride olabilirdi).
            const currentPostIds = mappedPosts.map((p: any) => p.zernio_post_id).filter(Boolean);
-           if (existingPosts && existingPosts.length > 0) {
+           if (postsList.length === 0) {
+             console.warn(`[sync-posts] Zernio listPosts boş döndü (profileId: ${profileId}) — güvenlik nedeniyle silme adımı atlandı.`);
+           } else if (existingPosts && existingPosts.length > 0) {
                const postsToDelete = existingPosts
                   .filter((p: any) => p.zernio_post_id && !currentPostIds.includes(p.zernio_post_id))
                   .map((p: any) => p.id);
