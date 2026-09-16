@@ -260,7 +260,13 @@ serve(async (req) => {
         const commentText = text || message || '';
         const authorName = author?.name || author?.username || fromName || 'Bilinmeyen';
         const postImageUrl = payload.post?.imageUrl || null;
-        
+        // Gerçek alan adı henüz doğrulanmadı (webhook'un post objesi REST'ten farklı isimlendirme
+        // kullanıyor olabilir) — bu yüzden birden fazla olası alan adını deniyoruz, EN AZINDAN
+        // biri tutarsa artık boş kalmayacak. Aşağıdaki log ile hangisinin gerçekten dolu geldiğini
+        // teyit edip bir sonraki commit'te bu listeyi gerçek alana indireceğiz.
+        const postContent = payload.post?.content || payload.post?.text || payload.post?.caption || payload.post?.description || payload.post?.title || '';
+        console.log('ZERNIO_COMMENT_POST_RAW', JSON.stringify(payload.post));
+
         if (!profileId) throw new Error("Cannot process comment without mapped profileId");
 
         // Try to link to a known post, if available. If not found, create a stub.
@@ -268,15 +274,22 @@ serve(async (req) => {
         if (actualPostId) {
           const { data: postData } = await supabase
             .from('posts')
-            .select('id, media_urls')
+            .select('id, media_urls, content')
             .eq('zernio_post_id', actualPostId)
             .single();
           
           if (postData) {
             internalPostId = postData.id;
-            // Update media_urls if postImageUrl is provided and not already present
+            // Update media_urls and/or content if newly available and not already present
+            const postUpdates: Record<string, any> = {};
             if (postImageUrl && (!postData.media_urls || postData.media_urls.length === 0 || postData.media_urls[0] !== postImageUrl)) {
-              await supabase.from('posts').update({ media_urls: [postImageUrl] }).eq('id', internalPostId);
+              postUpdates.media_urls = [postImageUrl];
+            }
+            if (postContent && !postData.content) {
+              postUpdates.content = postContent;
+            }
+            if (Object.keys(postUpdates).length > 0) {
+              await supabase.from('posts').update(postUpdates).eq('id', internalPostId);
             }
           } else {
             // Post doesn't exist yet - create a stub so the join works (using upsert to avoid race conditions)
@@ -285,7 +298,7 @@ serve(async (req) => {
               .upsert({
                 profile_id: profileId,
                 zernio_post_id: actualPostId,
-                content: '',
+                content: postContent,
                 media_urls: postImageUrl ? [postImageUrl] : [],
                 status: 'published',
                 platforms: [platform || 'unknown'],
