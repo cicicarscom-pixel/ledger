@@ -48,7 +48,7 @@ export class HandleIncomingMessageUseCase {
     const resolvedTimezone = orgAiSettings?.timezone || 'Europe/Istanbul';
     const appointmentModuleEnabled = orgAiSettings?.appointment_module_enabled ?? true;
 
-    if (botError) {
+    if (botError || !botSettings) {
       console.warn("[HandleIncomingMessageUseCase] Bot settings fetch error or not found.");
       return; // Can't proceed without settings
     }
