@@ -437,6 +437,7 @@ serve(async (req) => {
         
         const postsRes: any = await zernio.posts.listPosts(profileId);
         const postsList = postsRes.data?.posts || postsRes.posts || postsRes.data || [];
+        console.log('ZERNIO_POST_PLATFORMS_RAW', JSON.stringify(postsList.map((p: any) => ({ id: p._id || p.id, platforms: p.platforms }))));
         
         const userId = callerOrgId;
         if (userId) {
