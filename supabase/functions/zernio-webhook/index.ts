@@ -369,6 +369,7 @@ serve(async (req) => {
             post_id: internalPostId,
             zernio_post_id: actualPostId,
             zernio_comment_id: commentId,
+            parent_comment_id: commentData.parentCommentId || commentData.parentId || null,
             username: authorName,
             content: finalCommentText,
             platform: platform || 'unknown'
