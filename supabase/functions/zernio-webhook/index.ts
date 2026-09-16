@@ -258,26 +258,7 @@ serve(async (req) => {
         const { id: commentId, postId, platformPostId, message, text, fromName, author, platform } = commentData;
         const actualPostId = postId || platformPostId;
         const commentText = text || message || '';
-        let authorName = author?.name || author?.username || fromName || '';
-        
-        // TikTok gibi platformlarda webhook ile isim/kullanıcı adı gelmeyebilir (author.name yok vb.)
-        if (!authorName || authorName.startsWith('user_')) {
-          if (zernioAccountId && actualPostId && commentId) {
-            try {
-              const zernio = new ZernioClient();
-              const commentsRes: any = await zernio.comments.getInboxPostComments(actualPostId, zernioAccountId);
-              const commentsList = commentsRes?.data?.comments || [];
-              
-              const matching = commentsList.find((c: any) => c.id === commentId);
-              if (matching && matching.from) {
-                authorName = matching.from.name || matching.from.username || authorName;
-              }
-            } catch (err) {
-              console.warn('[webhook] getInboxPostComments fallback başarısız:', err);
-            }
-          }
-        }
-        if (!authorName) authorName = 'Bilinmeyen';
+        const authorName = author?.name || author?.username || fromName || 'Bilinmeyen';
         // ZERNIO_COMMENT_POST_RAW logu ile doğrulandı: webhook'un payload.post objesi
         // {id, platformPostId, content, imageUrl, permalink} şeklinde temiz alan isimleri
         // kullanıyor (tahmin ettiğimiz text/caption/description/title değil).
