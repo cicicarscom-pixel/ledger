@@ -392,11 +392,20 @@ serve(async (req) => {
 
         // C. AI Task Queue (Kuyruk) Sistemine Gönder
         // Önce botun aktif olup olmadığını ve yorumun bize ait olmadığını kontrol et
-        const { data: botSettings } = await supabase
-          .from('bot_settings')
-          .select('social_bot_active')
-          .eq('merchant_id', profileId)
-          .single();
+        const { data: ownerMember } = await supabase
+          .from('organization_members')
+          .select('user_id')
+          .eq('organization_id', profileId)
+          .eq('role', 'owner')
+          .maybeSingle();
+
+        const { data: botSettings } = ownerMember
+          ? await supabase
+              .from('bot_settings')
+              .select('social_bot_active')
+              .eq('merchant_id', ownerMember.user_id)
+              .maybeSingle()
+          : { data: null };
         const isOwnComment = (
           commentData.isOwn === true || 
           commentData.isOwnAccount === true || // TikTok bu alanı kullanıyor — 16.09.2026'da gerçek webhook payload'ından doğrulandı
