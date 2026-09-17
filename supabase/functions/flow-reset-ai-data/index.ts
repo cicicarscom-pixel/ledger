@@ -29,20 +29,27 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // KURAL: Her silme SADECE bu merchantId ile filtrelenir. Filtre olmadan
+    const { data: orgMember } = await supabaseAdmin
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', merchantId)
+      .maybeSingle();
+    const scopeId = orgMember?.organization_id || merchantId;
+
+    // KURAL: Her silme SADECE bu scopeId ile filtrelenir. Filtre olmadan
     // veya global bir .delete() ASLA çalıştırılmaz — bu, TÜM merchantların
     // verisini silebilir.
-    await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', merchantId);
-    await supabaseAdmin.from('notifications').delete().eq('profile_id', merchantId);
-    await supabaseAdmin.from('appointments').delete().eq('organization_id', merchantId);
-    await supabaseAdmin.from('customers').delete().eq('organization_id', merchantId);
-    await supabaseAdmin.from('messages').delete().eq('profile_id', merchantId);
-    await supabaseAdmin.from('conversations').delete().eq('profile_id', merchantId);
-    await supabaseAdmin.from('comments').delete().eq('profile_id', merchantId);
+    await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', scopeId);
+    await supabaseAdmin.from('notifications').delete().eq('profile_id', scopeId);
+    await supabaseAdmin.from('appointments').delete().eq('organization_id', scopeId);
+    await supabaseAdmin.from('customers').delete().eq('organization_id', scopeId);
+    await supabaseAdmin.from('messages').delete().eq('profile_id', scopeId);
+    await supabaseAdmin.from('conversations').delete().eq('profile_id', scopeId);
+    await supabaseAdmin.from('comments').delete().eq('profile_id', scopeId);
 
     if (mode === 'hard') {
-      await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', merchantId);
-      await supabaseAdmin.from('business_services').delete().eq('merchant_id', merchantId);
+      await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', scopeId);
+      await supabaseAdmin.from('business_services').delete().eq('merchant_id', scopeId);
       // KASITLI OLARAK SİLİNMEYENLER: bot_settings (WhatsApp/WAHA bağlantı
       // durumu), social_accounts (Zernio bağlantıları). Kullanıcı QR'ı
       // tekrar okutmak veya Instagram'ı tekrar bağlamak zorunda kalmasın.
