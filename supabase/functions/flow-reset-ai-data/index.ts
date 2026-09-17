@@ -52,6 +52,7 @@ serve(async (req) => {
     if (mode === 'hard') {
       await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', merchantId);
       await supabaseAdmin.from('business_services').delete().eq('merchant_id', merchantId);
+      await supabaseAdmin.from('finance_documents').delete().eq('organization_id', scopeId);
       // KASITLI OLARAK SİLİNMEYENLER: bot_settings (WhatsApp/WAHA bağlantı
       // durumu), social_accounts (Zernio bağlantıları). Kullanıcı QR'ı
       // tekrar okutmak veya Instagram'ı tekrar bağlamak zorunda kalmasın.
