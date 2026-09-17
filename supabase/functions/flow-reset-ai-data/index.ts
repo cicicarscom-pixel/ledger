@@ -49,6 +49,26 @@ serve(async (req) => {
     // merchant_id tabanlı (SADECE ham kullanıcı ID'si, organizasyon fallback'i YOK — RLS de auth.uid()=merchant_id) → merchantId
     await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', merchantId);
 
+    // 17.09.2026: Analiz sayfası (Web & Mobil) verilerinin sıfırlama sonrası
+    // kaybolmaması hatası (bkz. README) — analytics_cache tablosunun kendisinde
+    // organization_id/merchant_id kolonu YOK, sadece Zernio'nun account_id'si var.
+    // Bu yüzden önce bu scopeId'ye bağlı Zernio hesaplarının account_id'leri
+    // integration.social_accounts üzerinden bulunup, ardından bu hesaplara ait
+    // önbellek satırları siliniyor. Analiz verisi bir "test verisi" kadar
+    // geçicidir (bot_settings/social_accounts bağlantılarının aksine), bu
+    // yüzden hem soft hem hard reset'te temizleniyor.
+    const { data: scopedAccounts } = await supabaseAdmin
+      .schema('integration')
+      .from('social_accounts')
+      .select('zernio_account_id')
+      .eq('organization_id', scopeId);
+    const scopedAccountIds = (scopedAccounts || [])
+      .map((a: { zernio_account_id: string }) => a.zernio_account_id)
+      .filter(Boolean);
+    if (scopedAccountIds.length > 0) {
+      await supabaseAdmin.from('analytics_cache').delete().in('account_id', scopedAccountIds);
+    }
+
     if (mode === 'hard') {
       await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', merchantId);
       await supabaseAdmin.from('business_services').delete().eq('merchant_id', merchantId);

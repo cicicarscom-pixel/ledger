@@ -280,3 +280,14 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
 5. **��letme Bildirimleri:** Randevu i�lemlerinde `notifications` tablosuna bildirim d��mesi sa�land�.
 6. **Hata D�zeltmeleri:** `whatsapp-webhook` ve Vercel/NextJS hatalar� giderildi.
 
+### [17.09.2026] "Tehlikeli Bölge" Sıfırlaması Analiz (Analytics) Önbelleğini Temizlemiyordu
+
+**Sorun:** Kullanıcı, "Tehlikeli Bölge" (fabrika ayarlarına sıfırlama) özelliğini kullandıktan sonra hem Flow Web hem Flow Mobil'deki Analiz sayfasındaki eski istatistiklerin (beğeni, yorum, erişim vb.) kaybolmadığını bildirdi.
+
+**Kök neden:** low-reset-ai-data Edge Function'ı 
+otifications, ppointments, customers, messages, conversations, comments, i_communication_logs ve (hard modda) organization_ai_settings/usiness_services/inance_documents tablolarını temizliyor, ancak public.analytics_cache tablosuna (bkz. 20260705000000_analytics_cache.sql) hiç dokunmuyordu. Web ve Mobil'in Analiz sayfaları zernio-client'ın etchAnalyticsWithCache() yardımcı fonksiyonu üzerinden bu tabloyu (1 saatlik TTL ile) okuyor; fonksiyon bu tabloyu sıfırlamadığı için eski veriler sıfırlama sonrası ekranda kalmaya devam ediyordu. low-reset-ai-data iki platform için de ortak tek bir backend fonksiyonu olduğundan bu düzeltme hem web hem mobili aynı anda kapsıyor.
+
+**Çözüm:** nalytics_cache.account_id kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun ccount_id'si var), önce çözülen scopeId'ye (organization_id) ait Zernio hesapları integration.social_accounts tablosundan (zernio_account_id kolonu) bulunuyor, ardından bu hesaplara ait nalytics_cache satırları ccount_id IN (...) filtresiyle siliniyor. Bu adım hem soft hem hard reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan ot_settings/social_accounts bağlantı verilerinin aksine.
+
+**Deploy notu:** Bu değişiklik yalnızca low-reset-ai-data fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: 
+px supabase functions deploy flow-reset-ai-data.
