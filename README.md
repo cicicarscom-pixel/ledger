@@ -10,8 +10,8 @@ Workigom projesi monorepo mimarisinden bağımsız ve modüler 4 ayrı projeye (
    - **Görev:** Ana landing page ve pazarlama sitesidir. /flow ve /ledger tanıtım sayfalarını içerir. Kullanıcı kayıt/giriş işlemlerini yürütmez, doğrudan uygulamanın login sayfasına yönlendirir.
    
 2. **Workigom Flow (Ana Uygulama)**
-   - **Repo:** cicicarscom-pixel/flow (Eski adıyla i_muhasebeci)
-   - **Domain:** low.workigom.com
+   - **Repo:** cicicarscom-pixel/flow (Eski adıyla `ai_muhasebeci`)
+   - **Domain:** `flow`.workigom.com
    - **Görev:** Flow'un gerçek yapay zeka ve otomasyon uygulamasıdır. Supabase ve arka plan API'lerine bağlıdır. Çalışması için Vercel üzerinde Environment Variables (Ortam Değişkenleri) yapılandırmasına ihtiyaç duyar.
 
 3. **Workigom Ledger (Ana Uygulama)**
@@ -25,8 +25,8 @@ Workigom projesi monorepo mimarisinden bağımsız ve modüler 4 ayrı projeye (
 
 ## Geliştirme ve Deployment Kuralları
 - **Yönlendirmeler:** Tanıtım sayfalarındaki "Giriş Yap" butonları (örn: www.workigom.com/flow veya /ledger), direkt olarak uygulamanın kendi domain'indeki (örn: https://flow.workigom.com/login) giriş sayfalarına yönlendirmelidir.
-- **Environment Variables:** low ve ledger gibi gerçek uygulama repoları Vercel'de deploy edilirken .env dosyasındaki tüm API ve veritabanı değişkenleri eksiksiz olarak Vercel paneline girilmelidir, aksi takdirde 500 Internal Server Error hatası alınır.
-- **Root Directory:** Repolar ayrıldığı için Vercel üzerindeki Root Directory ayarları boş bırakılmalıdır (Eskiden pps/flow vs. idi, artık tüm repolar kendi kök dizininde çalışır).
+- **Environment Variables:** `flow` ve ledger gibi gerçek uygulama repoları Vercel'de deploy edilirken .env dosyasındaki tüm API ve veritabanı değişkenleri eksiksiz olarak Vercel paneline girilmelidir, aksi takdirde 500 Internal Server Error hatası alınır.
+- **Root Directory:** Repolar ayrıldığı için Vercel üzerindeki Root Directory ayarları boş bırakılmalıdır (Eskiden `apps/flow` vs. idi, artık tüm repolar kendi kök dizininde çalışır).
 
 ---
 
@@ -194,9 +194,9 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
 
 ## [03.08.2026] UI/UX Kararları ve Yapılandırma Notları
 - **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. pps/marketing/app/ledger/page.tsx bu tasarıma göre kilitlenmiştir.
-- **Videolu Anlatım Alanları:** Statik mockuplar yerine ideo1.mp4 ve ideo2.mp4 dosyaları sisteme dahil edilmiştir. ideo2.mp4, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
-- **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u avicon-16x16.png olarak güncellenmiştir.
-- **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara xport const dynamic = 'force-dynamic'; eklenmesi kuralı getirilmiştir.
+- **Videolu Anlatım Alanları:** Statik mockuplar yerine `video1.mp4` ve `video2.mp4` dosyaları sisteme dahil edilmiştir. `video2.mp4`, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
+- **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u `favicon-16x16.png` olarak güncellenmiştir.
+- **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara `export const dynamic = 'force-dynamic';` eklenmesi kuralı getirilmiştir.
 
 
 ## [16.08.2026] Sosyal Medya Optimizasyonları (Zernio Client)
@@ -272,22 +272,21 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
 5. **Admin Panel Edge Function Entegrasyonu:**
    Kullanıcıları yasaklamak (Ban) veya silmek (Delete) için kullanılan butonlar, arka planda güvenli işlem yapması için `admin-manager` Edge fonksiyonunu çağırıyordu ancak Payload (isim) uyuşmazlığı nedeniyle çalışmıyordu. Frontend komutları `update-status` ve `targetUserId` olacak şekilde Supabase Edge Function API'sinin tam anladığı dile dönüştürüldü.
 
-### [31.08.2026] AI Asistan Randevu ve K�lt�rel Hitap Mod�lleri (TAM PAKET)
-1. **M��teri Tan�ma:** AI'nin tekrar eden m��terileri tan�mas� ve isimlerini `customers` tablosuna kaydetmesi sa�land�.
-2. **K�lt�rel Hitap Entegrasyonu:** `SYSTEM_POLICY` �zerinden dil/cinsiyet bazl� hitap yetene�i kazand�r�ld�.
-3. **Randevu Mod�l� Ayar�:** Randevu �zelli�ini API baz�nda kapatabilme mekanizmas� eklendi.
-4. **Randevu G�ncelleme:** Mevcut randevunun g�ncellenmesi i�in `UpdateAppointmentTool` eklendi.
-5. **��letme Bildirimleri:** Randevu i�lemlerinde `notifications` tablosuna bildirim d��mesi sa�land�.
-6. **Hata D�zeltmeleri:** `whatsapp-webhook` ve Vercel/NextJS hatalar� giderildi.
+### [31.08.2026] AI Asistan Randevu ve K�lt�rel Hitap Mod�lleri (TAM PAKET)
+1. **M��teri Tan�ma:** AI'nin tekrar eden m��terileri tan�mas� ve isimlerini `customers` tablosuna kaydetmesi sa�land�.
+2. **K�lt�rel Hitap Entegrasyonu:** `SYSTEM_POLICY` �zerinden dil/cinsiyet bazl� hitap yetene�i kazand�r�ld�.
+3. **Randevu Mod�l� Ayar�:** Randevu �zelli�ini API baz�nda kapatabilme mekanizmas� eklendi.
+4. **Randevu G�ncelleme:** Mevcut randevunun g�ncellenmesi i�in `UpdateAppointmentTool` eklendi.
+5. **��letme Bildirimleri:** Randevu i�lemlerinde `notifications` tablosuna bildirim d��mesi sa�land�.
+6. **Hata D�zeltmeleri:** `whatsapp-webhook` ve Vercel/NextJS hatalar� giderildi.
 
 ### [17.09.2026] "Tehlikeli Bölge" Sıfırlaması Analiz (Analytics) Önbelleğini Temizlemiyordu
 
 **Sorun:** Kullanıcı, "Tehlikeli Bölge" (fabrika ayarlarına sıfırlama) özelliğini kullandıktan sonra hem Flow Web hem Flow Mobil'deki Analiz sayfasındaki eski istatistiklerin (beğeni, yorum, erişim vb.) kaybolmadığını bildirdi.
 
-**Kök neden:** low-reset-ai-data Edge Function'ı 
-otifications, ppointments, customers, messages, conversations, comments, i_communication_logs ve (hard modda) organization_ai_settings/usiness_services/inance_documents tablolarını temizliyor, ancak public.analytics_cache tablosuna (bkz. 20260705000000_analytics_cache.sql) hiç dokunmuyordu. Web ve Mobil'in Analiz sayfaları zernio-client'ın etchAnalyticsWithCache() yardımcı fonksiyonu üzerinden bu tabloyu (1 saatlik TTL ile) okuyor; fonksiyon bu tabloyu sıfırlamadığı için eski veriler sıfırlama sonrası ekranda kalmaya devam ediyordu. low-reset-ai-data iki platform için de ortak tek bir backend fonksiyonu olduğundan bu düzeltme hem web hem mobili aynı anda kapsıyor.
+**Kök neden:** `flow`-reset-ai-data Edge Function'ı 
+otifications, `appointments`, customers, messages, conversations, comments, `ai_communication_logs` ve (hard modda) organization_ai_settings/`business_services`/`finance_documents` tablolarını temizliyor, ancak public.analytics_cache tablosuna (bkz. 20260705000000_analytics_cache.sql) hiç dokunmuyordu. Web ve Mobil'in Analiz sayfaları zernio-client'ın `fetchAnalyticsWithCache()` yardımcı fonksiyonu üzerinden bu tabloyu (1 saatlik TTL ile) okuyor; fonksiyon bu tabloyu sıfırlamadığı için eski veriler sıfırlama sonrası ekranda kalmaya devam ediyordu. `flow`-reset-ai-data iki platform için de ortak tek bir backend fonksiyonu olduğundan bu düzeltme hem web hem mobili aynı anda kapsıyor.
 
-**Çözüm:** nalytics_cache.account_id kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun ccount_id'si var), önce çözülen scopeId'ye (organization_id) ait Zernio hesapları integration.social_accounts tablosundan (zernio_account_id kolonu) bulunuyor, ardından bu hesaplara ait nalytics_cache satırları ccount_id IN (...) filtresiyle siliniyor. Bu adım hem soft hem hard reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan ot_settings/social_accounts bağlantı verilerinin aksine.
+**Çözüm:** `analytics_cache`.account_id kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun `account_id`'si var), önce çözülen scopeId'ye (organization_id) ait Zernio hesapları integration.social_accounts tablosundan (zernio_account_id kolonu) bulunuyor, ardından bu hesaplara ait `analytics_cache` satırları `account_id` IN (...) filtresiyle siliniyor. Bu adım hem soft hem hard reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan `bot_settings`/social_accounts bağlantı verilerinin aksine.
 
-**Deploy notu:** Bu değişiklik yalnızca low-reset-ai-data fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: 
-px supabase functions deploy flow-reset-ai-data.
+**Deploy notu:** Bu değişiklik yalnızca `flow`-reset-ai-data fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: `npx supabase` functions deploy flow-reset-ai-data.
