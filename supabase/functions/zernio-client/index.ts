@@ -603,7 +603,30 @@ serve(async (req) => {
            try {
                const commentsRes: any = await zernio.comments.getInboxPostComments(post.id, post.accountId);
                const commentsList = commentsRes.data?.comments || commentsRes.comments || [];
-               
+
+               // TikTok webhook'u yorumcu adını göndermiyor (sadece opak author.id).
+               // Ama bu REST cevabı (c.from.name / c.from.username) gerçek adı içeriyor.
+               // Veritabanında hâlâ 'Bilinmeyen' olarak kayıtlı satırları burada otomatik düzeltiyoruz.
+               const usernameUpdates: { commentId: string; realName: string }[] = [];
+               const collectNames = (list: any[]) => {
+                  list.forEach((cm: any) => {
+                     const realName = cm.from?.name || cm.from?.username;
+                     const cid = cm.id || cm._id;
+                     if (cid && realName) usernameUpdates.push({ commentId: cid, realName });
+                     if (Array.isArray(cm.replies) && cm.replies.length > 0) collectNames(cm.replies);
+                  });
+               };
+               collectNames(commentsList);
+
+               if (usernameUpdates.length > 0) {
+                  await Promise.all(usernameUpdates.map(u =>
+                     supabase.from('comments')
+                        .update({ username: u.realName })
+                        .eq('zernio_comment_id', u.commentId)
+                        .eq('username', 'Bilinmeyen')
+                  ));
+               }
+
                let pictureUrl = post.picture || post.image || post.thumbnail || post.mediaUrl || post.media?.[0]?.url || post.media?.[0] || post.mediaItems?.[0]?.url || null;
                
                const localMap = new Map();
