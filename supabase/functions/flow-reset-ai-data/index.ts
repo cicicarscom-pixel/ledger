@@ -39,7 +39,6 @@ serve(async (req) => {
     // KURAL: Her silme SADECE bu scopeId ile filtrelenir. Filtre olmadan
     // veya global bir .delete() ASLA çalıştırılmaz — bu, TÜM merchantların
     // verisini silebilir.
-    await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', scopeId);
     await supabaseAdmin.from('notifications').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('appointments').delete().eq('organization_id', scopeId);
     await supabaseAdmin.from('customers').delete().eq('organization_id', scopeId);
@@ -47,9 +46,12 @@ serve(async (req) => {
     await supabaseAdmin.from('conversations').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('comments').delete().eq('profile_id', scopeId);
 
+    // merchant_id tabanlı (SADECE ham kullanıcı ID'si, organizasyon fallback'i YOK — RLS de auth.uid()=merchant_id) → merchantId
+    await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', merchantId);
+
     if (mode === 'hard') {
-      await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', scopeId);
-      await supabaseAdmin.from('business_services').delete().eq('merchant_id', scopeId);
+      await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', merchantId);
+      await supabaseAdmin.from('business_services').delete().eq('merchant_id', merchantId);
       // KASITLI OLARAK SİLİNMEYENLER: bot_settings (WhatsApp/WAHA bağlantı
       // durumu), social_accounts (Zernio bağlantıları). Kullanıcı QR'ı
       // tekrar okutmak veya Instagram'ı tekrar bağlamak zorunda kalmasın.
