@@ -1,0 +1,60 @@
+From aadfd0f10e9fd46754443830cd5abe9e42f4222d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 17 Sep 2026 21:05:45 +0000
+Subject: [PATCH] =?UTF-8?q?fix(docs):=20analytics=5Fcache=20README=20parag?=
+ =?UTF-8?q?raf=C4=B1ndaki=20kalan=20backtick=20bozulmalar=C4=B1n=C4=B1=20d?=
+ =?UTF-8?q?=C3=BCzelt?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Antigravity'nin kendi regex/script tabanlı düzeltme denemesi çoğu
+örneği doğru onardı, ama en yoğun backtick içeren paragrafta (17.09.2026
+analytics_cache girdisi) hâlâ gerçek bozulmalar kalmıştı:
+- "notifications" hâlâ "otifications" olarak (backtik'siz, harfi
+  eksik) duruyordu.
+- `flow`-reset-ai-data, `analytics_cache`.account_id, `account_id`
+  IN (...), `npx supabase` functions... gibi kod span'leri yanlış
+  yerden bölünmüştü.
+- scopeId, organization_id, integration.social_accounts,
+  zernio_account_id, soft, hard, social_accounts terimleri backtick'siz
+  kalmıştı.
+
+Ayrıca [03.08.2026] girdisindeki `apps/marketing/app/ledger/page.tsx`
+satırında bir önceki düzeltme turunda atlanmış, hâlâ ham BEL (0x07)
+kontrol karakteri içeren bir örnek daha bulundu ve düzeltildi.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01ELUQJRUzebZ59B9CrwwdV7
+---
+ README.md | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/README.md b/README.md
+index 55a1923..09dcd38 100644
+--- a/README.md
++++ b/README.md
+@@ -193,7 +193,7 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
+ * **Veri Sınırı:** Sözlü olarak veya manuel olarak kaydedilen tüm işlemleri sadece Flow arayüzü tabanlı olarak kendi bünyesinde (transactions) tutar.
+ 
+ ## [03.08.2026] UI/UX Kararları ve Yapılandırma Notları
+-- **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. pps/marketing/app/ledger/page.tsx bu tasarıma göre kilitlenmiştir.
++- **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. `apps/marketing/app/ledger/page.tsx` bu tasarıma göre kilitlenmiştir.
+ - **Videolu Anlatım Alanları:** Statik mockuplar yerine `video1.mp4` ve `video2.mp4` dosyaları sisteme dahil edilmiştir. `video2.mp4`, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
+ - **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u `favicon-16x16.png` olarak güncellenmiştir.
+ - **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara `export const dynamic = 'force-dynamic';` eklenmesi kuralı getirilmiştir.
+@@ -284,9 +284,8 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
+ 
+ **Sorun:** Kullanıcı, "Tehlikeli Bölge" (fabrika ayarlarına sıfırlama) özelliğini kullandıktan sonra hem Flow Web hem Flow Mobil'deki Analiz sayfasındaki eski istatistiklerin (beğeni, yorum, erişim vb.) kaybolmadığını bildirdi.
+ 
+-**Kök neden:** `flow`-reset-ai-data Edge Function'ı 
+-otifications, `appointments`, customers, messages, conversations, comments, `ai_communication_logs` ve (hard modda) organization_ai_settings/`business_services`/`finance_documents` tablolarını temizliyor, ancak public.analytics_cache tablosuna (bkz. 20260705000000_analytics_cache.sql) hiç dokunmuyordu. Web ve Mobil'in Analiz sayfaları zernio-client'ın `fetchAnalyticsWithCache()` yardımcı fonksiyonu üzerinden bu tabloyu (1 saatlik TTL ile) okuyor; fonksiyon bu tabloyu sıfırlamadığı için eski veriler sıfırlama sonrası ekranda kalmaya devam ediyordu. `flow`-reset-ai-data iki platform için de ortak tek bir backend fonksiyonu olduğundan bu düzeltme hem web hem mobili aynı anda kapsıyor.
++**Kök neden:** `flow-reset-ai-data` Edge Function'ı `notifications`, `appointments`, `customers`, `messages`, `conversations`, `comments`, `ai_communication_logs` ve (hard modda) `organization_ai_settings`/`business_services`/`finance_documents` tablolarını temizliyor, ancak `public.analytics_cache` tablosuna (bkz. `20260705000000_analytics_cache.sql`) hiç dokunmuyordu. Web ve Mobil'in Analiz sayfaları `zernio-client`'ın `fetchAnalyticsWithCache()` yardımcı fonksiyonu üzerinden bu tabloyu (1 saatlik TTL ile) okuyor; fonksiyon bu tabloyu sıfırlamadığı için eski veriler sıfırlama sonrası ekranda kalmaya devam ediyordu. `flow-reset-ai-data` iki platform için de ortak tek bir backend fonksiyonu olduğundan bu düzeltme hem web hem mobili aynı anda kapsıyor.
+ 
+-**Çözüm:** `analytics_cache`.account_id kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun `account_id`'si var), önce çözülen scopeId'ye (organization_id) ait Zernio hesapları integration.social_accounts tablosundan (zernio_account_id kolonu) bulunuyor, ardından bu hesaplara ait `analytics_cache` satırları `account_id` IN (...) filtresiyle siliniyor. Bu adım hem soft hem hard reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan `bot_settings`/social_accounts bağlantı verilerinin aksine.
++**Çözüm:** `analytics_cache.account_id` kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun `account_id`'si var), önce çözülen `scopeId`'ye (`organization_id`) ait Zernio hesapları `integration.social_accounts` tablosundan (`zernio_account_id` kolonu) bulunuyor, ardından bu hesaplara ait `analytics_cache` satırları `account_id IN (...)` filtresiyle siliniyor. Bu adım hem `soft` hem `hard` reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan `bot_settings`/`social_accounts` bağlantı verilerinin aksine.
+ 
+-**Deploy notu:** Bu değişiklik yalnızca `flow`-reset-ai-data fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: `npx supabase` functions deploy flow-reset-ai-data.
++**Deploy notu:** Bu değişiklik yalnızca `flow-reset-ai-data` fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: `npx supabase functions deploy flow-reset-ai-data.`
+-- 
+2.43.0

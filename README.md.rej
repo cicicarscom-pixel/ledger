@@ -1,0 +1,10 @@
+diff a/README.md b/README.md	(rejected hunks)
+@@ -193,7 +193,7 @@ Flow AI, sistemin arayüz etkileşimlerini, manuel veri girişlerini ve müşter
+ * **Veri Sınırı:** Sözlü olarak veya manuel olarak kaydedilen tüm işlemleri sadece Flow arayüzü tabanlı olarak kendi bünyesinde (transactions) tutar.
+ 
+ ## [03.08.2026] UI/UX Kararları ve Yapılandırma Notları
+-- **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. pps/marketing/app/ledger/page.tsx bu tasarıma göre kilitlenmiştir.
++- **Marketing Landing Page Tasarımı:** Yeni geliştirilen 'Muhasebede Yeni Çağ' konsepti iptal edilerek eski 'Muhasebe Artık Daha Akıllı, Daha Kolay' tasarımına kalıcı olarak geri dönülmüştür. `apps/marketing/app/ledger/page.tsx` bu tasarıma göre kilitlenmiştir.
+ - **Videolu Anlatım Alanları:** Statik mockuplar yerine `video1.mp4` ve `video2.mp4` dosyaları sisteme dahil edilmiştir. `video2.mp4`, eski tasarımdaki AI Asistan ikonunun ve sohbet pencerelerinin tamamının yerini alacak şekilde 2/3 genişlikte ayarlanmıştır.
+ - **Özel Logolar:** Sitenin header ve footer bileşenlerine standart SVG yerine ledgerlogo1.png atanmıştır. Tarayıcı favicon'u `favicon-16x16.png` olarak güncellenmiştir.
+ - **Next.js 14 Vercel Derlemesi:** API route'larda cookie okunan GET metotlarının statik build sırasında patlamasını önlemek için (DYNAMIC_SERVER_USAGE) ilgili dosyalara `export const dynamic = 'force-dynamic';` eklenmesi kuralı getirilmiştir.
