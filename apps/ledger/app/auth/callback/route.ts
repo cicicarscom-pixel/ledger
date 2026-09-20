@@ -16,21 +16,36 @@ export async function GET(request: Request) {
     if (!error && data?.session?.user) {
       const user = data.session.user;
       
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('user_type, authorized_person, avatar_url')
+        .eq('id', user.id)
+        .limit(1);
+        
+      const profile = profileData?.[0] || null;
+      const updates: any = {};
+
+      // Ledger projesinde olduğumuz için tipi 'accountant' olarak güvenceye alıyoruz.
+      // DİKKAT: FlowWeb'in aksine burada organizasyon (organizations) SATIRI AÇMIYORUZ!
+      if (!profile?.user_type) {
+        updates.user_type = 'accountant';
+      }
+      
       // If user signed in with Google, sync profile data
       if (user.app_metadata?.provider === 'google') {
         const metadata = user.user_metadata;
         const fullName = metadata?.full_name || metadata?.name;
         const avatarUrl = metadata?.avatar_url || metadata?.picture;
         
-        if (fullName || avatarUrl) {
-          const updates: any = { id: user.id };
-          if (fullName) updates.authorized_person = fullName;
-          if (avatarUrl) updates.avatar_url = avatarUrl;
-          
-          await supabase.from('profiles').upsert(updates);
-        }
+        if (!profile?.authorized_person && fullName) updates.authorized_person = fullName;
+        if (!profile?.avatar_url && avatarUrl) updates.avatar_url = avatarUrl;
       }
-      return NextResponse.redirect(`${origin}${next}`)
+
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('profiles').update(updates).eq('id', user.id);
+      }
+
+      return NextResponse.redirect(`${origin}/ledger${next === '/' ? '' : next}`)
     }
   }
 
