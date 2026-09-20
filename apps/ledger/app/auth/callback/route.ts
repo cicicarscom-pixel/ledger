@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
@@ -15,8 +16,9 @@ export async function GET(request: Request) {
     
     if (!error && data?.session?.user) {
       const user = data.session.user;
+      const adminSupabase = createAdminClient();
       
-      const { data: profileData } = await supabase
+      const { data: profileData } = await adminSupabase
         .from('profiles')
         .select('user_type, authorized_person, avatar_url')
         .eq('id', user.id)
@@ -25,13 +27,10 @@ export async function GET(request: Request) {
       const profile = profileData?.[0] || null;
       const updates: any = {};
 
-      // Ledger projesinde olduğumuz için tipi 'accountant' olarak güvenceye alıyoruz.
-      // DİKKAT: FlowWeb'in aksine burada organizasyon (organizations) SATIRI AÇMIYORUZ!
       if (!profile?.user_type) {
         updates.user_type = 'accountant';
       }
       
-      // If user signed in with Google, sync profile data
       if (user.app_metadata?.provider === 'google') {
         const metadata = user.user_metadata;
         const fullName = metadata?.full_name || metadata?.name;
@@ -42,13 +41,12 @@ export async function GET(request: Request) {
       }
 
       if (Object.keys(updates).length > 0) {
-        await supabase.from('profiles').update(updates).eq('id', user.id);
+        await adminSupabase.from('profiles').update(updates).eq('id', user.id);
       }
 
       return NextResponse.redirect(`${origin}/ledger${next === '/' ? '' : next}`)
     }
   }
 
-  // return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/ledger/login?error=auth-callback-failed`)
 }
