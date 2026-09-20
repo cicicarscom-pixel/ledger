@@ -59,7 +59,7 @@ export async function registerAccountantAction(formData: FormData) {
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.workigom.com'}/ledger/auth/callback?next=/`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.workigom.com'}/ledger/auth/callback`,
         data: {
           full_name: fullName,
           user_type: 'accountant'
