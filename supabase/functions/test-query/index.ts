@@ -80,20 +80,9 @@ serve(async (req) => {
 
   try {
       const { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('email', 'cicicars.com@gmail.com').single();
-      const { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('email', 'cicicars.com@gmail.com').single();
-      if (profile) {
-          // Generate magic link to get session
-          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-             type: 'magiclink',
-             email: profile.email
-          });
-          
-          // Actually, easier: just create a user client, sign in with password if we know it (we don't)
-          // Wait, we can't get the JWT easily without a password or generating a link and exchanging it.
-          // Let's just create a test row manually as admin, since we know they need it.
-          const { error: insertError } = await supabaseAdmin.from('organizations').insert({ owner_id: profile.id, name: null });
-          logs.push(`Admin Insert Result: ${insertError ? insertError.message : 'SUCCESS'}`);
-      }
+      // Check the latest created profile
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false }).limit(3);
+      logs.push(`Latest profiles: ${JSON.stringify(profiles)}`);
       return new Response(JSON.stringify({ logs }), { headers: { 'Content-Type': 'application/json' } });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
