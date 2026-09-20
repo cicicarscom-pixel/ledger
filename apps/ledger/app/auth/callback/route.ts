@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       
       const { data: profileData } = await adminSupabase
         .from('profiles')
-        .select('user_type, authorized_person, avatar_url')
+        .select('user_type, full_name, authorized_person, avatar_url')
         .eq('id', user.id)
         .limit(1);
         
@@ -37,6 +37,7 @@ export async function GET(request: Request) {
         const fullName = metadata?.full_name || metadata?.name;
         const avatarUrl = metadata?.avatar_url || metadata?.picture;
         
+        if (!profile?.full_name && fullName) updates.full_name = fullName;
         if (!profile?.authorized_person && fullName) updates.authorized_person = fullName;
         if (!profile?.avatar_url && avatarUrl) updates.avatar_url = avatarUrl;
       }
