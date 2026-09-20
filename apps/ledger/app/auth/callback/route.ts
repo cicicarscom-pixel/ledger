@@ -29,7 +29,6 @@ export async function GET(request: Request) {
 
       if (!profile?.user_type) {
         updates.user_type = 'accountant';
-        updates.onboarding_completed = true; // Ledger'da onboarding zorunlu olmadığı için doğrudan tamamlandı işaretliyoruz
       }
       
       if (user.app_metadata?.provider === 'google') {
