@@ -11,14 +11,10 @@ export async function sendNotification(prevState: any, formData: FormData) {
     return { error: "Yetkisiz işlem. Oturumunuz kapanmış olabilir." }
   }
 
-  // Double check admin table as a server action precaution
-  const { data: admin } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Double check admin table as a server action precaution using the secure RPC function
+  const { data: isAdmin } = await supabase.rpc('is_admin')
 
-  if (!admin) {
+  if (!isAdmin) {
     return { error: "Bu işlemi yapmak için yetkiniz yok." }
   }
 

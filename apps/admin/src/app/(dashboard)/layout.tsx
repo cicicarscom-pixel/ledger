@@ -14,13 +14,9 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  const { data: admin } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  const { data: isAdmin } = await supabase.rpc('is_admin');
 
-  if (!admin) {
+  if (!isAdmin) {
     redirect('/login?error=unauthorized');
   }
 
