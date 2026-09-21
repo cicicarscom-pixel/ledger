@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Building2, Activity, ShieldAlert, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Activity, ShieldAlert, LogOut, Bell } from 'lucide-react';
 import { logout } from '@/app/login/actions';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Kullanıcılar', href: '/users', icon: Users },
   { name: 'Organizasyonlar', href: '/organizations', icon: Building2 },
+  { name: 'Bildirim Yönetimi', href: '/notifications', icon: Bell },
   { name: 'Sistem İzleme', href: '/activity', icon: Activity },
 ];
 
