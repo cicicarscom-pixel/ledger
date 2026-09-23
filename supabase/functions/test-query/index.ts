@@ -79,11 +79,93 @@ serve(async (req) => {
   };
 
   try {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('email', 'cicicars.com@gmail.com').single();
-      // Check the latest created profile
-      const { data: profiles } = await supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false }).limit(3);
-      logs.push(`Latest profiles: ${JSON.stringify(profiles)}`);
-      return new Response(JSON.stringify({ logs }), { headers: { 'Content-Type': 'application/json' } });
+      const migrationSql = `
+-- 1. Create calendars table
+CREATE TABLE IF NOT EXISTS public.calendars (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  merchant_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  working_hours JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.calendars ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Calendars are viewable by everyone"
+  ON public.calendars FOR SELECT
+  USING (true);
+
+CREATE POLICY "Merchants can insert their own calendars"
+  ON public.calendars FOR INSERT
+  TO authenticated
+  WITH CHECK (merchant_id = auth.uid());
+
+CREATE POLICY "Merchants can update their own calendars"
+  ON public.calendars FOR UPDATE
+  TO authenticated
+  USING (merchant_id = auth.uid());
+
+CREATE POLICY "Merchants can delete their own calendars"
+  ON public.calendars FOR DELETE
+  TO authenticated
+  USING (merchant_id = auth.uid());
+
+
+-- 2. Create calendar_services table for many-to-many relationship
+CREATE TABLE IF NOT EXISTS public.calendar_services (
+  calendar_id UUID NOT NULL REFERENCES public.calendars(id) ON DELETE CASCADE,
+  service_id UUID NOT NULL REFERENCES public.business_services(id) ON DELETE CASCADE,
+  PRIMARY KEY (calendar_id, service_id)
+);
+
+ALTER TABLE public.calendar_services ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Calendar services are viewable by everyone"
+  ON public.calendar_services FOR SELECT
+  USING (true);
+
+CREATE POLICY "Merchants can manage their calendar services"
+  ON public.calendar_services FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.calendars
+      WHERE calendars.id = calendar_services.calendar_id
+      AND calendars.merchant_id = auth.uid()
+    )
+  );
+
+-- 3. Add toggle to organizations
+ALTER TABLE public.organizations
+  ADD COLUMN IF NOT EXISTS multi_calendar_enabled BOOLEAN NOT NULL DEFAULT false;
+
+-- 4. Add calendar_id to appointments
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS calendar_id UUID REFERENCES public.calendars(id) ON DELETE SET NULL;
+
+-- 5. Add exclusion constraint for non-overlapping appointments on the same calendar
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS no_overlapping_appointments;
+
+ALTER TABLE public.appointments
+  ADD CONSTRAINT no_overlapping_appointments
+  EXCLUDE USING gist (
+    calendar_id WITH =,
+    tstzrange(
+      (date::timestamptz),
+      (date::timestamptz) + interval '30 minutes'
+    ) WITH &&
+  )
+  WHERE (calendar_id IS NOT NULL AND status IN ('Pending','Approved'));
+      `;
+
+      // We need to use postgres query. But we don't have direct access here.
+      // Supabase edge functions can't execute raw DDL via supabase-js without an RPC.
+      // Oh, wait, supabase-js `rpc` can execute arbitrary sql if we made one.
+      `;
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { "Content-Type": "application/json" },
