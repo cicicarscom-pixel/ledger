@@ -12,7 +12,11 @@
     "node": "24.x"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.109.0"
+    "@supabase/supabase-js": "^2.117.1"
   },
-  "workspaces": ["apps/*", "packages/*", "tooling/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tooling/*"
+  ]
 }
