@@ -1,0 +1,1 @@
+CREATE OR REPLACE FUNCTION public.exec_sql(q text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$ DECLARE res jsonb; BEGIN EXECUTE q INTO res; RETURN res; EXCEPTION WHEN OTHERS THEN RETURN json_build_object('error', SQLERRM); END; $$;
