@@ -44,6 +44,12 @@ export class HandleIncomingMessageUseCase {
       .select('timezone, appointment_module_enabled')
       .eq('merchant_id', merchantId)
       .maybeSingle();
+
+    const { data: orgData } = await supabaseClient
+      .from('organizations')
+      .select('id, multi_calendar_enabled')
+      .eq('owner_id', merchantId)
+      .maybeSingle();
       
     const resolvedTimezone = orgAiSettings?.timezone || 'Europe/Istanbul';
     const appointmentModuleEnabled = orgAiSettings?.appointment_module_enabled ?? true;
@@ -102,7 +108,7 @@ export class HandleIncomingMessageUseCase {
 
     // 3. Build AI Context
     const aiContext: AIContext = {
-      organizationId: merchantId,
+      organizationId: orgData?.id || merchantId,
       customerId: senderId, // For Waha, this is phone number. For Zernio, conversation/user ID.
       merchantId: merchantId,
       now: new Date(),
@@ -115,6 +121,7 @@ export class HandleIncomingMessageUseCase {
         pastAppointments,
       },
       appointmentModuleEnabled,
+      multiCalendarEnabled: orgData?.multi_calendar_enabled ?? false,
       activeAppointments,
       executionMode: 'production', // real customer message — never simulation
       channel: {

@@ -289,3 +289,9 @@ Built inside apps/ledger/src/ai-core/ using strict Typescript.
 **Çözüm:** `analytics_cache.account_id` kolonu organizasyon/müşteri bilgisi taşımadığından (sadece Zernio'nun `account_id`'si var), önce çözülen `scopeId`'ye (`organization_id`) ait Zernio hesapları `integration.social_accounts` tablosundan (`zernio_account_id` kolonu) bulunuyor, ardından bu hesaplara ait `analytics_cache` satırları `account_id IN (...)` filtresiyle siliniyor. Bu adım hem `soft` hem `hard` reset modunda çalışıyor — analiz verisi bir "test verisi" kadar geçicidir, kasıtlı olarak korunan `bot_settings`/`social_accounts` bağlantı verilerinin aksine.
 
 **Deploy notu:** Bu değişiklik yalnızca `flow-reset-ai-data` fonksiyonunu etkiler; deploy sırasında (kurala uygun olarak) sadece bu fonksiyon adıyla tek başına deploy edilmelidir: `npx supabase functions deploy flow-reset-ai-data.`
+
+## 9. AI Asistan Çoklu Takvim (Faz 5) Mimarisi ve Randevu Sistemi
+Son güncelleme ile birlikte AI Asistan'ın WhatsApp üzerinden randevu alma yeteneği Faz 5 (Çoklu Takvim / Çoklu Hizmet) yapısına yükseltilmiştir:
+- **Çoklu Takvim (Multi-Calendar) Geçişi:** Organizasyonlar artık 'multi_calendar_enabled' bayrağına sahip. Bu bayrak aktif olduğunda AI Asistan, tek bir işletme takvimi yerine; o işletmedeki tüm doktorların (takvimlerin) müsaitlik durumunu ayrı ayrı kontrol edebiliyor.
+- **Waha Webhook Entegrasyonu:** WhatsApp webhook'u üzerinden gelen mesajlarda 'merchantId' (aslında owner_id) bilgisi 'organizations' tablosundan asıl organizasyon ID'sine çözülerek (id) araçlara aktarılıyor. Bu sayede 'notifications' ve 'appointments' gibi organizasyon ID'si bekleyen tablolardaki Foreign Key (FK) hataları tamamen çözüldü.
+- **Hizmet ve Takvim Eşleşmesi:** Müşterinin talebine göre AI, hangi doktorun (takvimin) o hizmeti verdiğini bilerek alternatif sunabilir ve müsait zaman dilimlerini sadece ilgili doktor için kontrol eder.

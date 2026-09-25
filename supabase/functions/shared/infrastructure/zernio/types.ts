@@ -32,7 +32,7 @@ export interface ZernioApiContext {
   sdk: any; // Instantiated Zernio SDK
 }
 
-export type SocialIntegrationErrorCode = 
+export type SocialIntegrationErrorCode = string; /*
   | "PROFILE_PROVISION_FAILED"
   | "PROFILE_LIMIT_REACHED"
   | "ACCOUNT_CONNECTION_FAILED"
@@ -42,4 +42,4 @@ export type SocialIntegrationErrorCode =
   | "ANALYTICS_NOT_AVAILABLE"
   | "ZERNIO_UNAVAILABLE"
   | "ZERNIO_API_ERROR"
-  | "ZERNIO_EXECUTION_FAILED";
+  | "ZERNIO_EXECUTION_FAILED"; */

@@ -11,7 +11,8 @@ export class CreatePendingAppointmentTool implements ITool {
     properties: {
       serviceIds: { type: "array", items: { type: "string" }, description: "The IDs of the selected services." },
       startsAt: { type: "string", description: "The requested date and time in ISO 8601 format." },
-      customerName: { type: "string", description: "Customer's full name, must be collected via conversation before calling this tool." }
+      customerName: { type: "string", description: "Customer's full name, must be collected via conversation before calling this tool." },
+      calendarId: { type: "string", description: "The ID of the selected calendar (doctor, room, etc.). Must be populated if provided by list_available_slots." }
     },
     required: ["serviceIds", "startsAt", "customerName"]
   };
@@ -25,6 +26,7 @@ export class CreatePendingAppointmentTool implements ITool {
     const serviceIds = args.serviceIds as string[];
     const startsAt = args.startsAt as string;
     const customerName = args.customerName as string;
+    const calendarId = args.calendarId as string | undefined;
 
     const result = await this.appointmentService.createPendingAppointment({
       organizationId: context.organizationId,
@@ -32,6 +34,7 @@ export class CreatePendingAppointmentTool implements ITool {
       customerName,
       serviceIds,
       startsAt,
+      calendarId,
       // Phase 4 guardrail: forwards the caller's mode so a Live Test
       // (persona-test, executionMode "simulation") never creates a real
       // appointment row — see AppointmentService.createPendingAppointment().

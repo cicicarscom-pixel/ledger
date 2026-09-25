@@ -11,7 +11,7 @@ export class MediaApi {
    */
   async uploadMediaDirect(mimeType: string, bytes: Uint8Array): Promise<ZernioResponse> {
     return withRetry(() => {
-      const blob = new Blob([bytes], { type: mimeType });
+      const blob = new Blob([new Uint8Array(bytes)], { type: mimeType });
       return this.context.sdk.messages.uploadMediaDirect({
         body: {
           file: blob as any,
@@ -46,7 +46,7 @@ export class MediaApi {
     const putRes = await fetch(uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': contentType },
-      body: bytes
+      body: new Uint8Array(bytes)
     });
 
     if (!putRes.ok) {

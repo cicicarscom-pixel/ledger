@@ -1,14 +1,23 @@
 export class AppointmentRepository {
   constructor(private readonly supabase: any) {}
 
-  async findConflictingSlot(organizationId: string, startsAt: string): Promise<boolean> {
-    const { data, error } = await this.supabase
+  async findConflictingSlot(organizationId: string, startsAt: string, calendarId?: string): Promise<boolean> {
+    let query = this.supabase
       .from('appointments')
       .select('id')
       .eq('organization_id', organizationId)
       .eq('date', startsAt)
-      .in('status', ['Pending', 'Approved'])
-      .limit(1);
+      .in('status', ['Pending', 'Approved']);
+
+    if (calendarId) {
+      query = query.eq('calendar_id', calendarId);
+    } else {
+      // Legacy behavior: if multi-calendar is off, we still check globally just in case.
+      // But if there are multiple calendars, a missing calendarId in check might false-positive collision.
+      // So if calendarId is not passed, it means we check globally for the organization.
+    }
+
+    const { data, error } = await query.limit(1);
     
     if (error) {
       console.error("[AppointmentRepository] Error checking slot collision:", error);
@@ -24,6 +33,7 @@ export class AppointmentRepository {
     customerName: string;
     serviceIds: string[];
     startsAt: string;
+    calendarId?: string;
   }): Promise<any> {
     const primaryServiceId = params.serviceIds.length > 0 ? params.serviceIds[0] : null;
 
@@ -37,7 +47,8 @@ export class AppointmentRepository {
         service_id: primaryServiceId, // for backwards compatibility
         date: params.startsAt,
         status: 'Pending',
-        booking_token: crypto.randomUUID()
+        booking_token: crypto.randomUUID(),
+        calendar_id: params.calendarId || null
       })
       .select('id')
       .single();
@@ -149,7 +160,7 @@ export class AppointmentRepository {
     }
   }
 
-  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[]): Promise<string[]> {
+  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
     try {
       // 1. Get total service duration (fallback to 30 mins)
       let durationMins = 30;
@@ -173,17 +184,14 @@ export class AppointmentRepository {
         const hrStr = currentHour.toString().padStart(2, '0');
         const mnStr = currentMin.toString().padStart(2, '0');
         
-        // Ensure the slot + total duration doesn't exceed 18:00
         const endHour = currentHour + Math.floor((currentMin + durationMins) / 60);
         const endMin = (currentMin + durationMins) % 60;
         if (endHour > 18 || (endHour === 18 && endMin > 0)) {
-          break; // Stop generating slots if the appointment would end after 18:00
+          break;
         }
 
         slots.push(`${hrStr}:${mnStr}`);
         
-        // Step to next slot (e.g., every 30 mins, or by total duration if preferred)
-        // Stepping by base 30 mins to offer more options
         currentMin += 30;
         while (currentMin >= 60) {
           currentHour += 1;
@@ -191,40 +199,128 @@ export class AppointmentRepository {
         }
       }
 
-      // 3. Fetch taken slots for this date
-      // appointments.date might be a full ISO string, so we do a text match using like.
-      const { data: takenAppointments, error } = await this.supabase
+      // If multi-calendar is OFF, use the legacy logic
+      if (!multiCalendarEnabled) {
+        const { data: takenAppointments, error } = await this.supabase
+          .from('appointments')
+          .select('date')
+          .eq('organization_id', organizationId)
+          .in('status', ['Pending', 'Approved'])
+          .like('date', `${date}%`);
+        
+        if (error) {
+          console.error("[AppointmentRepository] Error fetching appointments for slots:", error);
+          return slots; 
+        }
+
+        const takenSet = new Set(takenAppointments.map((a: any) => {
+          if (a.date.includes('T')) {
+             const match = a.date.match(/T(\d{2}:\d{2})/);
+             if (match) return match[1];
+          } else if (a.date.length === 5) {
+             return a.date;
+          } else if (a.date.includes(' ')) {
+             const match = a.date.match(/\s(\d{2}:\d{2})/);
+             if (match) return match[1];
+          }
+          return a.date;
+        }));
+
+        const availableSlots = slots.filter(slot => !takenSet.has(slot));
+        return availableSlots;
+      }
+
+      // If multi-calendar is ON, compute per-calendar availability
+      const { data: allCalendars, error: calError } = await this.supabase
+        .from('calendars')
+        .select('id, name')
+        .eq('merchant_id', organizationId)
+        .eq('is_active', true);
+        
+      if (calError || !allCalendars || allCalendars.length === 0) {
+        // Fallback to legacy string array if no calendars are found
+        return slots;
+      }
+
+      let calendarsToConsider = allCalendars;
+
+      // 1. FILTER BY SERVICES: A calendar must offer ALL requested services
+      if (serviceIds && serviceIds.length > 0) {
+        const { data: calServices, error: csError } = await this.supabase
+          .from('calendar_services')
+          .select('calendar_id, service_id')
+          .in('calendar_id', allCalendars.map((c: any) => c.id))
+          .in('service_id', serviceIds);
+
+        if (!csError && calServices) {
+           const calServiceMap = new Map<string, Set<string>>();
+           for (const cs of calServices) {
+             if (!calServiceMap.has(cs.calendar_id)) calServiceMap.set(cs.calendar_id, new Set());
+             calServiceMap.get(cs.calendar_id)!.add(cs.service_id);
+           }
+           
+           calendarsToConsider = allCalendars.filter((c: any) => {
+             const servicesForCal = calServiceMap.get(c.id);
+             if (!servicesForCal) return false;
+             for (const sid of serviceIds) {
+               if (!servicesForCal.has(sid)) return false;
+             }
+             return true;
+           });
+        }
+      }
+
+      if (calendarsToConsider.length === 0) {
+        return []; // No calendar provides the requested services
+      }
+
+      const { data: takenAppointments, error: apptError } = await this.supabase
         .from('appointments')
-        .select('date')
+        .select('date, calendar_id')
         .eq('organization_id', organizationId)
         .in('status', ['Pending', 'Approved'])
         .like('date', `${date}%`);
-      
-      if (error) {
-        console.error("[AppointmentRepository] Error fetching appointments for slots:", error);
-        return slots; // Fallback to all slots if DB fails
+
+      if (apptError) {
+        console.error("[AppointmentRepository] Error fetching appointments for multi-calendar slots:", apptError);
+        return slots;
       }
 
-      const takenSet = new Set(takenAppointments.map((a: any) => {
-        // Parse the time part from ISO string. If it's already HH:mm, use it directly.
-        if (a.date.includes('T')) {
-           // E.g., 2026-08-30T15:00:00.000Z -> we need to extract the HH:mm in local time or UTC.
-           // For simplicity, we assume the bot and the DB agree on the string format.
-           // Let's just extract the HH:mm from the T part if it exists.
-           const match = a.date.match(/T(\d{2}:\d{2})/);
-           if (match) return match[1];
-        } else if (a.date.length === 5) { // HH:mm
-           return a.date;
-        } else if (a.date.includes(' ')) { // YYYY-MM-DD HH:mm
-           const match = a.date.match(/\s(\d{2}:\d{2})/);
-           if (match) return match[1];
-        }
-        return a.date;
-      }));
+      // Group taken slots by calendar_id
+      const takenByCalendar = new Map<string, Set<string>>();
+      for (const cal of calendarsToConsider) {
+        takenByCalendar.set(cal.id, new Set<string>());
+      }
 
-      // Filter out taken slots
-      const availableSlots = slots.filter(slot => !takenSet.has(slot));
-      return availableSlots;
+      for (const a of (takenAppointments || [])) {
+        if (!a.calendar_id) continue;
+        if (!takenByCalendar.has(a.calendar_id)) continue;
+        
+        let timeSlot = a.date;
+        if (a.date.includes('T')) {
+           const match = a.date.match(/T(\d{2}:\d{2})/);
+           if (match) timeSlot = match[1];
+        } else if (a.date.length === 5) {
+           timeSlot = a.date;
+        } else if (a.date.includes(' ')) {
+           const match = a.date.match(/\s(\d{2}:\d{2})/);
+           if (match) timeSlot = match[1];
+        }
+
+        takenByCalendar.get(a.calendar_id)!.add(timeSlot);
+      }
+
+      // Map each slot to available calendars
+      const structuredSlots = slots.map(slot => {
+        const availableCalendars = calendarsToConsider.filter((cal: any) => !takenByCalendar.get(cal.id)?.has(slot));
+        return {
+          time: slot,
+          availableCalendars: availableCalendars.map((c: any) => ({ id: c.id, name: c.name }))
+        };
+      });
+
+      // Optionally filter out slots where NO calendars are available
+      return structuredSlots.filter(s => s.availableCalendars.length > 0);
       
     } catch (e) {
       console.error("[AppointmentRepository] getAvailableSlots Exception:", e);

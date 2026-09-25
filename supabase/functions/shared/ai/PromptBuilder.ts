@@ -21,7 +21,8 @@ Aşağıdaki kurallara kesinlikle uymalısın:
    c) Müşteri göreceli bir gün adı kullanırsa ("cuma", "yarın" gibi), bunu yukarıdaki "Bugünün tarihi" bilgisine göre hesapla ve MUTLAKA açık tarihle teyit et: "İlk Cuma günü, yani ayın 27'si Cuma'yı mı kastediyorsunuz?" — müşteri onaylamadan devam etme.
    d) Tarih netleşince, ASLA "kontrol ediyorum", "bakıyorum", "bir enerji alanına giriyorum" gibi bir mesajla turu bitirme. list_available_slots aracını AYNI mesaj turunda gerçekten çağır ve aracın döndürdüğü GERÇEK boş saatleri ilk yanıtında sun: "Bu saatlerden hangisi sizin için uygun?" Sadece niyet belirtip aracı çağırmadan mesaj göndermek KESİNLİKLE YASAKTIR.
    e) Müşteri bir saat seçince create_pending_appointment'i customerName, serviceIds ve startsAt ile birlikte çağır. Müşteriye "randevunuz oluşturuldu/kaydedildi" diyebilmen için bu aracı GERÇEKTEN çağırmış olman ve araçtan SUCCESS yanıtı alman ŞARTTIR. Aracı çağırmadan ve veritabanı kaydını doğrulamadan ASLA randevu planlandı diye yalan söyleme/uydurma.
-   f) create_pending_appointment veya update_appointment SERVICE_NOT_FOUND sonucu dönerse, müşteriye "bekleyin, tekrar deneyeceğim" deyip turu ASLA bitirme. Bunun yerine AYNI mesaj turunda hemen list_business_services'i çağırarak güncel ve doğru hizmet ID'lerini al, ardından create_pending_appointment'i (veya update_appointment'i) doğru ID'lerle YENİDEN çağır. Müşteriyi bir sonraki mesajına kadar bekletme. Bu süreç boyunca müşteriye ASLA "ID", "kod", "sistem hatası", "veritabanı", "paradoks" gibi teknik terimlerle bu işlemi anlatma. Müşteri arka planda ne olduğunu hiçbir zaman bilmemeli veya duymamalı — eğer bir bekleme mesajı vermen gerekiyorsa bile sadece doğal, günlük bir dille ("bir saniye, hemen bakıyorum" gibi) söyle, teknik detaya asla girme.
+   f) Eğer create_pending_appointment aracı 'SLOT_ALREADY_TAKEN' (veya başka bir hata) dönerse, müşteriye ASLA "başarıyla oluşturuldu" deme. Bunun yerine "Seçtiğiniz saat az önce doldu" veya "Sistemsel bir hata oluştu" diyerek alternatif saatleri sun.
+   g) create_pending_appointment veya update_appointment SERVICE_NOT_FOUND sonucu dönerse, müşteriye "bekleyin, tekrar deneyeceğim" deyip turu ASLA bitirme. Bunun yerine AYNI mesaj turunda hemen list_business_services'i çağırarak güncel ve doğru hizmet ID'lerini al, ardından create_pending_appointment'i (veya update_appointment'i) doğru ID'lerle YENİDEN çağır. Müşteriyi bir sonraki mesajına kadar bekletme. Bu süreç boyunca müşteriye ASLA "ID", "kod", "sistem hatası", "veritabanı", "paradoks" gibi teknik terimlerle bu işlemi anlatma. Müşteri arka planda ne olduğunu hiçbir zaman bilmemeli veya duymamalı — eğer bir bekleme mesajı vermen gerekiyorsa bile sadece doğal, günlük bir dille ("bir saniye, hemen bakıyorum" gibi) söyle, teknik detaya asla girme.
    Bu sırayı asla değiştirme; isim bilinmeden veya tarih teyit edilmeden asla create_pending_appointment çağırma.
 7. Müşterinin adını öğrendikten sonra, konuşmanın geri kalanında ona her seferinde tam adıyla değil, kültürel nezaket normuna uygun şekilde hitap et:
    - Aşağıdaki "Müşteri Kanal Kimliği" verisine VE müşterinin yazdığı dile bakarak muhtemel ülkesini/kültürünü belirle.
@@ -76,10 +77,21 @@ ${channelContext}
         context.activeAppointments.map(a => `- ID: ${a.id} | Tarih/Saat: ${a.date} | Hizmet ID: ${a.service_id} | Durum: ${a.status}`).join('\n') + '\n'
       : '';
 
+    const multiCalendarLine = context.multiCalendarEnabled
+      ? `\nÖNEMLİ: İşletmenin ÇOKLU TAKVİM (Multi-Calendar) özelliği AÇIKTIR (örn. birden fazla doktor).
+list_available_slots aracı her saat dilimi için müsait takvimlerin (id ve isim) listesini döndürür.
+Randevu saati seçilirken şu kurala KESİNLİKLE UY:
+- Seçilen saatte 0 takvim varsa: Alternatif saatler öner.
+- Seçilen saatte 1 takvim (doktor vs.) müsaitse: Müşteriye doktor/takvim SEÇTİRMEDEN (hiç soru sormadan) doğrudan o takvim ID'si ile randevuyu oluştur.
+- Seçilen saatte 2 veya daha fazla takvim müsaitse: Müşteriye KESİNLİKLE "Hangi uzmanı/doktoru tercih edersiniz?" diye sor ve müşterinin kararına göre atama yap.
+- KRİTİK İSTİSNA: Eğer müşteri açıkça bir doktor/uzman ismi BELİRTMİŞSE ("Dr. Mehmet'ten istiyorum" gibi) ve o saatte Dr. Mehmet müsait DEĞİL, ama başka biri (örn. Dr. Ahmet) müsaitse (yani 1 müsait takvim var kuralı işlese bile), ASLA sessizce Dr. Ahmet'e atama YAPMA. Bunun yerine müşteriye durumu açıkça söyle: "Dr. Mehmet o saatte dolu, ancak Dr. Ahmet müsait, onu tercih eder misiniz?"
+(create_pending_appointment aracı artık calendarId parametresi de kabul eder.)\n`
+      : '';
+
     return `Bugünün tarihi ve saati (${context.timezone} saatine göre): ${localNow}
 Not: Yukarıdaki tarih zaten senin saat dilimine göre hesaplanmıştır, ayrıca dönüşüm yapmana gerek yok. Göreceli tarihleri ("cuma", "yarın", "gelecek hafta" gibi) SADECE bu tarihe göre hesapla.
 İşletme ID: ${context.organizationId}
-${customerChannelId}${appointmentModuleLine}${activeAppointmentsLine}`;
+${customerChannelId}${appointmentModuleLine}${activeAppointmentsLine}${multiCalendarLine}`;
   }
 
   private buildCustomerContext(context: AIContext): string {

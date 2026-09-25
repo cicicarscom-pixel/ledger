@@ -27,7 +27,8 @@ export class ListAvailableSlotsTool implements ITool {
     const slots = await this.appointmentService.getAvailableSlots(
       context.organizationId,
       date,
-      serviceIds
+      serviceIds,
+      context.multiCalendarEnabled
     );
 
     return {

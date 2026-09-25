@@ -48,6 +48,7 @@ export interface AIContext {
     }>;
   };
   appointmentModuleEnabled?: boolean; // false = randevu/rezervasyon tamamen kapalı. undefined = true gibi davranır.
+  multiCalendarEnabled?: boolean; // false = tek takvim. true = çoklu takvim (doktor seçimi).
   activeAppointments?: Array<{ id: string; service_id: string; date: string; status: string }>; // müşterinin var olan aktif randevuları — sadece update_appointment için
   // Phase 4: "production" (default, real customer messages) or "simulation"
   // (persona-test / Live Test). Write tools (e.g. CreatePendingAppointmentTool)
