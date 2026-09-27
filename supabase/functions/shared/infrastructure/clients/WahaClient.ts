@@ -1,6 +1,6 @@
-export class WahaClient {
+﻿export class WahaClient {
   private baseUrl = 'http://31.97.37.208:3000/api';
-  private apiKey = 'workigom_key_2026';
+  private apiKey = Deno.env.get("WAHA_API_KEY") || '';
 
   async sendWhatsAppMessage(merchantId: string, chatId: string, message: string): Promise<void> {
     const url = `${this.baseUrl}/sendText`;
@@ -27,3 +27,4 @@ export class WahaClient {
     }
   }
 }
+
