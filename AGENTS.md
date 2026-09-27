@@ -41,3 +41,11 @@ otifications.profile_id\) ve randevu oluşturma kısımlarının hatalı foreign
 - `waha-webhook` edge function successfully deployed to Supabase.
 - `flowweb` frontend UI fixes and timezone support committed and pushed to Vercel.
 - Project architectural README updated.
+
+### [27.09.2026] Faz 2: Ölü Kod Temizliği ve Ortak slotBusy Entegrasyonu
+1. **Flow / FlowWeb Ortak Kütüphane:** Müsaitlik durumu ve saat hesaplamaları için bağımsız ve tamamen zaman dilimi uyumlu src/lib/slotBusy.ts (starts_at / ends_at çakışma tespiti) entegre edildi.
+2. **Ölü Kodların Temizlenmesi (flow):** Eski WAHA tabanlı StartAppointmentFlowUseCase, ApproveAppointmentUseCase, CancelAppointmentUseCase, GetAvailableHoursUseCase ve WahaRandevuService dosyaları uygulamadan tamamen silindi ve dependency injection (container.ts) kayıtları kaldırıldı.
+3. **Repository Güncellemesi (flow):** Eski string tabanlı indAvailableHours fonksiyonu silinip yerine veri tabanından starts_at, ends_at, timezone, status çeken getDayAppointmentsForCalendar eklendi.
+4. **Heatmap & UI (flowweb & flow):** Web ve Mobil'deki gün içi yoğunluk haritası (isSlotBusy), yeni slotBusy.ts modülü kullanılarak string (date LIKE) aramasından aralık bazlı çakışma arayışına dönüştürüldü. Yeni Randevu Modalı (mobildeki) saatleri filtrelemek için güncellendi.
+5. **Ledger Güncellemeleri:** waha-webhook v92 canlı ortamdan senkronize edildi. AI Core (ResponseGuards, claimsAction, vs.) testleri ile sisteme dahil edildi. Faz 2 temizliği doğrulandı.
+
