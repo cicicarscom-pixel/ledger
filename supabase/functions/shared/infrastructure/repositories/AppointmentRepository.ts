@@ -1,11 +1,37 @@
+const LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+
+function offsetAt(ms: number, tz: string): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(new Date(ms)).map(x => [x.type, x.value])
+  );
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - ms;
+}
+
+function localToUtc(local: string, tz: string): string {
+  const m = LOCAL_RE.exec(local);
+  if (!m) throw new Error('INVALID_LOCAL_FORMAT');
+  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0));
+  const offsets = new Set([-864e5, 0, 864e5].map(d => offsetAt(wall + d, tz)));
+  const hits = [...offsets]
+    .map(o => wall - o)
+    .filter(c => offsetAt(c, tz) === wall - c)
+    .sort((a, b) => a - b);
+  if (hits.length === 0) throw new Error('INVALID_LOCAL_TIME');
+  return new Date(hits[0]).toISOString();
+}
+
 export class AppointmentRepository {
   constructor(private readonly supabase: any) {}
 
-  async findConflictingSlot(organizationId: string, startsAt: string, calendarId?: string): Promise<boolean> {
+  async findConflictingSlot(merchantId: string, startsAt: string, calendarId?: string): Promise<boolean> {
     let query = this.supabase
       .from('appointments')
       .select('id')
-      .eq('organization_id', organizationId)
+      .eq('organization_id', merchantId)
       .eq('date', startsAt)
       .in('status', ['Pending', 'Approved']);
 
@@ -28,28 +54,105 @@ export class AppointmentRepository {
   }
 
   async createPendingAppointment(params: {
-    organizationId: string;
+    organizationId: string; // Used only for organizations table query
+    merchantId: string;
     customerId: string;
     customerName: string;
+    customerRequestRaw?: string;
     serviceIds: string[];
     startsAt: string;
     calendarId?: string;
+      timezone: string;
+      allowCustomerOverlap?: boolean;
   }): Promise<any> {
     const primaryServiceId = params.serviceIds.length > 0 ? params.serviceIds[0] : null;
+
+    // --- Süre hesaplama: her kademe gerçekten "bulundu mu" diye kontrol eder ---
+    let durationMins: number | null = null;
+
+    // 1) Hizmet süresi
+    if (params.serviceIds.length > 0) {
+      const { data: services } = await this.supabase
+        .from('business_services')
+        .select('duration_minutes')
+        .in('id', params.serviceIds);
+      if (services && services.length > 0) {
+        const totalDuration = services.reduce((sum: number, s: any) => sum + (s.duration_minutes ?? 0), 0);
+        if (totalDuration > 0) durationMins = totalDuration;
+      }
+    }
+
+    // 2) Takvim varsayılanı (hizmet süresi bulunamadıysa)
+    if (durationMins === null && params.calendarId) {
+      const { data: cal } = await this.supabase
+        .from('calendars')
+        .select('default_duration_minutes')
+        .eq('id', params.calendarId)
+        .single();
+      if (cal?.default_duration_minutes != null) {
+        durationMins = cal.default_duration_minutes;
+      }
+    }
+
+    // 3) Organizasyon varsayılanı (hâlâ bulunamadıysa)
+    if (durationMins === null) {
+      const { data: org } = await this.supabase
+        .from('organizations')
+        .select('default_appointment_duration_minutes')
+        .eq('id', params.organizationId)
+        .single();
+      if (org?.default_appointment_duration_minutes != null) {
+        durationMins = org.default_appointment_duration_minutes;
+      }
+    }
+
+    // 4) Son çare
+    if (durationMins === null) {
+      durationMins = 30;
+    }
+
+    const utcStartsAt = localToUtc(params.startsAt, params.timezone);
+    const startsAtDate = new Date(utcStartsAt);
+    const endsAtDate = new Date(startsAtDate.getTime() + durationMins * 60000);
+    const endsAt = endsAtDate.toISOString();
+
+    console.log(`[AppointmentRepository] createPendingAppointment: starts_at=${params.startsAt}, calculated ends_at=${endsAt} (duration: ${durationMins}m, source: ${params.serviceIds.length > 0 ? 'service/calendar/org' : 'fallback'})`);
+    // ---------------------------------
+
+    if (!params.allowCustomerOverlap) {
+      const { data: overlaps, error: ovErr } = await this.supabase
+        .from('appointments')
+        .select('id, starts_at, calendar_id')
+        .eq('organization_id', params.merchantId)
+        .eq('customer_phone', params.customerId)
+        .in('status', ['Pending', 'Approved'])
+        .lt('starts_at', endsAt)
+        .gt('ends_at', utcStartsAt);
+      if (ovErr) throw ovErr;
+      if (overlaps && overlaps.length > 0) {
+        const e: any = new Error('CUSTOMER_TIME_CONFLICT');
+        e.code = 'CUSTOMER_TIME_CONFLICT';
+        throw e;
+      }
+    }
 
     // 1. Insert into appointments
     const { data, error } = await this.supabase
       .from('appointments')
       .insert({
-        organization_id: params.organizationId,
-        customer_phone: params.customerId,
-        customer_name: params.customerName,
-        service_id: primaryServiceId, // for backwards compatibility
-        date: params.startsAt,
-        status: 'Pending',
-        booking_token: crypto.randomUUID(),
-        calendar_id: params.calendarId || null
-      })
+          organization_id: params.merchantId,
+          customer_phone: params.customerId,
+          customer_name: params.customerName,
+          service_id: primaryServiceId,
+          starts_at: utcStartsAt,
+          ends_at: endsAt,
+          timezone: params.timezone,
+          source: 'whatsapp',
+            status: 'Pending',
+          booking_token: crypto.randomUUID(),
+          calendar_id: params.calendarId || null,
+          customer_request_raw: params.customerRequestRaw || null
+        })
       .select('id')
       .single();
 
@@ -62,7 +165,7 @@ export class AppointmentRepository {
     if (params.serviceIds.length > 0 && data?.id) {
       const serviceInserts = params.serviceIds.map(sid => ({
         appointment_id: data.id,
-        organization_id: params.organizationId,
+        organization_id: params.merchantId,
         service_id: sid
       }));
       
@@ -76,10 +179,10 @@ export class AppointmentRepository {
     }
 
     // 3. Upsert customer record
-    await this.upsertCustomer(params.organizationId, params.customerId, params.customerName);
+    await this.upsertCustomer(params.merchantId, params.customerId, params.customerName);
 
     // 4. Fetch all service names for notification
-    let serviceNames = "Bilinmeyen Hizmet";
+    let serviceNames = params.customerRequestRaw || "Belirtilmemiş";
     if (params.serviceIds.length > 0) {
       const { data: services } = await this.supabase
         .from('business_services')
@@ -90,19 +193,16 @@ export class AppointmentRepository {
       }
     }
 
-    await this.notifyMerchant(
-      params.organizationId, 'Yeni Randevu Oluşturuldu',
-      `${this.formatLocalTime(params.startsAt)} - ${params.customerName} adına "${serviceNames}" hizmeti için randevu oluşturuldu.`
-    );
+    // notifyMerchant is now handled by DB trigger (tr_notify_new_appointment)
 
     return data;
   }
 
-  async findActiveByPhone(organizationId: string, phone: string): Promise<any[]> {
+  async findActiveByPhone(merchantId: string, phone: string): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('appointments')
       .select('id, service_id, date, status')
-      .eq('organization_id', organizationId)
+      .eq('organization_id', merchantId)
       .eq('customer_phone', phone)
       .in('status', ['Pending', 'Approved'])
       .order('date', { ascending: true })
@@ -122,16 +222,16 @@ export class AppointmentRepository {
     return match ? `${match[1]}:${match[2]}` : dateStr;
   }
   
-  private async notifyMerchant(organizationId: string, title: string, message: string): Promise<void> {
-    const { error } = await this.supabase.from('notifications').insert({ profile_id: organizationId, title, message, type: 'appointment' });
+  private async notifyMerchant(profileId: string, title: string, message: string): Promise<void> {
+    const { error } = await this.supabase.from('notifications').insert({ profile_id: profileId, title, message, type: 'appointment' });
     if (error) console.error("[AppointmentRepository] Error creating merchant notification:", error);
     // Bildirim hatası ASLA randevu işlemini geri almaz veya başarısız göstermez.
   }
   
-  async updateAppointmentDateTime(organizationId: string, appointmentId: string, customerPhone: string, newStartsAt: string): Promise<any> {
+  async updateAppointmentDateTime(merchantId: string, appointmentId: string, customerPhone: string, newStartsAt: string): Promise<any> {
     const { data: existing, error: fetchError } = await this.supabase
       .from('appointments').select('*')
-      .eq('id', appointmentId).eq('organization_id', organizationId).eq('customer_phone', customerPhone)
+      .eq('id', appointmentId).eq('organization_id', merchantId).eq('customer_phone', customerPhone)
       .maybeSingle();
     if (fetchError) { console.error("[AppointmentRepository] Error fetching appointment before reschedule:", fetchError); throw fetchError; }
     if (!existing) return null;
@@ -141,15 +241,15 @@ export class AppointmentRepository {
   
     const serviceName = await this.getServiceName(existing.service_id);
     await this.notifyMerchant(
-      organizationId, 'Randevu Güncellendi',
+      merchantId, 'Randevu Güncellendi',
       `${existing.customer_name || 'Müşteri'}'in "${serviceName}" için ${this.formatLocalTime(existing.date)} saatindeki randevusu ${this.formatLocalTime(newStartsAt)}'a alındı.`
     );
     return data;
   }
 
-  async upsertCustomer(organizationId: string, phone: string, name: string): Promise<void> {
+  async upsertCustomer(merchantId: string, phone: string, name: string): Promise<void> {
     const { error } = await this.supabase.from('customers').upsert({
-      organization_id: organizationId,
+      organization_id: merchantId,
       phone: phone,
       name: name
     }, { onConflict: 'organization_id,phone' });
@@ -160,7 +260,7 @@ export class AppointmentRepository {
     }
   }
 
-  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
+  async getAvailableSlots(merchantId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
     try {
       // 1. Get total service duration (fallback to 30 mins)
       let durationMins = 30;
@@ -204,7 +304,7 @@ export class AppointmentRepository {
         const { data: takenAppointments, error } = await this.supabase
           .from('appointments')
           .select('date')
-          .eq('organization_id', organizationId)
+          .eq('organization_id', merchantId)
           .in('status', ['Pending', 'Approved'])
           .like('date', `${date}%`);
         
@@ -234,7 +334,7 @@ export class AppointmentRepository {
       const { data: allCalendars, error: calError } = await this.supabase
         .from('calendars')
         .select('id, name')
-        .eq('merchant_id', organizationId)
+        .eq('merchant_id', merchantId)
         .eq('is_active', true);
         
       if (calError || !allCalendars || allCalendars.length === 0) {
@@ -277,7 +377,7 @@ export class AppointmentRepository {
       const { data: takenAppointments, error: apptError } = await this.supabase
         .from('appointments')
         .select('date, calendar_id')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', merchantId)
         .in('status', ['Pending', 'Approved'])
         .like('date', `${date}%`);
 
@@ -328,13 +428,13 @@ export class AppointmentRepository {
     }
   }
 
-  async validateServiceIds(organizationId: string, serviceIds: string[]): Promise<boolean> {
+  async validateServiceIds(merchantId: string, serviceIds: string[]): Promise<boolean> {
     if (!serviceIds || serviceIds.length === 0) return false;
     try {
       const { data, error } = await this.supabase
         .from('business_services')
         .select('id')
-        .eq('merchant_id', organizationId)
+        .eq('merchant_id', merchantId)
         .in('id', serviceIds);
       if (error) {
         console.error("[AppointmentRepository] DB Error validating service IDs:", error);
@@ -347,3 +447,4 @@ export class AppointmentRepository {
     }
   }
 }
+

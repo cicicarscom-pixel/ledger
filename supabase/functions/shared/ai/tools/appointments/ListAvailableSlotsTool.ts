@@ -24,12 +24,16 @@ export class ListAvailableSlotsTool implements ITool {
     const date = args.date as string;
     const serviceIds = args.serviceIds as string[];
 
+    console.log(`[DEBUG] ListAvailableSlotsTool service_id=${serviceIds?.join(',')}, merchant_id=${context.organizationId}`);
+
     const slots = await this.appointmentService.getAvailableSlots(
-      context.organizationId,
+      context.merchantId!,
       date,
       serviceIds,
       context.multiCalendarEnabled
     );
+
+    console.log(`[DEBUG] ListAvailableSlotsTool bulunan takvimler:`, JSON.stringify(slots));
 
     return {
       status: "SUCCESS",

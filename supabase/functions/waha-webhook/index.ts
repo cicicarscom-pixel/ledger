@@ -27,11 +27,13 @@ serve(async (req) => {
       const body = payload.payload?.body || payload.data?.body;
       const isFromMe = payload.payload?.fromMe || payload.data?.id?.fromMe;
 
-      // GRUP ve DURUM (Status) Korumas�:
+      const pushName: string | null = rawFromPayload?._data?.pushName?.trim() || null;
+
+      // GRUP ve DURUM (Status) Koruması:
       const isGroup = from && from.includes('@g.us');
       const isBroadcast = from && from.includes('@broadcast');
 
-      // Sadece d��ar�dan gelen (m��teri), grup/durum olmayan, ki�isel mesajlar�na yan�t ver (@c.us)
+      // Sadece dışarıdan gelen (müşteri), grup/durum olmayan, kişisel mesajlara yanıt ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
         console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
 
@@ -40,12 +42,13 @@ serve(async (req) => {
           merchantId: merchantId,
           source: 'whatsapp',
           senderId: from,
-          userMessage: body
+          userMessage: body,
+          customerName: pushName
         });
       }
     }
 
-    // WAHA isteklerini hi�bir zaman timeout'a d���rmemek i�in hemen 200 d�n�yoruz
+    // WAHA isteklerini hiçbir zaman timeout'a düşürmemek için hemen 200 dönüyoruz
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,

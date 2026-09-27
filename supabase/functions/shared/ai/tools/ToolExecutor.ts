@@ -22,9 +22,12 @@ export class ToolExecutor {
       // (like organizationId) instead of relying on Gemini's args.
       const args = toolCall.args || {};
       
+      console.log(`[TOOL CALL] ${toolCall.name} çağrılıyor, parametreler:`, JSON.stringify(args));
       const result = await tool.execute(context, args);
+      console.log(`[TOOL RESULT] ${toolCall.name} sonucu:`, JSON.stringify(result));
       return result;
     } catch (error) {
+      console.error(`[TOOL ERROR] ${toolCall.name} hata verdi:`, error);
       console.error(`[ToolExecutor] Tool execution failed for ${toolCall.name}:`, error);
       return {
         status: "ERROR",

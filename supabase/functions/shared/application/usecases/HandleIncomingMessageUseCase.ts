@@ -26,7 +26,8 @@ export class HandleIncomingMessageUseCase {
       source: 'whatsapp' | 'social';
       senderId: string;
       userMessage: string;
-      platform?: string; // e.g. 'instagram' for social
+        customerName?: string | null;
+        platform?: string; // e.g. 'instagram' for social
       isComment?: boolean;
       postId?: string;
       zernioAccountId?: string;
@@ -83,28 +84,48 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 2c. Customer Profile Lookup (Phase 5)
-    const { data: existingCustomer } = await supabaseClient
+    const { data: existingCustomer, error: existingCustomerError } = await supabaseClient
       .from('customers')
-      .select('name, created_at')
+      .select('name, created_at, appointment_draft')
       .eq('organization_id', merchantId)
       .eq('phone', senderId)
       .maybeSingle();
 
+    if (existingCustomerError) {
+      console.error('[HandleIncomingMessageUseCase] Error fetching customer:', existingCustomerError);
+    }
+
     const pastAppointments = [];
     if (existingCustomer) {
-      const { data: appts } = await supabaseClient
+      const { data: appts, error: apptsError } = await supabaseClient
         .from('appointments')
         .select('service_id, date, status')
         .eq('organization_id', merchantId)
         .eq('customer_phone', senderId)
         .order('date', { ascending: false })
         .limit(5);
+
+      if (apptsError) {
+         console.error('[HandleIncomingMessageUseCase] Error fetching appts:', apptsError);
+      }
       if (appts) {
         pastAppointments.push(...appts);
       }
     }
 
     const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(merchantId, senderId).catch(() => []);
+
+    let finalName = existingCustomer?.name || payload.customerName || null;
+    if ((!existingCustomer || !existingCustomer.name) && payload.customerName) {
+      const { error: upsertError } = await supabaseClient.from('customers').upsert({
+        organization_id: merchantId,
+        phone: senderId,
+        name: payload.customerName
+      }, { onConflict: 'organization_id, phone' });
+      if (upsertError) {
+        console.error('[HandleIncomingMessageUseCase] Error upserting customer name:', upsertError);
+      }
+    }
 
     // 3. Build AI Context
     const aiContext: AIContext = {
@@ -117,7 +138,7 @@ export class HandleIncomingMessageUseCase {
       personaConfig,
       customerProfile: {
         isReturning: !!existingCustomer,
-        name: existingCustomer?.name || null,
+        name: finalName,
         pastAppointments,
       },
       appointmentModuleEnabled,
@@ -213,3 +234,4 @@ export class HandleIncomingMessageUseCase {
     );
   }
 }
+

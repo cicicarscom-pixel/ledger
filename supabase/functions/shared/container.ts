@@ -19,8 +19,9 @@ import { PersonaPromptBuilder } from "./ai/persona/PersonaPromptBuilder.ts";
 import { CreatePendingAppointmentTool } from "./ai/tools/appointments/CreatePendingAppointmentTool.ts";
 import { ListAvailableSlotsTool } from "./ai/tools/appointments/ListAvailableSlotsTool.ts";
 import { ListBusinessServicesTool } from "./ai/tools/appointments/ListBusinessServicesTool.ts";
+import { ListCalendarsTool } from "./ai/tools/appointments/ListCalendarsTool.ts";
 import { SearchDriveKnowledgeTool } from "./ai/tools/rag/SearchDriveKnowledgeTool.ts";
-import { UpdateAppointmentTool } from "./ai/tools/appointments/UpdateAppointmentTool.ts";
+// import { UpdateAppointmentTool } from "./ai/tools/appointments/UpdateAppointmentTool.ts";
 
 interface AiPipeline {
   aiOrchestrator: AIOrchestrator;
@@ -59,7 +60,8 @@ function buildAiPipeline(supabaseAdmin: SupabaseClient): AiPipeline {
   const createPendingAppointmentTool = new CreatePendingAppointmentTool(appointmentService);
   const listAvailableSlotsTool = new ListAvailableSlotsTool(appointmentService);
   const listBusinessServicesTool = new ListBusinessServicesTool(supabaseAdmin);
-  const updateAppointmentTool = new UpdateAppointmentTool(appointmentService);
+  const listCalendarsTool = new ListCalendarsTool(supabaseAdmin);
+  // const updateAppointmentTool = new UpdateAppointmentTool(appointmentService);
   const searchDriveKnowledgeTool = new SearchDriveKnowledgeTool(driveKnowledgeService, {
     // Temporary mock embedText until actual embedding provider is hooked up
     embedText: async (text: string) => {
@@ -73,7 +75,8 @@ function buildAiPipeline(supabaseAdmin: SupabaseClient): AiPipeline {
     createPendingAppointmentTool,
     listAvailableSlotsTool,
     listBusinessServicesTool,
-    updateAppointmentTool,
+    listCalendarsTool,
+    // updateAppointmentTool,
     searchDriveKnowledgeTool
   ]);
 

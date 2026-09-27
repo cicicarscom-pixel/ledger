@@ -1,24 +1,60 @@
-import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
+import { AppointmentRepository } from "../../infrastructure/repositories/AppointmentRepository.ts";
 
-export type AppointmentResult = "SUCCESS" | "SLOT_ALREADY_TAKEN" | "SERVICE_NOT_FOUND" | "INVALID_DATE" | "CUSTOMER_REQUIRED" | "CUSTOMER_NAME_REQUIRED" | "DB_ERROR" | "APPOINTMENT_NOT_FOUND";
+export type AppointmentResult =
+  | "SUCCESS"
+  | "SLOT_ALREADY_TAKEN"
+  | "SERVICE_NOT_FOUND"
+  | "INVALID_DATE"
+  | "CUSTOMER_REQUIRED"
+  | "CUSTOMER_NAME_REQUIRED"
+  | "DB_ERROR"
+  | "APPOINTMENT_NOT_FOUND"
+  | "INVALID_CALENDAR_ID"
+  | "CUSTOMER_TIME_CONFLICT";
 
 export class AppointmentService {
   constructor(private readonly appointmentRepository: AppointmentRepository) {}
 
-  async rescheduleAppointment(params: { organizationId: string; customerId?: string; appointmentId: string; newStartsAt: string; executionMode?: "production" | "simulation"; }): Promise<AppointmentResult> {
+  async rescheduleAppointment(
+    params: {
+      merchantId: string;
+      customerId?: string;
+      appointmentId: string;
+      newStartsAt: string;
+      executionMode?: "production" | "simulation";
+      allowCustomerOverlap?: boolean;
+    },
+  ): Promise<AppointmentResult> {
     if (!params.customerId) return "CUSTOMER_REQUIRED";
     if (!params.newStartsAt) return "INVALID_DATE";
     if (!params.appointmentId) return "APPOINTMENT_NOT_FOUND";
     try {
-      if (params.executionMode === "simulation") { console.log(`[AppointmentService] SIMULATION MODE — skipping real reschedule`); return "SUCCESS"; }
-      const updated = await this.appointmentRepository.updateAppointmentDateTime(params.organizationId, params.appointmentId, params.customerId, params.newStartsAt);
+      if (params.executionMode === "simulation") {
+        console.log(
+          `[AppointmentService] SIMULATION MODE — skipping real reschedule`,
+        );
+        return "SUCCESS";
+      }
+      const updated = await this.appointmentRepository
+        .updateAppointmentDateTime(
+          params.merchantId,
+          params.appointmentId,
+          params.customerId,
+          params.newStartsAt,
+        );
       if (!updated) return "APPOINTMENT_NOT_FOUND";
       return "SUCCESS";
     } catch (error: any) {
-      console.error("[AppointmentService] DB Error rescheduling appointment:", error.message || error);
-      
+      console.error(
+        "[AppointmentService] DB Error rescheduling appointment:",
+        error.message || error,
+      );
+
       const errCode = error?.code || error?.details?.code;
-      if (errCode === '23505' || errCode === '23P01' || (error.message && error.message.includes('conflicts with'))) {
+      if (
+        errCode === "23505" || errCode === "23P01" ||
+        (error.message && error.message.includes("conflicts with"))
+      ) {
         return "SLOT_ALREADY_TAKEN";
       }
 
@@ -28,11 +64,14 @@ export class AppointmentService {
 
   async createPendingAppointment(params: {
     organizationId: string;
+    merchantId: string;
     customerId?: string;
     customerName?: string;
+    customerRequestRaw?: string;
     serviceIds: string[];
     startsAt: string;
     calendarId?: string;
+      timezone: string;
     // Phase 4 (Persona Engine Live Test) guardrail: when this is "simulation",
     // this method MUST NOT write a real row to the appointments table. It
     // still runs the real collision check (a read) so the preview stays
@@ -40,7 +79,8 @@ export class AppointmentService {
     // skipped. Any caller that doesn't pass this (there are none left in
     // this codebase) gets the original, unchanged "always write" behavior.
     executionMode?: "production" | "simulation";
-  }): Promise<AppointmentResult> {
+      allowCustomerOverlap?: boolean;
+    }): Promise<AppointmentResult> {
     if (!params.customerId) {
       return "CUSTOMER_REQUIRED";
     }
@@ -53,14 +93,33 @@ export class AppointmentService {
       return "INVALID_DATE";
     }
 
-    if (!params.serviceIds || params.serviceIds.length === 0) {
-      return "SERVICE_NOT_FOUND";
+    if (params.calendarId) {
+      const { data: calExists } = await this.appointmentRepository["supabase"]
+        .from("calendars")
+        .select("id")
+        .eq("id", params.calendarId)
+        .eq("merchant_id", params.merchantId)
+        .maybeSingle();
+
+      if (!calExists) {
+        return "INVALID_CALENDAR_ID";
+      }
     }
 
-    const areServicesValid = await this.appointmentRepository.validateServiceIds(params.organizationId, params.serviceIds);
-    if (!areServicesValid) {
-      console.warn("[AppointmentService] Invalid service IDs provided:", params.serviceIds);
-      return "SERVICE_NOT_FOUND";
+    if (!params.serviceIds || params.serviceIds.length === 0) {
+      if (!params.customerRequestRaw) {
+        return "SERVICE_NOT_FOUND";
+      }
+    } else {
+      const areServicesValid = await this.appointmentRepository
+        .validateServiceIds(params.merchantId, params.serviceIds);
+      if (!areServicesValid) {
+        console.warn(
+          "[AppointmentService] Invalid service IDs provided:",
+          params.serviceIds,
+        );
+        return "SERVICE_NOT_FOUND";
+      }
     }
 
     try {
@@ -70,7 +129,9 @@ export class AppointmentService {
       // database write is suppressed here.
       if (params.executionMode === "simulation") {
         console.log(
-          `[AppointmentService] SIMULATION MODE — skipping real insert (org=${params.organizationId}, services=${params.serviceIds.join(',')}, startsAt=${params.startsAt})`,
+          `[AppointmentService] SIMULATION MODE — skipping real insert (org=${params.organizationId}, services=${
+            params.serviceIds.join(",")
+          }, startsAt=${params.startsAt})`,
         );
         return "SUCCESS";
       }
@@ -78,20 +139,34 @@ export class AppointmentService {
       // 3. Insert Appointment (production only)
       await this.appointmentRepository.createPendingAppointment({
         organizationId: params.organizationId,
-        customerId: params.customerId,
-        customerName: params.customerName,
+        merchantId: params.merchantId,
+        customerId: params.customerId!,
+        customerName: params.customerName!,
+        customerRequestRaw: params.customerRequestRaw,
         serviceIds: params.serviceIds,
         startsAt: params.startsAt,
         calendarId: params.calendarId,
+          timezone: params.timezone,
+        allowCustomerOverlap: params.allowCustomerOverlap
       });
 
       return "SUCCESS";
     } catch (error: any) {
-      console.error("[AppointmentService] DB Error creating appointment:", error.message || error);
-      
+      if (error?.code === 'CUSTOMER_TIME_CONFLICT' || error?.message === 'CUSTOMER_TIME_CONFLICT') {
+        return "CUSTOMER_TIME_CONFLICT";
+      }
+
+      console.error(
+        "[AppointmentService] DB Error creating appointment:",
+        error.message || error,
+      );
+
       // PostgreSQL error codes for Unique Violation (23505) and Exclusion Violation (23P01)
       const errCode = error?.code || error?.details?.code;
-      if (errCode === '23505' || errCode === '23P01' || (error.message && error.message.includes('conflicts with'))) {
+      if (
+        errCode === "23505" || errCode === "23P01" ||
+        (error.message && error.message.includes("conflicts with"))
+      ) {
         return "SLOT_ALREADY_TAKEN";
       }
 
@@ -99,7 +174,18 @@ export class AppointmentService {
     }
   }
 
-  async getAvailableSlots(organizationId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
-    return this.appointmentRepository.getAvailableSlots(organizationId, date, serviceIds, multiCalendarEnabled);
+  async getAvailableSlots(
+    merchantId: string,
+    date: string,
+    serviceIds: string[],
+    multiCalendarEnabled?: boolean,
+  ): Promise<any> {
+    return this.appointmentRepository.getAvailableSlots(
+      merchantId,
+      date,
+      serviceIds,
+      multiCalendarEnabled,
+    );
   }
 }
+

@@ -17,12 +17,12 @@ Aşağıdaki kurallara kesinlikle uymalısın:
 5. Asla iç sistem ID'lerini, veritabanı kimliklerini veya teknik referans numaralarını (UUID vb.) müşteriyle doğrudan paylaşma. Sadece insan dostu bilgileri (hizmet adı, saat, tarih) kullan.
 6. Randevu almak istediğini belirten bir müşteriyle KESİNLİKLE şu sırayı izle, adım atlama veya sıra değiştirme:
    a) Eğer MÜŞTERİ BİLGİSİ bölümünde müşteri "tanınıyor" ve ismi biliniyorsa, ismini tekrar sorma — doğrudan ismiyle hitap ederek devam et. Eğer müşteri tanınmıyorsa veya ismi bilinmiyorsa, randevu akışına geçmeden önce MUTLAKA "adınızı ve soyadınızı alabilir miyim?" şeklinde sor ve cevabını bekle. Müşteri sadece ilk adını verirse (örneğin sadece "ben gülay" derse), akışı ASLA durdurma, soyadı için ısrar etme veya tekrar sorma — doğrudan verilen adla devam et. Bu sadece nazik bir tam-ad talebidir, zorunlu değildir. Müşterinin verdiği metni aynen kullan, ek bir parse/ayrıştırma yapma.
-   b) İsim alındıktan (veya bilindiği için atlandıktan) sonra hangi hizmeti istediğini (zaten belirtmemişse) ve hangi tarihte randevu istediğini sor.
+   b) İsim alındıktan (veya bilindiği için atlandıktan) sonra, müşteri henüz söylemediyse ne için geleceğini ve hangi tarihi istediğini sor. Müşteri bunları zaten söylediyse tekrar sorma. Hizmet listesi hakkındaki davranış için aşağıdaki HİZMET KURALI'na uy.
    c) Müşteri göreceli bir gün adı kullanırsa ("cuma", "yarın" gibi), bunu yukarıdaki "Bugünün tarihi" bilgisine göre hesapla ve MUTLAKA açık tarihle teyit et: "İlk Cuma günü, yani ayın 27'si Cuma'yı mı kastediyorsunuz?" — müşteri onaylamadan devam etme.
    d) Tarih netleşince, ASLA "kontrol ediyorum", "bakıyorum", "bir enerji alanına giriyorum" gibi bir mesajla turu bitirme. list_available_slots aracını AYNI mesaj turunda gerçekten çağır ve aracın döndürdüğü GERÇEK boş saatleri ilk yanıtında sun: "Bu saatlerden hangisi sizin için uygun?" Sadece niyet belirtip aracı çağırmadan mesaj göndermek KESİNLİKLE YASAKTIR.
    e) Müşteri bir saat seçince create_pending_appointment'i customerName, serviceIds ve startsAt ile birlikte çağır. Müşteriye "randevunuz oluşturuldu/kaydedildi" diyebilmen için bu aracı GERÇEKTEN çağırmış olman ve araçtan SUCCESS yanıtı alman ŞARTTIR. Aracı çağırmadan ve veritabanı kaydını doğrulamadan ASLA randevu planlandı diye yalan söyleme/uydurma.
    f) Eğer create_pending_appointment aracı 'SLOT_ALREADY_TAKEN' (veya başka bir hata) dönerse, müşteriye ASLA "başarıyla oluşturuldu" deme. Bunun yerine "Seçtiğiniz saat az önce doldu" veya "Sistemsel bir hata oluştu" diyerek alternatif saatleri sun.
-   g) create_pending_appointment veya update_appointment SERVICE_NOT_FOUND sonucu dönerse, müşteriye "bekleyin, tekrar deneyeceğim" deyip turu ASLA bitirme. Bunun yerine AYNI mesaj turunda hemen list_business_services'i çağırarak güncel ve doğru hizmet ID'lerini al, ardından create_pending_appointment'i (veya update_appointment'i) doğru ID'lerle YENİDEN çağır. Müşteriyi bir sonraki mesajına kadar bekletme. Bu süreç boyunca müşteriye ASLA "ID", "kod", "sistem hatası", "veritabanı", "paradoks" gibi teknik terimlerle bu işlemi anlatma. Müşteri arka planda ne olduğunu hiçbir zaman bilmemeli veya duymamalı — eğer bir bekleme mesajı vermen gerekiyorsa bile sadece doğal, günlük bir dille ("bir saniye, hemen bakıyorum" gibi) söyle, teknik detaya asla girme.
+   g) create_pending_appointment SERVICE_NOT_FOUND dönerse müşteriye bekleme mesajı verme; aynı turda list_business_services'i çağır, doğru ID ile (veya hizmet eşleşmiyorsa serviceIds boş, customerRequestRaw dolu) create_pending_appointment'i yeniden çağır. Müşteriye asla "ID", "kod", "sistem hatası", "veritabanı" gibi teknik terimler kullanma.
    Bu sırayı asla değiştirme; isim bilinmeden veya tarih teyit edilmeden asla create_pending_appointment çağırma.
 7. Müşterinin adını öğrendikten sonra, konuşmanın geri kalanında ona her seferinde tam adıyla değil, kültürel nezaket normuna uygun şekilde hitap et:
    - Aşağıdaki "Müşteri Kanal Kimliği" verisine VE müşterinin yazdığı dile bakarak muhtemel ülkesini/kültürünü belirle.
@@ -31,7 +31,7 @@ Aşağıdaki kurallara kesinlikle uymalısın:
    - Diğer diller/kültürler için o dilin olağan nazik hitap kalıbını uygula.
    - "Müşteri Kanal Kimliği" bir gerçek telefon numarası değil de WhatsApp'ın gizlilik kimliği formatındaysa (örn. "@lid" ile bitiyorsa), numarayı YOK SAY ve SADECE müşterinin yazdığı dile göre karar ver.
    - ASLA yanlış cinsiyet unvanı kullanma riskini göze alma; şüphedeysen her zaman düz isimle hitap etmeyi tercih et.
-8. Eğer BUSINESS CONTEXT'te müşterinin var olan aktif randevusu/randevuları listelenmişse ve müşteri bunu değiştirmek/ertelemek istediğini belirtirse ("randevumu değiştirebilir miyim", "saatimi kaydırabilir miyiz" gibi): YENİ bir randevu oluşturma, create_pending_appointment'i ÇAĞIRMA. Bunun yerine: (a) tek randevusu varsa direkt onu kastettiğini varsay, birden fazlaysa hangisini kastettiğini sor, (b) yeni tarih için list_available_slots ile boş saatleri sun (bunu da AYNI turda gerçekten çağırarak yap, "bakıyorum" deyip bırakma), (c) müşteri yeni saati seçince update_appointment'i, sana verilen randevu ID'si ve yeni saatle çağır. Randevu ID'sini asla müşteriyle paylaşma.`;
+8. Eğer BUSINESS CONTEXT'te müşterinin var olan aktif randevusu/randevuları listelenmişse ve müşteri bunu değiştirmek/ertelemek istediğini belirtirse: Sistemde henüz taşıma (reschedule) özelliği aktif değildir. Müşteriye nazikçe, mevcut randevusunu buradan güncelleyemediğini, bunun için işletme ile doğrudan iletişime geçmesi gerektiğini söyle.`;
 
   build(context: AIContext): string {
     const businessContext = this.buildBusinessContext(context);
@@ -54,6 +54,16 @@ ${botPersonality}
 
 === CHANNEL CONTEXT ===
 ${channelContext}
+
+KRİTİK SİSTEM KURALI:
+1. Kullanıcıya randevunun oluşturulduğunu SÖYLEMEDEN ÖNCE, mutlaka create_pending_appointment tool unu ÇAĞIR ve SONUCUNU BEKLE. Sadece metinle ayarlıyorum/oluşturuyorum diyerek eylem yapmış gibi davranamazsın! Tool başarılı dönmeden asla randevunuz oluşturuldu deme.
+2. HİZMET KURALI:
+   a) list_business_services'i gerektiğinde SESSİZCE çağır; sonucu müşteriye okumak zorunda değilsin.
+   b) Hizmet listesi BOŞSA: Müşteriye "sistemde kayıtlı hizmet yok" gibi bir şey SÖYLEME, hizmet sayma veya uydurma. Müşterinin söylediği ihtiyacı customerRequestRaw'a AYNEN yaz, serviceIds'i boş bırak ve randevuya devam et. Müşteri ne için geleceğini söylemediyse bir kez doğal bir dille sor.
+   c) Hizmet listesi DOLUYSA: Müşterinin ihtiyacını listeyle sessizce eşleştir. Net eşleşme varsa serviceIds'e ekle. Listeyi yalnızca (1) müşteri hizmetleri veya fiyatları sorarsa ya da (2) ihtiyacı birden fazla hizmete uyuyor ve seçim yapması gerekiyorsa sun. Eşleşme yoksa listeyi okumadan talebi customerRequestRaw olarak al.
+   d) customerRequestRaw her zaman müşterinin kendi cümlesidir; özetleme, kısaltma, kategori adına çevirme.
+   e) Hizmet konusu randevuyu asla engellemez.
+3. create_pending_appointment aracına calendarId veya serviceId gönderirken SADECE 'list_available_slots' ve 'list_business_services', 'list_calendars' araçlarından dönen gerçek UUID'leri kullan, ASLA kendin id uydurma. Eğer müşterinin istediği doktorun/hizmetin gerçek ID'sini hafızanda tutmuyorsan veya emin değilsen (özellikle konuşma uzunsa veya liste değişmiş olabilirse), create_pending_appointment çağırmadan hemen ÖNCE bu araştırma araçlarını TEKRAR çağırıp güncel listeyi kontrol et.
 `.trim();
   }
 
@@ -69,11 +79,11 @@ ${channelContext}
       : '';
 
     const appointmentModuleLine = context.appointmentModuleEnabled === false
-      ? `\nÖNEMLİ: Bu işletmede randevu/rezervasyon özelliği KAPALIDIR. create_pending_appointment, list_available_slots, update_appointment araçlarını ASLA çağırma. Müşteri randevu isterse bu hizmetin şu anda sunulmadığını kibarca belirt, sadece BOT PERSONALITY/özel talimata göre bilgi ver.\n`
+      ? `\nÖNEMLİ: Bu işletmede randevu/rezervasyon özelliği KAPALIDIR. create_pending_appointment, list_available_slots araçlarını ASLA çağırma. Müşteri randevu isterse bu hizmetin şu anda sunulmadığını kibarca belirt, sadece BOT PERSONALITY/özel talimata göre bilgi ver.\n`
       : '';
 
     const activeAppointmentsLine = (context.activeAppointments && context.activeAppointments.length > 0)
-      ? `\nMüşterinin Aktif Randevu(ları) (SADECE update_appointment çağırırken kullan, ID'leri müşteriyle ASLA paylaşma):\n` +
+      ? `\nMüşterinin Aktif Randevu(ları) (müşterinin mevcut randevularını bilmen için; değişiklik taleplerinde işletmeye yönlendir. ID'leri müşteriyle ASLA paylaşma):\n` +
         context.activeAppointments.map(a => `- ID: ${a.id} | Tarih/Saat: ${a.date} | Hizmet ID: ${a.service_id} | Durum: ${a.status}`).join('\n') + '\n'
       : '';
 
@@ -128,6 +138,10 @@ Geçmiş randevuları: ${JSON.stringify(context.customerProfile.pastAppointments
   private buildChannelContext(context: AIContext): string {
     let ctx = `Platform: ${context.channel.platform} (${context.channel.source})
 Etkileşimli Buton Desteği (Interactive UI): ${context.channel.supportsInteractiveButtons ? 'Evet' : 'Hayır'}`;
+
+    if (context.channel.platform === 'whatsapp') {
+      ctx += `\nBİÇİMLENDİRME (WhatsApp): Kalın yazı için tek yıldız kullan (*metin*). Çift yıldız (**), başlık (#) ve tablo KULLANMA.`;
+    }
 
     if (!context.channel.supportsInteractiveButtons) {
       ctx += `\nÖNEMLİ: Bu kanalda buton gönderemezsin. Kullanıcıya seçenekleri liste halinde (metin olarak) sunmalı ve metin ile yanıt vermesini istemelisin.`;

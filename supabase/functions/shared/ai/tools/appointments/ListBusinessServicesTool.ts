@@ -3,8 +3,8 @@ import { AIContext } from '../../types.ts';
 
 export class ListBusinessServicesTool implements ITool {
   name = "list_business_services";
-  description = "Lists the active services and prices offered by the business.";
-  
+  description = "Lists the active services and prices offered by the business. Use it silently to match the customer's need; do not read the list to the customer unless they ask.";
+
   schema = {
     type: "object",
     properties: {},
@@ -13,7 +13,7 @@ export class ListBusinessServicesTool implements ITool {
 
   constructor(private readonly supabase: any) {}
 
-  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+  async execute(context: AIContext, _args: Record<string, unknown>): Promise<ToolResult> {
     if (context.appointmentModuleEnabled === false) {
       return { status: "MODULE_DISABLED", message: "Appointment/reservation feature is disabled for this business." };
     }
@@ -21,33 +21,39 @@ export class ListBusinessServicesTool implements ITool {
       const { data: services, error } = await this.supabase
         .from('business_services')
         .select('id, name, duration_minutes, price, currency, unit, description')
-        .eq('merchant_id', context.organizationId)
+        .eq('merchant_id', context.merchantId)
         .eq('is_visible', true);
 
       if (error) {
-        console.error("[ListBusinessServicesTool] Database error:", error);
-        return { status: "ERROR", message: "Hizmet listesi çekilirken geçici bir sistem hatasý oluþtu." };
+        console.error(`[ListBusinessServicesTool] merchant_id=${context.merchantId} database error:`, error);
+        return { status: "ERROR", message: "Hizmet listesi alÄ±namadÄ±." };
       }
+
+      console.log(`[ListBusinessServicesTool] merchant_id=${context.merchantId} hizmet sayÄ±sÄ±: ${services?.length ?? 0}`);
 
       if (!services || services.length === 0) {
         return {
           status: "SUCCESS",
-          data: { 
-            services: [], 
-            system_note: "DÝKKAT: Ýþletmenin veritabanýnda henüz kayýtlý hiçbir hizmeti bulunmamaktadýr. Kullanýcýya hizmetleri sorulduðunda ASLA varsayýlan hizmetler (cilt bakýmý, manikür, saç kesimi vb.) uydurmayýn. Doðrudan 'Þu an sistemimizde kayýtlý hizmet bulunmamaktadýr' þeklinde yanýt verin."
+          data: {
+            services: [],
+            system_note:
+              "Bu iÅŸletmenin tanÄ±mlÄ± bir hizmet listesi yok; bu normal bir durumdur. " +
+              "MÃ¼ÅŸteriye hizmet listesi olmadÄ±ÄŸÄ±nÄ± SÃ–YLEME ve listeden hizmet SEÃ‡TÄ°RME. " +
+              "Hizmet uydurma, Ã¶rnek hizmet sayma. " +
+              "MÃ¼ÅŸteri ne iÃ§in geleceÄŸini sÃ¶ylediyse onu customerRequestRaw olarak AYNEN kullan ve serviceIds'i boÅŸ bÄ±rak. " +
+              "SÃ¶ylemediyse bir kez, doÄŸal bir dille 'Ne iÃ§in gelmek istersiniz?' diye sorabilirsin. " +
+              "YalnÄ±zca mÃ¼ÅŸteri aÃ§Ä±kÃ§a hizmetleri veya fiyatlarÄ± sorarsa, sabit bir listenin olmadÄ±ÄŸÄ±nÄ± ve ihtiyacÄ±nÄ± dinleyerek yardÄ±mcÄ± olacaÄŸÄ±nÄ± kÄ±saca sÃ¶yle."
           }
         };
       }
 
       return {
         status: "SUCCESS",
-        data: { services: services }
+        data: { services }
       };
-
     } catch (error) {
       console.error("[ListBusinessServicesTool] Exception:", error);
-      return { status: "ERROR", message: "Hizmet listesi alýnamadý." };
+      return { status: "ERROR", message: "Hizmet listesi alÄ±namadÄ±." };
     }
   }
 }
-
