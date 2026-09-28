@@ -30,6 +30,25 @@ async function orgIdsOf(supabase: any, userId: string): Promise<string[]> {
 }
 
 /**
+ * Muhasebecinin bir mükellef işletmesine erişimi — DB'deki check_accountant_document_access ile aynı model:
+ * accounting_firm_members (user_id) -> accountant_taxpayer_links (taxpayer_organization_id).
+ * (Eski shared_accountant_taxpayer_links tablosu kullanılmaz.)
+ */
+async function accountantCanAccessOrg(supabase: any, callerId: string, orgId: string): Promise<boolean> {
+  const { data: firms } = await supabase.from('accounting_firm_members').select('accounting_firm_id').eq('user_id', callerId);
+  const firmIds = (firms ?? []).map((f: any) => f.accounting_firm_id).filter(Boolean);
+  if (firmIds.length === 0) return false;
+  const { data: links } = await supabase
+    .from('accountant_taxpayer_links')
+    .select('id')
+    .in('accounting_firm_id', firmIds)
+    .eq('taxpayer_organization_id', orgId)
+    .eq('status', 'active')
+    .limit(1);
+  return !!(links && links.length > 0);
+}
+
+/**
  * Kaydın yazılacağı işletme (organizations.id).
  * - customerId (muhasebeci akışı): çağıranla aktif bağlantısı olan mükellefin işletmesi
  * - requestedOrgId: çağıranın sahibi/üyesi olduğu işletme ise o
@@ -38,16 +57,12 @@ async function orgIdsOf(supabase: any, userId: string): Promise<string[]> {
  */
 async function resolveTargetOrg(supabase: any, callerId: string, requestedOrgId?: string | null, customerId?: string | null): Promise<string | null> {
   if (customerId) {
-    const { data: link } = await supabase
-      .from('shared_accountant_taxpayer_links')
-      .select('taxpayer_id')
-      .eq('accountant_id', callerId)
-      .eq('taxpayer_id', customerId)
-      .eq('status', 'active')
-      .limit(1);
-    if (!link || link.length === 0) return null;
-    const taxpayerOrgs = await orgIdsOf(supabase, customerId);
-    return taxpayerOrgs[0] ?? null;
+    // customerId: mükellefin kullanıcı kimliği ya da doğrudan işletme kimliği olabilir
+    const candidates = [customerId, ...(await orgIdsOf(supabase, customerId))];
+    for (const orgId of candidates) {
+      if (await accountantCanAccessOrg(supabase, callerId, orgId)) return orgId;
+    }
+    return null;
   }
   const mine = await orgIdsOf(supabase, callerId);
   if (requestedOrgId && mine.includes(requestedOrgId)) return requestedOrgId;
@@ -177,13 +192,18 @@ serve(async (req) => {
         } catch(e) { console.warn("Error fetching chat history", e); }
 
         // Transactions
+        // Faturalar tetikleyiciyle transactions'a da yansıyor (source = 'invoice_scan'); aşağıda
+        // finance_documents ayrıca okunduğu için burada hariç tutulur, yoksa her fatura iki kez sayılır.
         const { data: trans } = contextOrgId
-          ? await supabaseClient.from('transactions').select('*').eq('profile_id', contextOrgId).order('date', { ascending: false }).limit(30)
+          ? await supabaseClient.from('transactions').select('*').eq('profile_id', contextOrgId).neq('source', 'invoice_scan').order('date', { ascending: false }).limit(30)
           : { data: [] };
         if (trans) {
           trans.forEach(t => {
-            if (t.type === 'income') totals.income += Number(t.amount);
-            if (t.type === 'expense') totals.expense += Number(t.amount);
+            // README'deki özet ile aynı ayrım: ödenmiş -> gelir/gider, ödenmemiş -> alacak/borç
+            const amt = Number(t.amount);
+            const paid = t.payment_status === 'paid';
+            if (t.type === 'income') { if (paid) totals.income += amt; else totals.receivable += amt; }
+            if (t.type === 'expense') { if (paid) totals.expense += amt; else totals.payable += amt; }
           });
           recentContext += "Son islemler (transactions):\n" + trans.map(t => `${t.due_date || t.date}: ${t.title} - ${t.amount} TL (${t.type}) [${t.payment_status}]`).join('\n') + "\n\n";
         }
@@ -350,12 +370,7 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
       const mine = await orgIdsOf(supabaseClient, callerId);
       let allowed = mine.includes(docOwner.organization_id);
       if (!allowed) {
-        const { data: orgRow } = await supabaseClient.from('organizations').select('owner_id').eq('id', docOwner.organization_id).maybeSingle();
-        if (orgRow?.owner_id) {
-          const { data: link } = await supabaseClient.from('shared_accountant_taxpayer_links')
-            .select('taxpayer_id').eq('accountant_id', callerId).eq('taxpayer_id', orgRow.owner_id).eq('status', 'active').limit(1);
-          allowed = !!(link && link.length > 0);
-        }
+        allowed = await accountantCanAccessOrg(supabaseClient, callerId, docOwner.organization_id);
       }
       if (!allowed) {
         return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -506,7 +521,7 @@ Sadece JSON formatında yanıt ver. Baska hicbir sey yazma.`;
     const updatePayload: any = {
       amount_minor: amountMinor,
       title: extractedData.title,
-      type: isAlis ? 'expense' : 'income',   // tablo kısıtı yalnız income/expense kabul ediyor ('sales' her seferinde reddediliyordu)
+      type: isAlis ? 'expense' : 'sales',    // Ledger paneli satış faturasını 'sales' ile tanır; takvime 'income' olarak tetikleyici aktarır
       created_at: dateIso,
       due_date: dueIso,
       flow_payment_status: paymentStatus,
