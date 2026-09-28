@@ -20,6 +20,11 @@ const cases: Array<[string, (t: string) => boolean, string, boolean]> = [
   ["deferred", claimsDeferredAction, "Bir saniye bekleyin lütfen, müsaitlik durumunu kontrol ediyorum.", true],
   ["deferred", claimsDeferredAction, "Dr. Mehmet Yalçın'ın müsaitlik durumunu kontrol etmekteyim.", true],
   ["deferred", claimsDeferredAction, "Hemen bakıyorum.", true],
+  // "dolu" tek başına müsaitlik iddiası değildir (28.09.2026 22:14 selamlaşma döngüsü)
+  ["unavail", claimsUnavailable, "Hoş geldiniz Volkan Bey! Enerji dolu bir gün dilerim.", false],
+  ["unavail", claimsUnavailable, "Heyecan dolu bir yolculuğa hazır mısınız?", false],
+  ["unavail", claimsUnavailable, "Maalesef 30 Eylül saat 16:00 dolu.", true],
+  ["unavail", claimsUnavailable, "Yarın için uygun saat yok, hepsi dolu.", true],
   // 28.09.2026 WhatsApp olayından gerçek cümleler
   ["deferred", claimsDeferredAction, "Hemen yeniden bir kontrol yapıyorum ve size en uygun uzmanı buluyorum. Lütfen bana bir anlık süre verin.", true],
   ["deferred", claimsDeferredAction, "Sistemdeki akışı kontrol sağlıyorum, kısa bir süre bekleyin.", true],

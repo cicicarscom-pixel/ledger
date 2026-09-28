@@ -45,7 +45,20 @@ const any = (patterns: RegExp[], text: string) => patterns.some((p) => p.test(no
 
 export const claimsAction = (text: string) => any(ACTION_CLAIM, text);
 export const claimsDeferredAction = (text: string) => any(DEFERRED_ACTION, text);
-export const claimsUnavailable = (text: string) => any(UNAVAILABLE_CLAIM, text);
+// "dolu", "uygun değil" gibi kelimeler tek başına müsaitlik iddiası değildir ("enerji dolu bir gün").
+// Yalnız AYNI CÜMLEDE bir zamanlama bağlamı (saat, randevu, tarih, takvim, gün adı, 14:30 gibi saat) varsa sayılır.
+// 28.09.2026 22:14: "merhaba"ya verilen selamlaşma 6 kez bu korumaya takıldı.
+const SCHEDULING_CONTEXT = [
+  /\p{N}{1,2}[:.]\p{N}{2}/u,
+  w("saat|saatte|saati|saatler|saatlerde|randevu|randevular|randevunuz|tarih|tarihte|takvim|takvimi|takvimde|slot"),
+  w("pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|bugün|yarın"),
+  w("appointment|slot|time|termin|uhr"),
+];
+
+export const claimsUnavailable = (text: string) =>
+  normalize(text)
+    .split(/[.!?\n]+/u)
+    .some((sentence) => any(UNAVAILABLE_CLAIM, sentence) && any(SCHEDULING_CONTEXT, sentence));
 
 // customerRequestRaw GELME NEDENİ olmalı. Yalnız saat / tarih / onay / tercih kelimelerinden
 // oluşan metinler ("sabah 9 olsun", "onaylıyorum", "farketmez herhangi biri") neden değildir.

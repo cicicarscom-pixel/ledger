@@ -27,6 +27,10 @@ export class AIOrchestrator {
     
     let hasSuccessfulBookingAction = false;
     let hasCheckedAvailability = false;
+    // Müsaitlik koruması aynı yanıtta en fazla bu kadar düzeltme ister; sonra metni geçirir.
+    // (Araç çağrılacak bir tarih yokken, ör. selamlaşmada, sonsuz döngüye girmesin.)
+    const MAX_AVAILABILITY_CORRECTIONS = 2;
+    let availabilityCorrections = 0;
 
     // Pass chat history, then append the new user message.
     const messages: any[] = [
@@ -57,6 +61,11 @@ export class AIOrchestrator {
             "arka planda hiçbir şey çalışmaz. Söylediğin kontrolü ŞİMDİ yap: list_available_slots aracını " +
             "bu turda çağır ve sonucunu müşteriye ilet.";
         } else if (claimsUnavailable(text) && !hasCheckedAvailability) {
+          if (availabilityCorrections >= MAX_AVAILABILITY_CORRECTIONS) {
+            console.warn(`[AIOrchestrator] availability guard ${availabilityCorrections} kez düzeltti, metin geçiriliyor: ${text.slice(0, 200)}`);
+            return text;
+          }
+          availabilityCorrections++;
           tag = "blocked_false_availability_claim";
           correction =
             "SİSTEM: list_available_slots aracını çağırmadan bir saatin dolu veya uygun olmadığını " +
@@ -64,7 +73,7 @@ export class AIOrchestrator {
         }
 
         if (correction) {
-          console.warn(`[AIOrchestrator] ${tag} (round ${round})`);
+          console.warn(`[AIOrchestrator] ${tag} (round ${round}): ${text.slice(0, 200)}`);
           if (round < this.MAX_TOOL_ROUNDS - 1) {
             messages.push({ role: "model", parts: [{ text }] });
             messages.push({ role: "user", parts: [{ text: correction }] });

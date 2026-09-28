@@ -89,7 +89,7 @@ KRİTİK SİSTEM KURALI:
     const activeAppointmentsLine = (context.activeAppointments && context.activeAppointments.length > 0)
       ? `\nMüşterinin Aktif Randevu(ları) (müşterinin mevcut randevularını bilmen için; değişiklik taleplerinde işletmeye yönlendir. ID'leri müşteriyle ASLA paylaşma):\n` +
         context.activeAppointments.map(a => `- ID: ${a.id} | Tarih/Saat: ${a.date} | Hizmet ID: ${a.service_id} | Durum: ${a.status}`).join('\n') + '\n' +
-        `Müşteri bu randevulardan biriyle AYNI GÜN için yeni randevu isterse, mevcut randevusunu (saat ve doktor) sade bir dille hatırlat ve ek bir randevu mu istediğini sor; create_pending_appointment bu durumda SAME_DAY_APPOINTMENT_EXISTS döner, müşteri onaylarsa confirmSameDay: true ile tekrar çağır. Kendi randevusunu "o saat dolu/yoğun" diye anlatma.\n`
+        `Müşteri bu randevulardan biriyle AYNI GÜN için yeni randevu isterse, mevcut randevusunu (saat ve doktor) sade bir dille hatırlat ve ek bir randevu mu istediğini sor; create_pending_appointment bu durumda SAME_DAY_APPOINTMENT_EXISTS döner, müşteri onaylarsa confirmSameDay: true ile tekrar çağır. Müşterinin kendi randevusunu işletmenin müsaitlik durumu gibi anlatma; onun randevusu olduğunu açıkça söyle.\n`
       : '';
 
     const multiCalendarLine = context.multiCalendarEnabled
