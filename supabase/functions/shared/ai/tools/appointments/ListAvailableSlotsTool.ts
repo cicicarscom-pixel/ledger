@@ -35,9 +35,23 @@ export class ListAvailableSlotsTool implements ITool {
 
     console.log(`[DEBUG] ListAvailableSlotsTool bulunan takvimler:`, JSON.stringify(slots));
 
+    // Müşterinin o günkü KENDİ randevuları: asistan bu saatleri müsait saat gibi önermesin
+    // (28.09.2026 22:44: müşterinin kendi 16:00 randevusu varken 16:00 için doktor seçtirildi).
+    const own = await this.appointmentService
+      .findSameDayActiveAppointments(context.merchantId!, context.customerId, `${date}T00:00:00`)
+      .catch(() => []);
+
+    if (own.length === 0) {
+      return { status: "SUCCESS", data: { slots } };
+    }
     return {
       status: "SUCCESS",
-      data: { slots }
+      data: {
+        slots,
+        customerOwnAppointments: own.map((a) => ({ time: a.time, endTime: a.endTime, calendarName: a.calendarName, reason: a.reason })),
+        system_note: "customerOwnAppointments müşterinin bu günkü KENDİ randevularıdır. Bu saatleri müşteriye müsait saat olarak ÖNERME. " +
+          "Müşteri bu saatlerden birini isterse o saatte zaten kendi randevusu olduğunu sade bir dille söyle ve başka saat öner.",
+      },
     };
   }
 }

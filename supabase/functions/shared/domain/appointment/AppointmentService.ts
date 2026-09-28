@@ -274,13 +274,13 @@ export class AppointmentService {
     merchantId: string,
     customerPhone: string | undefined,
     startsAt: string,
-  ): Promise<{ time: string; calendarName: string; reason: string }[]> {
+  ): Promise<{ time: string; endTime: string; startMin: number; endMin: number; calendarName: string; reason: string }[]> {
     if (!customerPhone || !startsAt) return [];
     const day = startsAt.slice(0, 10);
     const supabase = this.appointmentRepository["supabase"];
     const { data: rows, error } = await supabase
       .from("appointments")
-      .select("date, calendar_id, customer_request_raw")
+      .select("date, starts_at, ends_at, calendar_id, customer_request_raw")
       .eq("organization_id", merchantId)
       .eq("customer_phone", customerPhone)
       .in("status", ["Pending", "Approved"])
@@ -299,11 +299,22 @@ export class AppointmentService {
       const { data: cals } = await supabase.from("calendars").select("id, name").in("id", calIds);
       for (const c of cals ?? []) names.set(c.id, c.name);
     }
-    return list.map((r: any) => ({
-      time: String(r.date).slice(11, 16),
-      calendarName: r.calendar_id ? names.get(r.calendar_id) ?? "" : "",
-      reason: r.customer_request_raw ?? "",
-    }));
+    return list.map((r: any) => {
+      const time = String(r.date).slice(11, 16);
+      const startMin = toMinutes(time);
+      const durMin = r.starts_at && r.ends_at
+        ? Math.max(1, Math.round((new Date(r.ends_at).getTime() - new Date(r.starts_at).getTime()) / 60000))
+        : 30;
+      const endMin = startMin + durMin;
+      return {
+        time,
+        endTime: fromMinutes(endMin),
+        startMin,
+        endMin,
+        calendarName: r.calendar_id ? names.get(r.calendar_id) ?? "" : "",
+        reason: r.customer_request_raw ?? "",
+      };
+    });
   }
 
   async getAvailableSlots(
@@ -329,4 +340,17 @@ export function normalizeCalendarName(name: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "")
     // Türkçe harfleri sadeleştir: model "Yalcin" yazsa da "YALÇIN" ile eşleşsin
     .replace(/ı/g, "i").replace(/ç/g, "c").replace(/ş/g, "s").replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u");
+}
+
+/** "09:30" → 570 */
+export function toMinutes(hhmm: string): number {
+  const [h, m] = (hhmm ?? "").split(":").map((x) => parseInt(x, 10));
+  return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+}
+
+/** 570 → "09:30" */
+export function fromMinutes(min: number): string {
+  const h = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }

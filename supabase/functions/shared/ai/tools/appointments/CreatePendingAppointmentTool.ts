@@ -1,6 +1,6 @@
 import { ITool, ToolResult } from '../types.ts';
 import { AIContext } from '../../types.ts';
-import { AppointmentService } from '../../../domain/appointment/AppointmentService.ts';
+import { AppointmentService, toMinutes } from '../../../domain/appointment/AppointmentService.ts';
 import { isSchedulingOnlyText } from '../../guards/ResponseGuards.ts';
 
 export class CreatePendingAppointmentTool implements ITool {
@@ -52,20 +52,39 @@ export class CreatePendingAppointmentTool implements ITool {
       };
     }
 
-    // Aynı gün başka aktif randevusu varsa, müşteriye sormadan ikinci randevu açma
+    const sameDay = await this.appointmentService.findSameDayActiveAppointments(
+      context.merchantId!, context.customerId, startsAt,
+    );
+
+    // 1) Önce TAM SAAT çakışması: müşterinin tam bu saatte kendi randevusu varsa bunu doğrudan söyle
+    // (28.09.2026 22:44: önce "aynı gün" soruldu, onaydan sonra çakışma çıktı — iki tur boşa gitti).
+    if (!allowCustomerOverlap) {
+      const reqStart = toMinutes(startsAt.slice(11, 16));
+      const reqEnd = reqStart + 30;
+      const clash = sameDay.find((a) => reqStart < a.endMin && a.startMin < reqEnd);
+      if (clash) {
+        return {
+          status: "CUSTOMER_TIME_CONFLICT",
+          message: "Randevu HENÜZ OLUŞTURULMADI. Müşterinin tam bu saatte KENDİ randevusu var (data.ownAppointment). " +
+            "Bunu açıkça söyle (saat, doktor) ve farklı bir saat öner. Müşteri iki randevuyu da aynı saatte istediğini açıkça söylerse " +
+            "allowCustomerOverlap: true ile tekrar çağır. " + 'Bu bir hata DEĞİL, olağan bir durumdur: müşteriye "hata", "çakışma", "sistem", "arıza" veya persona benzetmesi ("enerji", "frekans", "icat" vb.) kullanmadan, durumu doğrudan ve sade söyle. ',
+          data: { ownAppointment: { time: clash.time, endTime: clash.endTime, calendarName: clash.calendarName, reason: clash.reason } },
+        };
+      }
+    }
+
+    // 2) Aynı gün başka aktif randevusu varsa, müşteriye sormadan ikinci randevu açma
     // (28.09.2026 testi: 30 Eylül'de 09:00 ve 10:00 varken 16:00 sessizce eklendi).
     if (!confirmSameDay) {
-      const sameDay = await this.appointmentService.findSameDayActiveAppointments(
-        context.merchantId!, context.customerId, startsAt,
-      );
       if (sameDay.length > 0) {
         return {
           status: "SAME_DAY_APPOINTMENT_EXISTS",
           message: "Randevu HENÜZ OLUŞTURULMADI. Müşterinin aynı gün aktif randevusu/randevuları var (data.existing). " +
+            'Bu bir hata DEĞİL, olağan bir durumdur: müşteriye "hata", "çakışma", "sistem", "arıza" veya persona benzetmesi ("enerji", "frekans", "icat" vb.) kullanmadan, durumu doğrudan ve sade söyle. ' +
             "Bunları sade bir dille hatırlat (saat, varsa doktor ve neden) ve bu yeni randevunun AYRI bir randevu olarak da istenip istenmediğini sor. " +
             "Müşteri açıkça ek randevu isterse aynı bilgilerle confirmSameDay: true ekleyerek tekrar çağır. " +
             "Mevcut randevuyu değiştirmek/taşımak isterse işletmeye yönlendir. Müşteriye randevunun oluşturulduğunu SÖYLEME.",
-          data: { existing: sameDay },
+          data: { existing: sameDay.map((a) => ({ time: a.time, calendarName: a.calendarName, reason: a.reason })) },
         };
       }
     }
@@ -84,6 +103,7 @@ export class CreatePendingAppointmentTool implements ITool {
       return {
         status: "CALENDAR_CHOICE_REQUIRED",
         message: "Bu saatte birden fazla uzman müsait; randevu HENÜZ OLUŞTURULMADI. Müşteriye bu adları sade bir dille sun ve hangisini tercih ettiğini sor. " +
+          'Bu bir hata DEĞİL, olağan bir durumdur: müşteriye "hata", "çakışma", "sistem", "arıza" veya persona benzetmesi ("enerji", "frekans", "icat" vb.) kullanmadan, durumu doğrudan ve sade söyle. ' +
           "Müşteri bir ad seçerse calendarName ile, 'farketmez' derse anyCalendar: true ile aracı tekrar çağır. Müşteriye randevunun oluşturulduğunu SÖYLEME.",
         data: { availableCalendars: resolved.calendars.map((c) => c.name) },
       };
@@ -136,7 +156,7 @@ export class CreatePendingAppointmentTool implements ITool {
     } else if (result === 'SLOT_ALREADY_TAKEN') {
       msg = "Bu saat az önce doldu. Müşteriye sade bir dille söyle ve list_available_slots ile alternatif saatler sun.";
     } else if (result === 'CUSTOMER_TIME_CONFLICT') {
-      msg = "Müşterinin bu saatle çakışan başka bir randevusu zaten var (aktif randevular bağlamda listelenmiştir). Müşteriye bunu açıkça söyle ve ne yapmak istediğini sor: farklı bir saat mi seçmek istiyor, yoksa iki randevuyu da mı istiyor? Yalnızca müşteri açıkça ikisini de isterse allowCustomerOverlap: true ile tekrar çağır.";
+      msg = "Müşterinin bu saatte kendi randevusu zaten var (aktif randevular bağlamda listelenmiştir). Müşteriye bunu açıkça söyle ve ne yapmak istediğini sor: farklı bir saat mi seçmek istiyor, yoksa iki randevuyu da mı istiyor? Yalnızca müşteri açıkça ikisini de isterse allowCustomerOverlap: true ile tekrar çağır. " + 'Bu bir hata DEĞİL, olağan bir durumdur: müşteriye "hata", "çakışma", "sistem", "arıza" veya persona benzetmesi ("enerji", "frekans", "icat" vb.) kullanmadan, durumu doğrudan ve sade söyle. ';
     } else if (result === 'DB_ERROR') {
       msg = "Randevu oluşturulamadı. Müşteriye NEDEN UYDURMA (yoğunluk, bakım, sistem sorunu vb. deme). Sadece 'Bu randevuyu şu an oluşturamadım' de ve farklı bir saat öner ya da tekrar denemeyi teklif et.";
     }
