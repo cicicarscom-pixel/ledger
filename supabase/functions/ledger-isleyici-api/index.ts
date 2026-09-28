@@ -3,6 +3,63 @@ import { GoogleGenAI } from "npm:@google/genai";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
 import { encode, decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function todayIn(timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+}
+
+/** "07.09.2022" | "2022-09-07" -> "2022-09-07"; anlaşılmazsa null */
+function toIsoDate(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const d = raw.trim();
+  const m = d.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (DATE_RE.test(d)) return d;
+  return null;
+}
+
+/** Kullanıcının sahibi ya da üyesi olduğu işletmeler */
+async function orgIdsOf(supabase: any, userId: string): Promise<string[]> {
+  const ids = new Set<string>();
+  const { data: owned } = await supabase.from('organizations').select('id').eq('owner_id', userId);
+  for (const o of owned ?? []) ids.add(o.id);
+  const { data: member } = await supabase.from('organization_members').select('organization_id').eq('user_id', userId);
+  for (const m of member ?? []) ids.add(m.organization_id);
+  return [...ids];
+}
+
+/**
+ * Kaydın yazılacağı işletme (organizations.id).
+ * - customerId (muhasebeci akışı): çağıranla aktif bağlantısı olan mükellefin işletmesi
+ * - requestedOrgId: çağıranın sahibi/üyesi olduğu işletme ise o
+ * - yoksa çağıranın kendi işletmesi
+ * Hiçbiri doğrulanamazsa null (kayıt yazılmaz).
+ */
+async function resolveTargetOrg(supabase: any, callerId: string, requestedOrgId?: string | null, customerId?: string | null): Promise<string | null> {
+  if (customerId) {
+    const { data: link } = await supabase
+      .from('shared_accountant_taxpayer_links')
+      .select('taxpayer_id')
+      .eq('accountant_id', callerId)
+      .eq('taxpayer_id', customerId)
+      .eq('status', 'active')
+      .limit(1);
+    if (!link || link.length === 0) return null;
+    const taxpayerOrgs = await orgIdsOf(supabase, customerId);
+    return taxpayerOrgs[0] ?? null;
+  }
+  const mine = await orgIdsOf(supabase, callerId);
+  if (requestedOrgId && mine.includes(requestedOrgId)) return requestedOrgId;
+  return mine[0] ?? null;
+}
+
+async function orgTimezone(supabase: any, orgId: string | null): Promise<string> {
+  if (!orgId) return 'Europe/Istanbul';
+  const { data } = await supabase.from('organizations').select('timezone').eq('id', orgId).maybeSingle();
+  return data?.timezone || 'Europe/Istanbul';
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,6 +91,21 @@ serve(async (req) => {
     );
     const ai = new GoogleGenAI({ apiKey });
 
+    // Kimlik: çağıran, Authorization başlığındaki oturumdan belirlenir (verify_jwt kapalı olduğu için burada).
+    const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: authData } = jwt ? await supabaseClient.auth.getUser(jwt) : { data: null };
+    const callerId: string | undefined = authData?.user?.id;
+    if (!callerId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (profile_id && profile_id !== callerId) {
+      return new Response(JSON.stringify({ error: "Forbidden: profile_id does not match the session" }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     let activeBase64 = imageBase64;
     if (!activeBase64 && imageUrl) {
       console.log("Fetching image from Storage URL...");
@@ -48,7 +120,11 @@ serve(async (req) => {
     // TEXT-ONLY MODE: FINANCIAL AUDITOR & MANUAL ENTRY
     // ========================================================================
     if (!activeBase64) {
-      if (!profile_id) throw new Error("profile_id is required for text mode.");
+      const profile_id = callerId;
+      const contextOrgId = await resolveTargetOrg(supabaseClient, callerId, organization_id, null);
+      const tz = await orgTimezone(supabaseClient, contextOrgId);
+      const today = todayIn(tz);
+      const todayLabel = new Intl.DateTimeFormat('tr-TR', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 
       // Fetch Memory Context
       let totals = { income: 0, expense: 0, receivable: 0, payable: 0 };
@@ -99,18 +175,20 @@ serve(async (req) => {
         } catch(e) { console.warn("Error fetching chat history", e); }
 
         // Transactions
-        const { data: trans } = await supabaseClient.from('transactions').select('*').eq('profile_id', profile_id).order('date', { ascending: false }).limit(30);
+        const { data: trans } = contextOrgId
+          ? await supabaseClient.from('transactions').select('*').eq('profile_id', contextOrgId).order('date', { ascending: false }).limit(30)
+          : { data: [] };
         if (trans) {
           trans.forEach(t => {
             if (t.type === 'income') totals.income += Number(t.amount);
             if (t.type === 'expense') totals.expense += Number(t.amount);
           });
-          recentContext += "Son islemler (transactions):\n" + trans.map(t => `${t.date}: ${t.title} - ${t.amount} TL (${t.type})`).join('\n') + "\n\n";
+          recentContext += "Son islemler (transactions):\n" + trans.map(t => `${t.due_date || t.date}: ${t.title} - ${t.amount} TL (${t.type}) [${t.payment_status}]`).join('\n') + "\n\n";
         }
 
         // Documents
-        if (organization_id) {
-          const { data: docs } = await supabaseClient.from('finance_documents').select('*').eq('organization_id', organization_id).order('created_at', { ascending: false }).limit(30);
+        if (contextOrgId) {
+          const { data: docs } = await supabaseClient.from('finance_documents').select('*').eq('organization_id', contextOrgId).order('created_at', { ascending: false }).limit(30);
           if (docs) {
             docs.forEach(d => {
               const amount = Number(d.amount_minor) / 100;
@@ -141,8 +219,15 @@ ${chatHistoryContext}MUKELLEFIN ANLIK DURUMU (Özet):
 ${customersListContext}MUKELLEFIN SON ISLEMLERI:
 ${recentContext}
 
+BUGUNUN TARIHI: ${today} (${todayLabel}). "yarin", "haftaya cuma", "ayin 15'i" gibi ifadeleri YALNIZCA bu tarihe gore YYYY-MM-DD'ye cevir.
+
 GOREV:
 Kullanici yeni bir manuel harcama, odeme veya gelir girdiyse (orn: "Yarin Ahmet'e 500 TL odemem var"), bunu algila ve JSON'daki 'manual_entry' objesini doldur.
+- Gelecekte odenecek/tahsil edilecek bir sey ise: status = 'pending', due_date = o gun, date = o gun.
+- Yapilmis/alinmis bir odeme ise: status = 'paid', date = odemenin yapildigi gun (belirtilmediyse bugun), due_date bos.
+- Gecmis tarihli ama henuz odenmemis borc/alacak ise: status = 'pending', due_date = vade gunu.
+- category: kira, fatura, maas, vergi, malzeme, hasta odemesi gibi kisa bir etiket (emin degilsen bos birak).
+- Tutar veya tur (gelir/gider) belirsizse kayit OLUSTURMA; manual_entry null birak ve kullaniciya sor.
 Eger sadece bir soru soruyorsa veya islem yoksa 'manual_entry' kismini null birak.
 Kullaniciya samimi, guven veren, profesyonel bir metinle (markdown destekli) yanit ver. Yaniti 'message' alanina yaz. Geçmiş sohbete atıfta bulunursa onu anladığını belli et.
 
@@ -161,7 +246,9 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
               amount: { type: "number", description: "Tutar (orn: 500)" },
               type: { type: "string", description: "'income' veya 'expense'" },
               date: { type: "string", description: "YYYY-MM-DD formatinda islem tarihi." },
-              status: { type: "string", description: "Gelecek tarihliyse 'pending', bugun/gecmisse 'paid'" },
+              status: { type: "string", description: "'pending' (odenecek/tahsil edilecek) veya 'paid' (odendi/tahsil edildi)" },
+              due_date: { type: "string", description: "YYYY-MM-DD vade/son odeme gunu. Odenmis islemlerde bos." },
+              category: { type: "string", description: "Kisa kategori etiketi (kira, fatura, maas, vergi, malzeme, hasta odemesi...). Emin degilsen bos." },
               customer_id: { type: "string", description: "Müşteri Rehberi'nden eşleşen kişinin Müşteri ID'si. Eşleşme yoksa boş bırakılabilir." }
             },
             required: ["title", "amount", "type", "date", "status"]
@@ -181,17 +268,47 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
       text = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const extractedData = JSON.parse(text);
 
-      if (extractedData.manual_entry) {
-        // Insert into transactions
-        const { error: insertError } = await supabaseClient.from('transactions').insert({
-          profile_id: extractedData.manual_entry.customer_id || profile_id,
-          title: extractedData.manual_entry.title,
-          amount: extractedData.manual_entry.amount,
-          type: extractedData.manual_entry.type,
-          date: extractedData.manual_entry.date,
-          status: extractedData.manual_entry.status
-        });
-        if (insertError) console.error("Transaction insert error:", insertError);
+      let saved = false;
+      let transactionId: string | null = null;
+      let saveProblem: string | null = null;
+      const me = extractedData.manual_entry;
+      if (me) {
+        const targetOrg = await resolveTargetOrg(supabaseClient, callerId, organization_id, me.customer_id || null);
+        const entryDate = toIsoDate(me.date) ?? today;
+        const status = me.status === 'pending' ? 'pending' : 'paid';
+        const dueDate = toIsoDate(me.due_date) ?? (status === 'pending' ? entryDate : null);
+        const amount = Number(me.amount);
+
+        if (!targetOrg) {
+          saveProblem = 'isletme_bulunamadi';
+        } else if (me.type !== 'income' && me.type !== 'expense') {
+          saveProblem = 'gecersiz_tur';
+        } else if (!(amount > 0)) {
+          saveProblem = 'gecersiz_tutar';
+        } else {
+          const { data: inserted, error: insertError } = await supabaseClient.from('transactions').insert({
+            profile_id: targetOrg,                 // her zaman organizations.id
+            title: String(me.title || '').trim() || (me.type === 'income' ? 'Gelir' : 'Gider'),
+            amount,
+            type: me.type,
+            date: entryDate,
+            due_date: dueDate,
+            payment_status: status,
+            category: me.category ? String(me.category).trim() : null,
+            source: 'ai_chat',
+          }).select('id').single();
+          if (insertError) {
+            console.error("Transaction insert error:", insertError);
+            saveProblem = 'kayit_hatasi';
+          } else {
+            saved = true;
+            transactionId = inserted?.id ?? null;
+          }
+        }
+        if (!saved) {
+          // AI'ın "kaydettim" demesine izin verme: kullanıcıya gerçeği söyle
+          extractedData.message = `${extractedData.message}\n\n⚠️ Bu işlem takvime kaydedilemedi (${saveProblem}). Lütfen bilgileri kontrol edip tekrar deneyin.`;
+        }
       }
 
       // Save to chat history
@@ -202,7 +319,13 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
         ]);
       } catch(e) { console.warn("Error saving chat history", e); }
 
-      return new Response(JSON.stringify({ success: true, message: extractedData.message, manual_entry: extractedData.manual_entry }), {
+      return new Response(JSON.stringify({
+        success: true,
+        message: extractedData.message,
+        manual_entry: saved ? extractedData.manual_entry : null,
+        saved,
+        transaction_id: transactionId,
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -214,6 +337,27 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
     // ========================================================================
     if (!document_id) {
        return new Response(JSON.stringify({ error: "Missing document_id for image processing." }), { status: 400, headers: corsHeaders });
+    }
+
+    // Belge çağıranın (ya da bağlı mükellefinin) işletmesine ait olmalı
+    {
+      const { data: docOwner } = await supabaseClient.from('finance_documents').select('organization_id').eq('id', document_id).maybeSingle();
+      if (!docOwner) {
+        return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const mine = await orgIdsOf(supabaseClient, callerId);
+      let allowed = mine.includes(docOwner.organization_id);
+      if (!allowed) {
+        const { data: orgRow } = await supabaseClient.from('organizations').select('owner_id').eq('id', docOwner.organization_id).maybeSingle();
+        if (orgRow?.owner_id) {
+          const { data: link } = await supabaseClient.from('shared_accountant_taxpayer_links')
+            .select('taxpayer_id').eq('accountant_id', callerId).eq('taxpayer_id', orgRow.owner_id).eq('status', 'active').limit(1);
+          allowed = !!(link && link.length > 0);
+        }
+      }
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     let taxpayerName = "Bilinmiyor";
@@ -248,6 +392,7 @@ SADECE JSON FORMATINDA YANIT VER. Baska hicbir sey yazma.`;
           }
         },
         tevkifat_orani: { type: "string", description: "F sutunu: Tevkifat orani (orn: 2/10). Yoksa bos birak" },
+        due_date: { type: "string", description: "Son odeme tarihi / vade (GG.AA.YYYY). Faturada yazmiyorsa bos birak, UYDURMA." },
         ozel_matrah: { type: "number", description: "G sutunu: Ozel matraha tabi tutar. Yoksa bos birak" },
         total: { type: "number", description: "R sutunu: Faturanin ODENCEK GENEL TOPLAMI (Matrah + KDV). Bu ornekte = 944" }
       },
@@ -275,6 +420,9 @@ KURAL: kdv_amount her zaman matrah'tan kucuktur!
 
 == TARIH ==
 - date: GG.AA.YYYY formatinda (orn: 07.09.2022)
+
+== VADE ==
+- due_date: Faturada "Son Ödeme Tarihi", "Vade" veya "Ödeme Tarihi" yaziyorsa GG.AA.YYYY. Yoksa bos birak.
 
 == FATURA NUMARASI ==
 - invoice_number: Fatura No / Belge No (orn: AAA2022000000135)
@@ -347,12 +495,19 @@ Sadece JSON formatında yanıt ver. Baska hicbir sey yazma.`;
     const typeLabel = extractedData.type || 'expense';
     const isAlis = typeLabel === 'ALIS' || typeLabel === 'expense';
 
+    // Vade: faturada varsa ve bugünden sonraysa ödenmemiş (takvimde "Bekliyor"); yoksa ödenmiş varsayılır
+    const docTz = await orgTimezone(supabaseClient, (await supabaseClient.from('finance_documents').select('organization_id').eq('id', document_id).maybeSingle()).data?.organization_id ?? null);
+    const docToday = todayIn(docTz);
+    const dueIso = toIsoDate(extractedData.due_date);
+    const paymentStatus = dueIso && dueIso > docToday ? 'unpaid' : 'paid';
+
     const updatePayload: any = {
       amount_minor: amountMinor,
       title: extractedData.title,
-      type: isAlis ? 'expense' : 'sales',
+      type: isAlis ? 'expense' : 'income',   // tablo kısıtı yalnız income/expense kabul ediyor ('sales' her seferinde reddediliyordu)
       created_at: dateIso,
-      flow_payment_status: 'paid',
+      due_date: dueIso,
+      flow_payment_status: paymentStatus,
       ledger_official_status: 'taslak',
       tax_details: extractedData
     };
