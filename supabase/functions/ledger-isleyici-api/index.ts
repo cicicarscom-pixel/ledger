@@ -129,10 +129,13 @@ serve(async (req) => {
       // Fetch Memory Context
       let totals = { income: 0, expense: 0, receivable: 0, payable: 0 };
       let recentContext = "";
+      // Talimat metninde try bloğunun DIŞINDA kullanılıyorlar; blok içinde tanımlanınca
+      // her metin mesajı "chatHistoryContext is not defined" ile çöküyordu (28.09.2026).
+      let customersListContext = "";
+      let chatHistoryContext = "";
 
       try {
         // Fetch Customers (Müşteri Rehberi)
-        let customersListContext = "";
         try {
           const { data: links } = await supabaseClient
             .from('shared_accountant_taxpayer_links')
@@ -156,7 +159,6 @@ serve(async (req) => {
         } catch(e) { console.warn("Error fetching customer context", e); }
 
         // Fetch Chat History
-        let chatHistoryContext = "";
         try {
           const { data: history } = await supabaseClient
             .from('ledger_chat_history')
