@@ -13,7 +13,7 @@ interface AIOrchestratorDeps {
 }
 
 export class AIOrchestrator {
-  private MAX_TOOL_ROUNDS = 5;
+  private MAX_TOOL_ROUNDS = 6;
 
   constructor(private readonly deps: AIOrchestratorDeps) {}
 
@@ -115,6 +115,7 @@ export class AIOrchestrator {
     }
 
     console.warn(`[AIOrchestrator] MAX_TOOL_ROUNDS (${this.MAX_TOOL_ROUNDS}) exceeded.`);
-    return "Şu an işleminizi gerçekleştiremiyorum. Lütfen daha sonra tekrar deneyin veya doğrudan bizimle iletişime geçin.";
+    // Müşteriyi "daha sonra deneyin" ile bırakma; son isteğini netleştirmesini iste (28.09.2026 olayı).
+    return "Talebinizi tam olarak tamamlayamadım. Randevu istediğiniz gün ve saati bir kez daha yazar mısınız?";
   }
 }

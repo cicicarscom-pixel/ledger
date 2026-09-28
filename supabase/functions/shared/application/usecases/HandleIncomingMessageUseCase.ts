@@ -6,6 +6,19 @@ import { AIContext } from '../../ai/types.ts';
 import { PersonaService } from '../../ai/persona/PersonaService.ts';
 import { AppointmentRepository } from '../../infrastructure/repositories/AppointmentRepository.ts';
 import { BotSettingsRepository } from '../../infrastructure/repositories/BotSettingsRepository.ts';
+import { acquireChatLock, releaseChatLock } from '../../infrastructure/locks/ChatLock.ts';
+
+type IncomingMessagePayload = {
+  merchantId: string;
+  source: 'whatsapp' | 'social';
+  senderId: string;
+  userMessage: string;
+  customerName?: string | null;
+  platform?: string;
+  isComment?: boolean;
+  postId?: string;
+  zernioAccountId?: string;
+};
 
 interface Dependencies {
   aiOrchestrator: AIOrchestrator;
@@ -20,6 +33,22 @@ export class HandleIncomingMessageUseCase {
   constructor(private readonly deps: Dependencies) {}
 
   async execute(
+    supabaseClient: any,
+    payload: IncomingMessagePayload
+  ): Promise<void> {
+    // Aynı sohbetin mesajları sırayla işlenir: ikinci mesaj, birincinin yanıtı
+    // gönderilip geçmişe yazıldıktan sonra güncel geçmişle işlenir.
+    const lockKey = `${payload.merchantId}:${payload.platform || payload.source}:${payload.senderId}`;
+    const lockHolder = crypto.randomUUID();
+    const locked = await acquireChatLock(supabaseClient, lockKey, lockHolder);
+    try {
+      await this.executeUnlocked(supabaseClient, payload);
+    } finally {
+      if (locked) await releaseChatLock(supabaseClient, lockKey, lockHolder);
+    }
+  }
+
+  private async executeUnlocked(
     supabaseClient: any,
     payload: {
       merchantId: string;

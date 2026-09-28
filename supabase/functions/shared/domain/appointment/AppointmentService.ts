@@ -15,6 +15,91 @@ export type AppointmentResult =
 export class AppointmentService {
   constructor(private readonly appointmentRepository: AppointmentRepository) {}
 
+  /**
+   * create_pending_appointment için takvimi SUNUCU TARAFINDA çözer.
+   * Neden: Sohbet geçmişi modele yalnız metin olarak gidiyor; önceki turdaki araç
+   * sonuçlarındaki takvim UUID'leri kayboluyor ve model UUID uyduruyordu
+   * (28.09.2026: üç kez INVALID_CALENDAR_ID). Artık model doktor ADINI verebilir
+   * ya da tercih yoksa hiçbir şey vermez; sistem gerçek takvimi kendisi bulur.
+   *
+   *  - calendarId aktif takvimlerden biriyse → o
+   *  - calendarName tek bir aktif takvime eşleşiyorsa → o
+   *  - biri verilmiş ama çözülemiyorsa → INVALID (tahmin YOK; yanlış doktora yazmamak için)
+   *  - hiçbiri verilmemişse: tek aktif takvim varsa o; çoklu takvimde o saatte müsait ilk takvim
+   */
+  async resolveCalendar(params: {
+    merchantId: string;
+    calendarId?: string;
+    calendarName?: string;
+    startsAt: string;
+    serviceIds: string[];
+    multiCalendarEnabled?: boolean;
+  }): Promise<
+    | { kind: "resolved"; id: string; name: string }
+    | { kind: "none" }
+    | { kind: "invalid"; calendars: { id: string; name: string }[] }
+    | { kind: "no_free_calendar" }
+  > {
+    const { data: rows, error } = await this.appointmentRepository["supabase"]
+      .from("calendars")
+      .select("id, name")
+      .eq("merchant_id", params.merchantId)
+      .eq("is_active", true);
+
+    if (error) {
+      console.error("[AppointmentService.resolveCalendar] calendars okunamadı:", error);
+      return params.calendarId ? { kind: "resolved", id: params.calendarId, name: "" } : { kind: "none" };
+    }
+
+    const calendars: { id: string; name: string }[] = rows ?? [];
+    if (calendars.length === 0) return { kind: "none" };
+
+    if (params.calendarId) {
+      const hit = calendars.find((c) => c.id === params.calendarId);
+      if (hit) return { kind: "resolved", id: hit.id, name: hit.name };
+    }
+
+    if (params.calendarName && params.calendarName.trim() !== "") {
+      const wanted = normalizeCalendarName(params.calendarName);
+      if (wanted !== "") {
+        const exact = calendars.filter((c) => normalizeCalendarName(c.name) === wanted);
+        if (exact.length === 1) return { kind: "resolved", id: exact[0].id, name: exact[0].name };
+        const partial = calendars.filter((c) => {
+          const n = normalizeCalendarName(c.name);
+          return n.includes(wanted) || wanted.includes(n);
+        });
+        if (partial.length === 1) return { kind: "resolved", id: partial[0].id, name: partial[0].name };
+      }
+    }
+
+    if (params.calendarId || (params.calendarName && params.calendarName.trim() !== "")) {
+      console.warn("[AppointmentService.resolveCalendar] çözülemedi:", params.calendarId, params.calendarName);
+      return { kind: "invalid", calendars };
+    }
+
+    if (calendars.length === 1) {
+      return { kind: "resolved", id: calendars[0].id, name: calendars[0].name };
+    }
+
+    if (!params.multiCalendarEnabled) return { kind: "none" };
+
+    // Tercih yok ("farketmez"): o saatte müsait ilk takvim.
+    const date = params.startsAt.slice(0, 10);
+    const time = params.startsAt.slice(11, 16);
+    const slots = await this.appointmentRepository.getAvailableSlots(
+      params.merchantId,
+      date,
+      params.serviceIds,
+      true,
+    );
+    const slot = Array.isArray(slots)
+      ? slots.find((s: any) => s && typeof s === "object" && s.time === time)
+      : null;
+    const first = slot?.availableCalendars?.[0];
+    if (first?.id) return { kind: "resolved", id: first.id, name: first.name };
+    return { kind: "no_free_calendar" };
+  }
+
   async rescheduleAppointment(
     params: {
       merchantId: string;
@@ -189,3 +274,12 @@ export class AppointmentService {
   }
 }
 
+/** "Dr.Mehmet YALÇIN", "dr. mehmet yalçın", "Mehmet Yalcin" → "mehmetyalcin" */
+export function normalizeCalendarName(name: string): string {
+  return (name ?? "")
+    .toLocaleLowerCase("tr")
+    .replace(/(^|[^\p{L}])(dr|dt|doktor|uzm|uzman|prof|doç)(?=[^\p{L}]|$)\.?/gu, "$1")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    // Türkçe harfleri sadeleştir: model "Yalcin" yazsa da "YALÇIN" ile eşleşsin
+    .replace(/ı/g, "i").replace(/ç/g, "c").replace(/ş/g, "s").replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u");
+}
