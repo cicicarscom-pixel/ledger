@@ -198,13 +198,17 @@ export class AppointmentRepository {
     return data;
   }
 
-  async findActiveByPhone(merchantId: string, phone: string): Promise<any[]> {
+  async findActiveByPhone(merchantId: string, phone: string, timezone = 'Europe/Istanbul'): Promise<any[]> {
+    // Yalnız bugün ve sonrası: geçmiş tarihli "Pending" kayıtlar limit(5)'i doldurup
+    // gelecekteki randevuları listeden düşürmesin.
+    const todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
     const { data, error } = await this.supabase
       .from('appointments')
       .select('id, service_id, date, status')
       .eq('organization_id', merchantId)
       .eq('customer_phone', phone)
       .in('status', ['Pending', 'Approved'])
+      .gte('date', `${todayLocal}T00:00:00`)
       .order('date', { ascending: true })
       .limit(5);
     if (error) { console.error("[AppointmentRepository] Error fetching active appointments:", error); return []; }

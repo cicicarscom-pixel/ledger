@@ -19,6 +19,7 @@ export class CreatePendingAppointmentTool implements ITool {
       calendarName: { type: "string", description: "Name of the chosen doctor/staff exactly as shown to the customer (e.g. 'Dr.Mehmet YALÇIN'). Preferred over calendarId. Omit only together with anyCalendar: true." },
       anyCalendar: { type: "boolean", description: "true ONLY if the customer explicitly said any doctor/staff is fine. Never set it on your own." },
       calendarId: { type: "string", description: "Real calendar UUID ONLY if it appears in a tool result in THIS turn. Never guess or reconstruct an ID; use calendarName instead." },
+      confirmSameDay: { type: "boolean", description: "Set true ONLY after SAME_DAY_APPOINTMENT_EXISTS and the customer explicitly confirmed they want an additional appointment that day." },
       allowCustomerOverlap: { type: "boolean", description: "Set true ONLY after CUSTOMER_TIME_CONFLICT and the customer explicitly wants both appointments." },
       customerRequestRaw: { type: "string", description: "The customer's REASON for the visit in their own words, copied exactly from their message (e.g. 'dolgum düştü'). NOT the date/time, NOT a confirmation like 'onaylıyorum', NOT a doctor preference. Look back in the conversation for it." }
     },
@@ -39,6 +40,7 @@ export class CreatePendingAppointmentTool implements ITool {
     const customerRequestRaw = args.customerRequestRaw as string;
     const allowCustomerOverlap = args.allowCustomerOverlap === true;
     const anyCalendar = args.anyCalendar === true;
+    const confirmSameDay = args.confirmSameDay === true;
 
     // Gelme nedeni yerine saat/onay cümlesi gönderildiyse kaydetme (28.09.2026: "sabah 9 olsun").
     if (serviceIds.length === 0 && isSchedulingOnlyText(customerRequestRaw)) {
@@ -48,6 +50,24 @@ export class CreatePendingAppointmentTool implements ITool {
           "Sohbet geçmişinde müşterinin nedenini söylediği kendi cümlesini bul ve AYNEN kullanarak aracı BU TURDA tekrar çağır. " +
           "Müşteri nedeni hiç söylemediyse, bekleme mesajı vermeden tek cümleyle ne için geleceğini sor.",
       };
+    }
+
+    // Aynı gün başka aktif randevusu varsa, müşteriye sormadan ikinci randevu açma
+    // (28.09.2026 testi: 30 Eylül'de 09:00 ve 10:00 varken 16:00 sessizce eklendi).
+    if (!confirmSameDay) {
+      const sameDay = await this.appointmentService.findSameDayActiveAppointments(
+        context.merchantId!, context.customerId, startsAt,
+      );
+      if (sameDay.length > 0) {
+        return {
+          status: "SAME_DAY_APPOINTMENT_EXISTS",
+          message: "Randevu HENÜZ OLUŞTURULMADI. Müşterinin aynı gün aktif randevusu/randevuları var (data.existing). " +
+            "Bunları sade bir dille hatırlat (saat, varsa doktor ve neden) ve bu yeni randevunun AYRI bir randevu olarak da istenip istenmediğini sor. " +
+            "Müşteri açıkça ek randevu isterse aynı bilgilerle confirmSameDay: true ekleyerek tekrar çağır. " +
+            "Mevcut randevuyu değiştirmek/taşımak isterse işletmeye yönlendir. Müşteriye randevunun oluşturulduğunu SÖYLEME.",
+          data: { existing: sameDay },
+        };
+      }
     }
 
     const resolved = await this.appointmentService.resolveCalendar({

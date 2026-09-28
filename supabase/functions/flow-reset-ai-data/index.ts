@@ -40,8 +40,11 @@ serve(async (req) => {
     // veya global bir .delete() ASLA çalıştırılmaz — bu, TÜM merchantların
     // verisini silebilir.
     await supabaseAdmin.from('notifications').delete().eq('profile_id', scopeId);
-    await supabaseAdmin.from('appointments').delete().eq('organization_id', scopeId);
-    await supabaseAdmin.from('customers').delete().eq('organization_id', scopeId);
+    // appointments / customers.organization_id = işletme sahibinin auth user id'si (merchantId),
+    // organizations.id DEĞİL. 27.09.2026'da organization_members doldurulunca scopeId
+    // organizations.id'ye döndü ve bu iki tablo sessizce silinmez oldu (28.09.2026 tespit).
+    await supabaseAdmin.from('appointments').delete().eq('organization_id', merchantId);
+    await supabaseAdmin.from('customers').delete().eq('organization_id', merchantId);
     await supabaseAdmin.from('messages').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('conversations').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('comments').delete().eq('profile_id', scopeId);

@@ -142,7 +142,7 @@ export class HandleIncomingMessageUseCase {
       }
     }
 
-    const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(merchantId, senderId).catch(() => []);
+    const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(merchantId, senderId, resolvedTimezone).catch(() => []);
 
     let finalName = existingCustomer?.name || payload.customerName || null;
     if ((!existingCustomer || !existingCustomer.name) && payload.customerName) {

@@ -266,6 +266,46 @@ export class AppointmentService {
     }
   }
 
+  /**
+   * Müşterinin, istenen yerel günde (startsAt'ın tarihi) başka aktif randevusu var mı?
+   * appointments.date yerel saat metnidir (trigger doldurur): "YYYY-MM-DDTHH:mm:ss".
+   */
+  async findSameDayActiveAppointments(
+    merchantId: string,
+    customerPhone: string | undefined,
+    startsAt: string,
+  ): Promise<{ time: string; calendarName: string; reason: string }[]> {
+    if (!customerPhone || !startsAt) return [];
+    const day = startsAt.slice(0, 10);
+    const supabase = this.appointmentRepository["supabase"];
+    const { data: rows, error } = await supabase
+      .from("appointments")
+      .select("date, calendar_id, customer_request_raw")
+      .eq("organization_id", merchantId)
+      .eq("customer_phone", customerPhone)
+      .in("status", ["Pending", "Approved"])
+      .gte("date", `${day}T00:00:00`)
+      .lte("date", `${day}T23:59:59`)
+      .order("date", { ascending: true });
+    if (error) {
+      console.error("[AppointmentService.findSameDayActiveAppointments]", error);
+      return [];
+    }
+    const list = rows ?? [];
+    if (list.length === 0) return [];
+    const calIds = [...new Set(list.map((r: any) => r.calendar_id).filter(Boolean))];
+    const names = new Map<string, string>();
+    if (calIds.length > 0) {
+      const { data: cals } = await supabase.from("calendars").select("id, name").in("id", calIds);
+      for (const c of cals ?? []) names.set(c.id, c.name);
+    }
+    return list.map((r: any) => ({
+      time: String(r.date).slice(11, 16),
+      calendarName: r.calendar_id ? names.get(r.calendar_id) ?? "" : "",
+      reason: r.customer_request_raw ?? "",
+    }));
+  }
+
   async getAvailableSlots(
     merchantId: string,
     date: string,
