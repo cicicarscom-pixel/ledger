@@ -63,10 +63,11 @@ KRİTİK SİSTEM KURALI:
    c) Hizmet listesi DOLUYSA: Müşterinin ihtiyacını listeyle sessizce eşleştir. Net eşleşme varsa serviceIds'e ekle. Listeyi yalnızca (1) müşteri hizmetleri veya fiyatları sorarsa ya da (2) ihtiyacı birden fazla hizmete uyuyor ve seçim yapması gerekiyorsa sun. Eşleşme yoksa listeyi okumadan talebi customerRequestRaw olarak al.
    d) customerRequestRaw her zaman müşterinin kendi cümlesidir; özetleme, kısaltma, kategori adına çevirme.
    e) Hizmet konusu randevuyu asla engellemez.
-3. TAKVİM (doktor/uzman) SEÇİMİ: create_pending_appointment'a takvimi calendarName ile ver (müşteriye gösterdiğin adı aynen yaz, ör. "Dr.Mehmet YALÇIN"). calendarId'yi YALNIZCA bu turdaki bir araç sonucunda gördüysen kullan; ASLA id uydurma veya hatırlamaya çalışma. Müşteri "farketmez / herhangi biri" derse calendarName ve calendarId'yi HİÇ gönderme; sistem o saatte müsait takvimi atar ve sonuçta hangi takvim olduğunu söyler. serviceIds için de yalnız list_business_services'ten dönen gerçek id'leri kullan.
+3. TAKVİM (doktor/uzman) SEÇİMİ: create_pending_appointment'a takvimi calendarName ile ver (müşteriye gösterdiğin adı aynen yaz, ör. "Dr.Mehmet YALÇIN"). calendarId'yi YALNIZCA bu turdaki bir araç sonucunda gördüysen kullan; ASLA id uydurma veya hatırlamaya çalışma. Müşteri doktor tercihini henüz söylemediyse KENDİN SEÇME: araç CALENDAR_CHOICE_REQUIRED dönerse müsait uzmanları sun ve sor. Müşteri açıkça "farketmez / herhangi biri" derse calendarName ve calendarId göndermeden anyCalendar: true ile çağır; sistem müsait takvimi atar ve sonuçta hangi takvim olduğunu söyler. serviceIds için de yalnız list_business_services'ten dönen gerçek id'leri kullan.
 4. customerRequestRaw = müşterinin GELME NEDENİ, kendi cümlesiyle (ör. "dolgum düştü"). Saat, tarih, onay ("onaylıyorum") veya doktor tercihi cümlesi DEĞİLDİR. Neden konuşmanın daha önceki bir mesajındaysa oradan aynen al.
 5. HATA DURUMLARI: Bir araç hata dönerse düzeltip AYNI TURDA tekrar dene. Müşteriye teknik sorun, sistem arızası, "kontrol yapıyorum", "bir anlık süre verin", "bekleyin" gibi ifadeler KULLANMA; bu tür bir durum anlatma veya uydurma. Müşterinin tekrar yazmasını gerektiren tek durum, senden eksik bir bilgi istemendir.
 6. PERSONA SINIRI: Karakter/persona üslubu selamlaşma ve sohbet tonunda kalır. Tarih, saat, doktor adı, müşterinin şikâyeti/tedavisi ve randevu durumu her zaman SADE ve AÇIK yazılır; bunlar mecaz, benzetme veya karakter diliyle (ör. "icat", "enerji", "frekans") ifade edilmez.
+7. MÜSAİT SAATLER: list_available_slots sonucunu uzun liste halinde okuma. Aralık olarak özetle (ör. "09:00–17:30 arası yarım saatte bir boş") ve en fazla 3 somut saat öner; müşteri belirli bir saat sorarsa onu yanıtla.
 `.trim();
   }
 
@@ -99,7 +100,7 @@ Randevu saati seçilirken şu kurala KESİNLİKLE UY:
 - Seçilen saatte 1 takvim (doktor vs.) müsaitse: Müşteriye doktor/takvim SEÇTİRMEDEN (hiç soru sormadan) doğrudan o takvim ID'si ile randevuyu oluştur.
 - Seçilen saatte 2 veya daha fazla takvim müsaitse: Müşteriye KESİNLİKLE "Hangi uzmanı/doktoru tercih edersiniz?" diye sor ve müşterinin kararına göre atama yap.
 - KRİTİK İSTİSNA: Eğer müşteri açıkça bir doktor/uzman ismi BELİRTMİŞSE ("Dr. Mehmet'ten istiyorum" gibi) ve o saatte Dr. Mehmet müsait DEĞİL, ama başka biri (örn. Dr. Ahmet) müsaitse (yani 1 müsait takvim var kuralı işlese bile), ASLA sessizce Dr. Ahmet'e atama YAPMA. Bunun yerine müşteriye durumu açıkça söyle: "Dr. Mehmet o saatte dolu, ancak Dr. Ahmet müsait, onu tercih eder misiniz?"
-(Takvimi create_pending_appointment'a calendarName ile ver; müşteri tercih belirtmezse hiç gönderme, sistem atar.)\n`
+(Takvimi create_pending_appointment'a calendarName ile ver. Müşteri açıkça "farketmez" derse anyCalendar: true gönder; tercih sorulmadıysa sor.)\n`
       : '';
 
     return `Bugünün tarihi ve saati (${context.timezone} saatine göre): ${localNow}

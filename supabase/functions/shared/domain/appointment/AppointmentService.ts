@@ -25,7 +25,9 @@ export class AppointmentService {
    *  - calendarId aktif takvimlerden biriyse → o
    *  - calendarName tek bir aktif takvime eşleşiyorsa → o
    *  - biri verilmiş ama çözülemiyorsa → INVALID (tahmin YOK; yanlış doktora yazmamak için)
-   *  - hiçbiri verilmemişse: tek aktif takvim varsa o; çoklu takvimde o saatte müsait ilk takvim
+   *  - hiçbiri verilmemişse: tek aktif takvim varsa o; çoklu takvimde o saatte
+   *    tek müsait takvim varsa o; birden fazla müsaitse YALNIZ anyCalendar=true ise ilki,
+   *    değilse CHOICE_REQUIRED (müşteriye sorulmalı — işletme kuralı; 28.09.2026 v93 gerilemesi)
    */
   async resolveCalendar(params: {
     merchantId: string;
@@ -34,11 +36,13 @@ export class AppointmentService {
     startsAt: string;
     serviceIds: string[];
     multiCalendarEnabled?: boolean;
+    anyCalendar?: boolean;
   }): Promise<
     | { kind: "resolved"; id: string; name: string }
     | { kind: "none" }
     | { kind: "invalid"; calendars: { id: string; name: string }[] }
     | { kind: "no_free_calendar" }
+    | { kind: "choice_required"; calendars: { id: string; name: string }[] }
   > {
     const { data: rows, error } = await this.appointmentRepository["supabase"]
       .from("calendars")
@@ -95,9 +99,12 @@ export class AppointmentService {
     const slot = Array.isArray(slots)
       ? slots.find((s: any) => s && typeof s === "object" && s.time === time)
       : null;
-    const first = slot?.availableCalendars?.[0];
-    if (first?.id) return { kind: "resolved", id: first.id, name: first.name };
-    return { kind: "no_free_calendar" };
+    const free: { id: string; name: string }[] = (slot?.availableCalendars ?? []).filter((c: any) => c?.id);
+    if (free.length === 0) return { kind: "no_free_calendar" };
+    if (free.length === 1 || params.anyCalendar === true) {
+      return { kind: "resolved", id: free[0].id, name: free[0].name };
+    }
+    return { kind: "choice_required", calendars: free.map((c) => ({ id: c.id, name: c.name })) };
   }
 
   async rescheduleAppointment(

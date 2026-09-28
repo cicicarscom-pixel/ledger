@@ -7,7 +7,8 @@ export class CreatePendingAppointmentTool implements ITool {
   name = "create_pending_appointment";
   description = "Creates a pending appointment for the customer at a specific date and time. " +
     "Identify the calendar (doctor/staff) by calendarName (preferred) or calendarId. " +
-    "If the customer has no preference (e.g. 'farketmez', 'any'), omit BOTH and the system assigns a free calendar.";
+    "Only if the customer EXPLICITLY said they have no preference (e.g. 'farketmez', 'herhangi biri', 'any'), omit both and set anyCalendar: true. " +
+    "If the customer has not been asked yet and several calendars are free, the tool returns CALENDAR_CHOICE_REQUIRED with the free calendars: ask the customer.";
   
   schema = {
     type: "object",
@@ -15,7 +16,8 @@ export class CreatePendingAppointmentTool implements ITool {
       serviceIds: { type: "array", items: { type: "string" }, description: "The IDs of the selected services. Omit if not explicitly matched." },
       startsAt: { type: "string", description: "The requested LOCAL date and time, format YYYY-MM-DDTHH:mm:ss (no timezone suffix)." },
       customerName: { type: "string", description: "Customer's full name, must be collected via conversation before calling this tool." },
-      calendarName: { type: "string", description: "Name of the chosen doctor/staff exactly as shown to the customer (e.g. 'Dr.Mehmet YALÇIN'). Preferred over calendarId. Omit if the customer has no preference." },
+      calendarName: { type: "string", description: "Name of the chosen doctor/staff exactly as shown to the customer (e.g. 'Dr.Mehmet YALÇIN'). Preferred over calendarId. Omit only together with anyCalendar: true." },
+      anyCalendar: { type: "boolean", description: "true ONLY if the customer explicitly said any doctor/staff is fine. Never set it on your own." },
       calendarId: { type: "string", description: "Real calendar UUID ONLY if it appears in a tool result in THIS turn. Never guess or reconstruct an ID; use calendarName instead." },
       allowCustomerOverlap: { type: "boolean", description: "Set true ONLY after CUSTOMER_TIME_CONFLICT and the customer explicitly wants both appointments." },
       customerRequestRaw: { type: "string", description: "The customer's REASON for the visit in their own words, copied exactly from their message (e.g. 'dolgum düştü'). NOT the date/time, NOT a confirmation like 'onaylıyorum', NOT a doctor preference. Look back in the conversation for it." }
@@ -36,6 +38,7 @@ export class CreatePendingAppointmentTool implements ITool {
     const requestedCalendarName = (args.calendarName as string | undefined) || undefined;
     const customerRequestRaw = args.customerRequestRaw as string;
     const allowCustomerOverlap = args.allowCustomerOverlap === true;
+    const anyCalendar = args.anyCalendar === true;
 
     // Gelme nedeni yerine saat/onay cümlesi gönderildiyse kaydetme (28.09.2026: "sabah 9 olsun").
     if (serviceIds.length === 0 && isSchedulingOnlyText(customerRequestRaw)) {
@@ -54,14 +57,24 @@ export class CreatePendingAppointmentTool implements ITool {
       startsAt,
       serviceIds,
       multiCalendarEnabled: context.multiCalendarEnabled,
+      anyCalendar,
     });
+
+    if (resolved.kind === "choice_required") {
+      return {
+        status: "CALENDAR_CHOICE_REQUIRED",
+        message: "Bu saatte birden fazla uzman müsait; randevu HENÜZ OLUŞTURULMADI. Müşteriye bu adları sade bir dille sun ve hangisini tercih ettiğini sor. " +
+          "Müşteri bir ad seçerse calendarName ile, 'farketmez' derse anyCalendar: true ile aracı tekrar çağır. Müşteriye randevunun oluşturulduğunu SÖYLEME.",
+        data: { availableCalendars: resolved.calendars.map((c) => c.name) },
+      };
+    }
 
     if (resolved.kind === "invalid") {
       return {
         status: "INVALID_CALENDAR_ID",
         message: "Belirtilen takvim bulunamadı. Aşağıdaki GERÇEK takvimlerden müşterinin seçtiğini calendarName (veya bu listedeki id) ile " +
           "aracı BU TURDA tekrar çağır. Müşteriye bekleme/kontrol mesajı verme, teknik ayrıntı anlatma. " +
-          "Müşteri doktor seçmediyse calendarName ve calendarId'yi hiç gönderme; sistem müsait takvimi atar.",
+          "Müşteri açıkça 'farketmez' dediyse calendarName/calendarId göndermeden anyCalendar: true ile çağır.",
         data: { calendars: resolved.calendars },
       };
     }
