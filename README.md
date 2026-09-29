@@ -1,3 +1,21 @@
+﻿## 🔄 AKTARIM NOTU (HANDOVER) - 29 EYLÜL 2026 (Finans Özetleri, Tarih & Para Formatı Optimizasyonları Tamamlandı)
+
+**Şu Anki Durum:**
+M4/Faz 4 kapsamında, AI Muhasebe, İşletmem ve Ödeme Takvimi modüllerinde tarih, zaman dilimi (timezone) ve para birimi formatlaması baştan aşağı yenilenmiş, web ve mobil sürümlerde tam senkronizasyon sağlanmıştır.
+
+**Web & Mobil (Ortak) Durumu:**
+- **Zaman Dilimi ve Tarih Hataları Çözüldü:** 
+ew Date().toISOString() gibi yerel saat dilimini atlayan ve ay sonu kayıtlarında (-1 gün kaymasına yol açarak) 30 Eylül gibi kayıtların listelenmemesine neden olan sorunlar giderildi. Yerine lib/dates.ts içerisine eklenen, ay tabanlı tarihleri yerel saate saygı duyacak şekilde hesaplayan monthRangeYmd utility'si kullanıldı.
+- **Para Birimi (Kuruş) Formatlama:** lib/money.ts oluşturuldu. Büyük meblağlarda gereksiz yere çıkan ,00 kuruş haneleri akıllıca gizlenirken (maximumFractionDigits: 0 hatasına düşmeden), 4.820,50 gibi gerçekten kuruş içeren değerler korundu. 
+- **Yerelleştirme (i18n):** Mobil tarafta ("Ocak", "Şubat") gibi sabit Türkçe ay isimleri ve formatlama dizileri tamamen temizlendi. Yerine i18n.language ve 	oLocaleDateString ile cihaz diline ve yereline uygun dinamik tarih formatlamasına geçildi.
+
+**Mobil (Flow) Durumu:**
+- IsletmemScreen.js ve AiMuhasebeScreen.js içindeki sbuild kaynaklı derleme hataları (çift değişken tanımlaması, eksik süslü parantezler vb.) giderilerek uygulamanın çökmesi engellendi. Component'lerdeki undefined hataları 	sc testlerinden sıfır hatayla geçti.
+
+**Ledger (Müşavir Uygulaması) Durumu:**
+- ledger-isleyici-api (Edge Function) Müşavir entegrasyonu (Ledger) için 'sales' işlemi desteği ve get_finance_summary entegrasyonlarını kapsayacak şekilde origin/main'de yer alan en güncel commit (4e3997e) kullanılarak Supabase üzerinden başarıyla deploy edildi.
+
+
 # Workigom Ecosystem Architecture
 
 Workigom projesi monorepo mimarisinden bağımsız ve modüler 4 ayrı projeye (repository) bölünmüştür. Bu yapı, her bir ürünün bağımsız geliştirilmesini, deploy edilmesini ve yönetilmesini sağlar.
