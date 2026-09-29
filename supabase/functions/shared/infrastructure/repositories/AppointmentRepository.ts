@@ -264,172 +264,37 @@ export class AppointmentRepository {
     }
   }
 
+  /**
+   * Müsait saatler — tek müsaitlik çekirdeği (DB: get_available_slots_for_owner).
+   * Web ve mobil aynı hesabı get_available_slots / get_day_schedule ile görür.
+   * Kurallar DB'de: doktor çalışma saatleri, hizmet süresi, starts_at/ends_at çakışması,
+   * calendar_blocks rezervasyonları (doktor ya da tüm klinik), geçmiş saatler hariç.
+   * (Eski hesap date metnine ve yalnız başlangıç saatine bakıyordu; hata durumunda
+   * uydurma saatler döndürüyordu — 30.09.2026.)
+   *
+   * Dönüş biçimi değişmedi:
+   *   multiCalendarEnabled=false → ["09:30", "10:00", ...]
+   *   multiCalendarEnabled=true  → [{ time: "09:30", availableCalendars: [{ id, name }] }, ...]
+   */
   async getAvailableSlots(merchantId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
-    try {
-      // 1. Get total service duration (fallback to 30 mins)
-      let durationMins = 30;
-      if (serviceIds && serviceIds.length > 0) {
-        const { data: services } = await this.supabase
-          .from('business_services')
-          .select('duration_minutes')
-          .in('id', serviceIds);
-        
-        if (services && services.length > 0) {
-          durationMins = services.reduce((sum: number, s: any) => sum + (s.duration_minutes || 0), 0) || 30;
-        }
-      }
+    const { data, error } = await this.supabase.rpc('get_available_slots_for_owner', {
+      p_owner: merchantId,
+      p_date: date,
+      p_service_ids: serviceIds && serviceIds.length > 0 ? serviceIds : null,
+      p_calendar_id: null,
+    });
 
-      // 2. Generate all possible slots for the day (09:00 - 18:00)
-      const slots: string[] = [];
-      let currentHour = 9;
-      let currentMin = 0;
-      
-      while (currentHour < 18) {
-        const hrStr = currentHour.toString().padStart(2, '0');
-        const mnStr = currentMin.toString().padStart(2, '0');
-        
-        const endHour = currentHour + Math.floor((currentMin + durationMins) / 60);
-        const endMin = (currentMin + durationMins) % 60;
-        if (endHour > 18 || (endHour === 18 && endMin > 0)) {
-          break;
-        }
-
-        slots.push(`${hrStr}:${mnStr}`);
-        
-        currentMin += 30;
-        while (currentMin >= 60) {
-          currentHour += 1;
-          currentMin -= 60;
-        }
-      }
-
-      // If multi-calendar is OFF, use the legacy logic
-      if (!multiCalendarEnabled) {
-        const { data: takenAppointments, error } = await this.supabase
-          .from('appointments')
-          .select('date')
-          .eq('organization_id', merchantId)
-          .in('status', ['Pending', 'Approved'])
-          .like('date', `${date}%`);
-        
-        if (error) {
-          console.error("[AppointmentRepository] Error fetching appointments for slots:", error);
-          return slots; 
-        }
-
-        const takenSet = new Set(takenAppointments.map((a: any) => {
-          if (a.date.includes('T')) {
-             const match = a.date.match(/T(\d{2}:\d{2})/);
-             if (match) return match[1];
-          } else if (a.date.length === 5) {
-             return a.date;
-          } else if (a.date.includes(' ')) {
-             const match = a.date.match(/\s(\d{2}:\d{2})/);
-             if (match) return match[1];
-          }
-          return a.date;
-        }));
-
-        const availableSlots = slots.filter(slot => !takenSet.has(slot));
-        return availableSlots;
-      }
-
-      // If multi-calendar is ON, compute per-calendar availability
-      const { data: allCalendars, error: calError } = await this.supabase
-        .from('calendars')
-        .select('id, name')
-        .eq('merchant_id', merchantId)
-        .eq('is_active', true);
-        
-      if (calError || !allCalendars || allCalendars.length === 0) {
-        // Fallback to legacy string array if no calendars are found
-        return slots;
-      }
-
-      let calendarsToConsider = allCalendars;
-
-      // 1. FILTER BY SERVICES: A calendar must offer ALL requested services
-      if (serviceIds && serviceIds.length > 0) {
-        const { data: calServices, error: csError } = await this.supabase
-          .from('calendar_services')
-          .select('calendar_id, service_id')
-          .in('calendar_id', allCalendars.map((c: any) => c.id))
-          .in('service_id', serviceIds);
-
-        if (!csError && calServices) {
-           const calServiceMap = new Map<string, Set<string>>();
-           for (const cs of calServices) {
-             if (!calServiceMap.has(cs.calendar_id)) calServiceMap.set(cs.calendar_id, new Set());
-             calServiceMap.get(cs.calendar_id)!.add(cs.service_id);
-           }
-           
-           calendarsToConsider = allCalendars.filter((c: any) => {
-             const servicesForCal = calServiceMap.get(c.id);
-             if (!servicesForCal) return false;
-             for (const sid of serviceIds) {
-               if (!servicesForCal.has(sid)) return false;
-             }
-             return true;
-           });
-        }
-      }
-
-      if (calendarsToConsider.length === 0) {
-        return []; // No calendar provides the requested services
-      }
-
-      const { data: takenAppointments, error: apptError } = await this.supabase
-        .from('appointments')
-        .select('date, calendar_id')
-        .eq('organization_id', merchantId)
-        .in('status', ['Pending', 'Approved'])
-        .like('date', `${date}%`);
-
-      if (apptError) {
-        console.error("[AppointmentRepository] Error fetching appointments for multi-calendar slots:", apptError);
-        return slots;
-      }
-
-      // Group taken slots by calendar_id
-      const takenByCalendar = new Map<string, Set<string>>();
-      for (const cal of calendarsToConsider) {
-        takenByCalendar.set(cal.id, new Set<string>());
-      }
-
-      for (const a of (takenAppointments || [])) {
-        if (!a.calendar_id) continue;
-        if (!takenByCalendar.has(a.calendar_id)) continue;
-        
-        let timeSlot = a.date;
-        if (a.date.includes('T')) {
-           const match = a.date.match(/T(\d{2}:\d{2})/);
-           if (match) timeSlot = match[1];
-        } else if (a.date.length === 5) {
-           timeSlot = a.date;
-        } else if (a.date.includes(' ')) {
-           const match = a.date.match(/\s(\d{2}:\d{2})/);
-           if (match) timeSlot = match[1];
-        }
-
-        takenByCalendar.get(a.calendar_id)!.add(timeSlot);
-      }
-
-      // Map each slot to available calendars
-      const structuredSlots = slots.map(slot => {
-        const availableCalendars = calendarsToConsider.filter((cal: any) => !takenByCalendar.get(cal.id)?.has(slot));
-        return {
-          time: slot,
-          availableCalendars: availableCalendars.map((c: any) => ({ id: c.id, name: c.name }))
-        };
-      });
-
-      // Optionally filter out slots where NO calendars are available
-      return structuredSlots.filter(s => s.availableCalendars.length > 0);
-      
-    } catch (e) {
-      console.error("[AppointmentRepository] getAvailableSlots Exception:", e);
-      return ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+    if (error) {
+      // Hata hâlinde boş liste: asistan saat UYDURMAZ, müşteriye kontrol edip döneceğini söyler.
+      console.error("[AppointmentRepository] get_available_slots_for_owner error:", error);
+      return [];
     }
+
+    const rows: { local_time: string; calendars: { id: string; name: string }[] }[] = data ?? [];
+    if (!multiCalendarEnabled) {
+      return rows.map((r) => r.local_time);
+    }
+    return rows.map((r) => ({ time: r.local_time, availableCalendars: r.calendars ?? [] }));
   }
 
   async validateServiceIds(merchantId: string, serviceIds: string[]): Promise<boolean> {
