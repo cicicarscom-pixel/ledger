@@ -1,4 +1,7 @@
--- Block çakışmasını engelle
+-- create_calendar_block: aynı kapsamda (aynı doktor ya da tüm klinik) çakışan rezervasyon varsa
+-- yenisi açılmaz → ALREADY_BLOCKED. Çift tıklamada iki aynı kayıt oluşuyordu (30.09.2026).
+-- Klinik geneli rezervasyon bir doktor rezervasyonunu kapsayabilir; tersine izin yok.
+-- Claude tarafından canlıya uygulandı.
 create or replace function public.create_calendar_block(
   p_calendar_id uuid, p_local_start text, p_local_end text, p_reason text, p_note text default null
 ) returns jsonb language plpgsql security definer set search_path = public as $$
@@ -26,15 +29,15 @@ begin
   v_start := v_ls at time zone v_tz; v_end := v_le at time zone v_tz;
 
   if exists (
-    select 1 from public.calendar_blocks b
-    where b.organization_id = v_owner
-      and (p_calendar_id is null or b.calendar_id = p_calendar_id or b.calendar_id is null)
-      and b.starts_at < v_end and b.ends_at > v_start
+    select 1 from public.calendar_blocks cb
+    where cb.organization_id = v_owner
+      and (cb.calendar_id is not distinct from p_calendar_id or cb.calendar_id is null)
+      and cb.starts_at < v_end and cb.ends_at > v_start
   ) then
     return jsonb_build_object('status', 'ALREADY_BLOCKED');
   end if;
 
-  -- Aralkta aktif randevu varsa rezervasyon almaz; nce tanmal/iptal edilmeli
+  -- Aralıkta aktif randevu varsa rezervasyon açılmaz; önce taşınmalı/iptal edilmeli
   select jsonb_agg(jsonb_build_object(
            'id', a.id, 'customer_name', a.customer_name, 'calendar_name', c.name,
            'local_start', to_char(a.starts_at at time zone v_tz, 'YYYY-MM-DD"T"HH24:MI')) order by a.starts_at)
