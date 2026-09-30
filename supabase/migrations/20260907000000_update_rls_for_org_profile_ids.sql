@@ -1,4 +1,4 @@
-﻿-- Update RLS policies for all tables that use profile_id 
+-- Update RLS policies for all tables that use profile_id 
 -- to support organization_id in profile_id column
 
 -- notifications

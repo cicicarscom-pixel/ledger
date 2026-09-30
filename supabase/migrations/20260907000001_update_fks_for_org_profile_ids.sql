@@ -1,4 +1,4 @@
-﻿-- posts
+-- posts
 UPDATE public.posts t SET profile_id = om.organization_id FROM public.organization_members om WHERE t.profile_id = om.user_id;
 ALTER TABLE public.posts DROP CONSTRAINT IF EXISTS posts_profile_id_fkey;
 ALTER TABLE public.posts ADD CONSTRAINT posts_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.organizations(id) ON DELETE CASCADE;

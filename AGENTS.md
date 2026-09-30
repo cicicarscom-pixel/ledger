@@ -1,4 +1,4 @@
-﻿## 🔄 AKTARIM NOTU (HANDOVER) - 29 EYLÜL 2026 (Finans Özetleri, Tarih & Para Formatı Optimizasyonları Tamamlandı)
+## 🔄 AKTARIM NOTU (HANDOVER) - 29 EYLÜL 2026 (Finans Özetleri, Tarih & Para Formatı Optimizasyonları Tamamlandı)
 
 **Şu Anki Durum:**
 M4/Faz 4 kapsamında, AI Muhasebe, İşletmem ve Ödeme Takvimi modüllerinde tarih, zaman dilimi (timezone) ve para birimi formatlaması baştan aşağı yenilenmiş, web ve mobil sürümlerde tam senkronizasyon sağlanmıştır.

@@ -1,22 +1,23 @@
 name: CI
 on: [push, pull_request]
-
 jobs:
-  build:
+  kontroller:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - name: Check BOM
+          node-version: 20
+      - name: BOM yok
         run: bash scripts/ci/check-bom.sh
-      - name: Check Names
-        run: bash scripts/ci/check-names.sh
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
+      - name: Edge Functions — tanımsız isim, sözdizimi, bulunamayan modül
+        run: bash scripts/ci/check-names.sh supabase/functions
+        env:
+          EXTRA_TSC_FLAGS: --allowImportingTsExtensions
+      - name: Ledger uygulamaları — tanımsız isim, sözdizimi, bulunamayan modül
+        run: bash scripts/ci/check-names.sh apps/ledger apps/admin
+      - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
-      - name: Deno Test
-        run: deno test --allow-all supabase/functions/
+          deno-version: v2.x
+      - name: Koruma testleri (WhatsApp asistanı)
+        run: deno test --no-check --allow-all supabase/functions/shared/ai/guards/ResponseGuards.test.ts
