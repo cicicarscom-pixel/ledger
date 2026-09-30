@@ -13,3 +13,20 @@ pnpm-debug.log*
 
 .env*
 !.env.example
+
+# Geçici dosyalar ve ajan çıktıları (Faz A, 30.09.2026)
+/tmp_*
+/temp_*
+/temp*.txt
+/*.tmp.js
+*.bak
+*.backup
+*.zip
+/Claude outputs/
+/scratch/
+/temp-expo-check*/
+/supabase/.temp/
+/*_dump.sql
+/backup_before_*
+/platformlar/
+/package/

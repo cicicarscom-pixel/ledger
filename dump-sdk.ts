@@ -1,1 +1,0 @@
-import Zernio from "npm:@zernio/node"; console.log("Analytics methods:", Object.keys(new Zernio({apiKey:"dummy"}).analytics)); console.log("Posts methods:", Object.keys(new Zernio({apiKey:"dummy"}).posts));
