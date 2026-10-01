@@ -285,9 +285,8 @@ export class AppointmentRepository {
     });
 
     if (error) {
-      // Hata hâlinde boş liste: asistan saat UYDURMAZ, müşteriye kontrol edip döneceğini söyler.
-      console.error("[AppointmentRepository] get_available_slots_for_owner error:", error);
-      return [];
+      console.error(`[availability_verification_failed] get_available_slots_for_owner RPC failed for owner ${merchantId}:`, error);
+      throw new Error("availability_verification_failed");
     }
 
     const rows: { local_time: string; calendars: { id: string; name: string }[] }[] = data ?? [];

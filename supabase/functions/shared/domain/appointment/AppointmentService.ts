@@ -90,12 +90,20 @@ export class AppointmentService {
     // Tercih yok ("farketmez"): o saatte müsait ilk takvim.
     const date = params.startsAt.slice(0, 10);
     const time = params.startsAt.slice(11, 16);
-    const slots = await this.appointmentRepository.getAvailableSlots(
-      params.merchantId,
-      date,
-      params.serviceIds,
-      true,
-    );
+    let slots;
+    try {
+      slots = await this.appointmentRepository.getAvailableSlots(
+        params.merchantId,
+        date,
+        params.serviceIds,
+        true,
+      );
+    } catch (e: any) {
+      if (e.message === 'availability_verification_failed') {
+         return { kind: "no_free_calendar" };
+      }
+      throw e;
+    }
     const slot = Array.isArray(slots)
       ? slots.find((s: any) => s && typeof s === "object" && s.time === time)
       : null;

@@ -26,12 +26,26 @@ export class ListAvailableSlotsTool implements ITool {
 
     console.log(`[DEBUG] ListAvailableSlotsTool service_id=${serviceIds?.join(',')}, merchant_id=${context.organizationId}`);
 
-    const slots = await this.appointmentService.getAvailableSlots(
-      context.merchantId!,
-      date,
-      serviceIds,
-      context.multiCalendarEnabled
-    );
+    let slots;
+    try {
+      slots = await this.appointmentService.getAvailableSlots(
+        context.merchantId!,
+        date,
+        serviceIds,
+        context.multiCalendarEnabled
+      );
+    } catch (error: any) {
+      if (error.message === 'availability_verification_failed') {
+        return {
+          status: "SYSTEM_ERROR",
+          message: "Şu anda uygun saatleri doğrulayamıyorum. Biraz sonra tekrar deneyebilir veya işletmeyle iletişime geçebilirsiniz. Lütfen saat uydurmayın veya kesin konuşmayın.",
+          data: {
+             error_type: 'availability_verification_failed'
+          }
+        };
+      }
+      throw error;
+    }
 
     console.log(`[DEBUG] ListAvailableSlotsTool bulunan takvimler:`, JSON.stringify(slots));
 
