@@ -62,8 +62,10 @@ export class AIOrchestrator {
             "bu turda çağır ve sonucunu müşteriye ilet.";
         } else if (claimsUnavailable(text) && !hasCheckedAvailability) {
           if (availabilityCorrections >= MAX_AVAILABILITY_CORRECTIONS) {
-            console.warn(`[AIOrchestrator] availability guard ${availabilityCorrections} kez düzeltti, metin geçiriliyor: ${text.slice(0, 200)}`);
-            return text;
+            // Doğrulanmamış "dolu/müsait değil" iddiası müşteriye GÖNDERİLMEZ (Faz D, 01.10.2026).
+            // Önceden metin olduğu gibi geçiriliyordu; yanlış "dolu" bilgisi müşteriye ulaşabiliyordu.
+            console.warn(`[AIOrchestrator] availability guard ${availabilityCorrections} kez düzeltti; doğrulanmamış iddia GÖNDERİLMEDİ, tarafsız yanıt verildi: ${text.slice(0, 200)}`);
+            return "Müsaitlik durumunu şu an doğrulayamadım. İstediğiniz gün ve saati bir kez daha yazar mısınız? Hemen kontrol edeyim.";
           }
           availabilityCorrections++;
           tag = "blocked_false_availability_claim";

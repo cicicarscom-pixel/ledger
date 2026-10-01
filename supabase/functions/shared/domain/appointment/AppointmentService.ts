@@ -42,6 +42,7 @@ export class AppointmentService {
     | { kind: "none" }
     | { kind: "invalid"; calendars: { id: string; name: string }[] }
     | { kind: "no_free_calendar" }
+    | { kind: "verification_failed" } // müsaitlik doğrulanamadı (RPC hatası) — "dolu" DEĞİL
     | { kind: "choice_required"; calendars: { id: string; name: string }[] }
   > {
     const { data: rows, error } = await this.appointmentRepository["supabase"]
@@ -100,7 +101,8 @@ export class AppointmentService {
       );
     } catch (e: any) {
       if (e.message === 'availability_verification_failed') {
-         return { kind: "no_free_calendar" };
+         // Doğrulanamadı ≠ boş doktor yok. "no_free_calendar"a çevirmek müşteriye yanlış "dolu" dedirtir.
+         return { kind: "verification_failed" };
       }
       throw e;
     }

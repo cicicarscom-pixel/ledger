@@ -119,6 +119,16 @@ export class CreatePendingAppointmentTool implements ITool {
       };
     }
 
+    if (resolved.kind === "verification_failed") {
+      return {
+        status: "SYSTEM_ERROR",
+        message:
+          "Şu anda müsaitliği doğrulayamıyorum. Müşteriye saatin dolu olduğunu SÖYLEME ve saat uydurma; " +
+          "kısa bir süre sonra tekrar denemesini ya da işletmeyle doğrudan iletişime geçmesini sade bir dille söyle.",
+        data: { error_type: "availability_verification_failed" },
+      };
+    }
+
     if (resolved.kind === "no_free_calendar") {
       return {
         status: "SLOT_ALREADY_TAKEN",
