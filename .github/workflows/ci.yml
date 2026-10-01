@@ -10,6 +10,8 @@ jobs:
           node-version: 20
       - name: BOM yok
         run: bash scripts/ci/check-bom.sh
+      - name: Kök dizin haritası (STRUCTURE.md)
+        run: node scripts/ci/check-root-map.mjs
       - name: Edge Functions — tanımsız isim, sözdizimi, bulunamayan modül
         run: bash scripts/ci/check-names.sh supabase/functions
         env:
