@@ -13,9 +13,10 @@ export async function acceptConnectionAction(linkId: string) {
       p_action: 'accept'
     });
 
-    if (error || !data?.success) {
-      console.error('acceptConnectionAction Error:', error || data?.error);
-      return { success: false, error: data?.error || 'Bağlantı onaylanamadı.' };
+    // Faz E: review_connection_request → { status: 'SUCCESS' | 'NOT_FOUND' | 'NOT_PENDING' | 'INVALID_ACTION' | 'UNAUTHORIZED' }
+    if (error || data?.status !== 'SUCCESS') {
+      console.error('acceptConnectionAction Error:', error || data?.status);
+      return { success: false, error: data?.status === 'NOT_PENDING' ? 'Bu istek artık onay beklemiyor.' : data?.status === 'NOT_FOUND' ? 'İstek bulunamadı.' : 'Bağlantı onaylanamadı.' };
     }
 
     return { success: true, message: 'Bağlantı başarıyla onaylandı.' };

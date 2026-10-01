@@ -166,7 +166,8 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
             name
           )
         `)
-        .eq('accounting_firm_id', firmId);
+        .eq('accounting_firm_id', firmId)
+        .in('status', ['active', 'pending_confirmation']); // Faz E: kopmuş/reddedilmiş/değiştirilmiş bağlantılar listelenmez
         
       console.log('Shared links result:', { sharedLinks, linkError });
 

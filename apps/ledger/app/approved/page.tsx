@@ -36,7 +36,8 @@ export default async function Page() {
   const { data: links } = await supabaseAdmin
     .from('accountant_taxpayer_links')
     .select('taxpayer_organization_id')
-    .eq('accounting_firm_id', firmMember.accounting_firm_id);
+    .eq('accounting_firm_id', firmMember.accounting_firm_id)
+    .eq('status', 'active'); // yalnız aktif bağlantı (Faz E)
 
   const orgIds = links?.map(l => l.taxpayer_organization_id) || [];
 

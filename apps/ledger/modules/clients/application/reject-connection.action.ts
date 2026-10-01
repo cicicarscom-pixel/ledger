@@ -13,9 +13,10 @@ export async function rejectConnectionAction(linkId: string) {
       p_action: 'reject'
     });
 
-    if (error || !data?.success) {
-      console.error('rejectConnectionAction Error:', error || data?.error);
-      return { success: false, error: data?.error || 'Bağlantı reddedilemedi.' };
+    // Faz E: review_connection_request → { status: 'SUCCESS' | 'NOT_FOUND' | 'NOT_PENDING' | 'INVALID_ACTION' | 'UNAUTHORIZED' }
+    if (error || data?.status !== 'SUCCESS') {
+      console.error('rejectConnectionAction Error:', error || data?.status);
+      return { success: false, error: data?.status === 'NOT_PENDING' ? 'Bu istek artık onay beklemiyor.' : data?.status === 'NOT_FOUND' ? 'İstek bulunamadı.' : 'Bağlantı reddedilemedi.' };
     }
 
     return { success: true, message: 'Bağlantı reddedildi.' };

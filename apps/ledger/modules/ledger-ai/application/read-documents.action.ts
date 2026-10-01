@@ -27,7 +27,8 @@ export async function getPendingDocumentsAction(firmId: string) {
     const { data: links } = await adminSupabase
       .from('accountant_taxpayer_links')
       .select('taxpayer_organization_id')
-      .eq('accounting_firm_id', firmId);
+      .eq('accounting_firm_id', firmId)
+      .eq('status', 'active'); // yalnız aktif bağlantı (Faz E)
       
     const orgIds = links?.map(l => l.taxpayer_organization_id) || [];
 
@@ -92,6 +93,7 @@ export async function getDocumentDetailsAction(documentId: string) {
       .from('accountant_taxpayer_links')
       .select('id')
       .eq('taxpayer_organization_id', document.organization_id)
+      .eq('status', 'active') // yalnız aktif bağlantı (Faz E)
       .in('accounting_firm_id', (
         await supabase.from('accounting_firm_members').select('accounting_firm_id').eq('user_id', user.id)
       ).data?.map(m => m.accounting_firm_id) || [])
@@ -149,7 +151,8 @@ export async function getDashboardDocumentsAction(firmId: string) {
     const { data: links } = await adminSupabase
       .from('accountant_taxpayer_links')
       .select('taxpayer_organization_id')
-      .eq('accounting_firm_id', firmId);
+      .eq('accounting_firm_id', firmId)
+      .eq('status', 'active'); // yalnız aktif bağlantı (Faz E)
       
     const orgIds = links?.map(l => l.taxpayer_organization_id) || [];
 
