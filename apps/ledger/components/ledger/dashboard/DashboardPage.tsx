@@ -7,6 +7,55 @@ import { SectionHeader, PageTitle } from '../ui/Typography';
 import { StatusBadge } from '../ui/Badges';
 import { ActivityCard } from '../ui/Cards';
 
+// Genel beyan takvimi (GİB): Muhtasar ve Prim Hizmet → dönemi izleyen ayın 26'sı; KDV (1 No) → 28'i.
+// Son gün hafta sonuna denk gelirse ilk iş gününe kayar. Resmi tatiller ve Bakanlık süre uzatımları
+// (sirküler) HESABA KATILMAZ — ekranda uyarı gösterilir.
+const TR_MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const TR_DAYS_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+
+function istanbulToday(): { y: number; m: number; d: number } {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date()).split('-').map(Number);
+  return { y, m, d };
+}
+
+function upcomingDeadlines() {
+  const t = istanbulToday();
+  const today = Date.UTC(t.y, t.m - 1, t.d);
+  const rules = [
+    { day: 26, title: 'Muhtasar ve Prim Hizmet', note: 'Beyan ve ödeme son günü' },
+    { day: 28, title: 'KDV Beyannamesi', note: 'Beyan ve ödeme son günü' },
+  ];
+  const result = rules.map((r) => {
+    let due = Date.UTC(t.y, t.m - 1, r.day);
+    if (due < today) due = Date.UTC(t.y, t.m, r.day);
+    const dow = new Date(due).getUTCDay();
+    if (dow === 6) due += 2 * 86400000;
+    if (dow === 0) due += 86400000;
+    const dt = new Date(due);
+    return { ...r, ts: due, dayNum: dt.getUTCDate(), month: TR_MONTHS_SHORT[dt.getUTCMonth()], isNext: false };
+  });
+  result.sort((a, b) => a.ts - b.ts);
+  if (result.length) result[0].isNext = true;
+  return result;
+}
+
+function lastSevenDays(documents: any[]) {
+  const t = istanbulToday();
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const dt = new Date(Date.UTC(t.y, t.m - 1, t.d - (6 - i)));
+    const key = dt.toISOString().slice(0, 10);
+    return { key, label: TR_DAYS_SHORT[dt.getUTCDay()], count: 0 };
+  });
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' });
+  for (const doc of documents) {
+    if (!doc?.created_at) continue;
+    const key = fmt.format(new Date(doc.created_at));
+    const day = days.find((d) => d.key === key);
+    if (day) day.count += 1;
+  }
+  return days;
+}
+
 export default function DashboardPage({ documents = [], rssFeeds = [] }: { documents?: any[], rssFeeds?: any[] }) {
   const router = useRouter();
 
@@ -31,7 +80,12 @@ export default function DashboardPage({ documents = [], rssFeeds = [] }: { docum
   const hazirCount = yeniCount;
   const onaylananCount = bitenCount;
   
-  const recentDocs = documents.slice(0, 5);
+  // Son gelen evrak listesi önceki gibi yalnız onay bekleyenler (sorgu artık son 30 günün tüm belgelerini getiriyor).
+  const recentDocs = documents.filter(d => d.ledger_official_status === 'taslak').slice(0, 5);
+  const deadlines = upcomingDeadlines();
+  const weekly = lastSevenDays(documents);
+  const weeklyMax = Math.max(1, ...weekly.map((d) => d.count));
+  const weeklyTotal = weekly.reduce((sum, d) => sum + d.count, 0);
 
   const formatCurrency = (amount: number, currency: string) => {
     if (amount === undefined || amount === null) return '0,00 ₺';
@@ -74,30 +128,23 @@ export default function DashboardPage({ documents = [], rssFeeds = [] }: { docum
 
       <div className="grid grid-cols-12 gap-1 pt-2">
         {/* ROW 2 */}
-        {/* Upcoming Deadlines (3 cols) */}
+        {/* Upcoming Deadlines (3 cols) — genel beyan takviminden hesaplanır */}
         <AppCard className="col-span-3 p-6">
           <SectionHeader className="mb-4">Önemli Tarihler</SectionHeader>
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 p-3 bg-surface rounded-card border border-border/50">
-              <div className="flex flex-col items-center justify-center w-10 h-10 rounded bg-primary/10 text-primary">
-                <span className="text-xs font-bold">24</span>
-                <span className="text-[10px] uppercase font-semibold">Tem</span>
+            {deadlines.map((dl) => (
+              <div key={dl.title} className="flex items-center gap-3 p-3 bg-surface rounded-card border border-border/50">
+                <div className={`flex flex-col items-center justify-center w-10 h-10 rounded ${dl.isNext ? 'bg-primary/10 text-primary' : 'bg-surface border border-border text-text-muted'}`}>
+                  <span className="text-xs font-bold">{dl.dayNum}</span>
+                  <span className="text-[10px] uppercase font-semibold">{dl.month}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-body font-semibold text-text">{dl.title}</span>
+                  <span className="text-muted text-text-muted">{dl.note}</span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-body font-semibold text-text">KDV Beyannamesi</span>
-                <span className="text-muted text-text-muted">Son gün</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-surface rounded-card border border-border/50">
-              <div className="flex flex-col items-center justify-center w-10 h-10 rounded bg-surface border border-border text-text-muted">
-                <span className="text-xs font-bold">26</span>
-                <span className="text-[10px] uppercase font-semibold">Tem</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-body font-semibold text-text">Muhtasar</span>
-                <span className="text-muted text-text-muted">Ödeme günü</span>
-              </div>
-            </div>
+            ))}
+            <span className="text-[11px] text-text-muted/70 leading-snug">Genel takvim. Resmi tatil ve süre uzatımları için GİB duyurularını kontrol edin.</span>
           </div>
         </AppCard>
 
@@ -227,52 +274,20 @@ export default function DashboardPage({ documents = [], rssFeeds = [] }: { docum
           </div>
         </AppCard>
 
-        {/* Workload Chart (5 cols) */}
+        {/* Workload Chart (5 cols) — son 7 günde gelen evrak (gerçek veri) */}
         <AppCard className="col-span-5 p-6 flex flex-col min-h-[220px] max-h-[260px]">
           <div className="flex justify-between items-center mb-4">
             <SectionHeader>İş Yükü Trendi</SectionHeader>
-            <select className="bg-surface border border-border rounded-input px-2 py-1 text-muted font-semibold text-text-muted focus:outline-none focus:border-primary appearance-none cursor-pointer">
-              <option>BU HAFTA</option>
-              <option>GEÇEN HAFTA</option>
-            </select>
+            <span className="text-muted font-semibold text-text-muted">Son 7 gün · {weeklyTotal} evrak</span>
           </div>
-          <div className="flex-1 relative mt-2">
-            <div className="absolute inset-0 flex flex-col justify-between z-0 pointer-events-none opacity-5">
-              <div className="h-[1px] bg-white"></div>
-              <div className="h-[1px] bg-white"></div>
-              <div className="h-[1px] bg-white"></div>
-            </div>
-            <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-muted font-medium text-text-muted/50 z-10 pointer-events-none">
-              <span>200</span>
-              <span>100</span>
-              <span>0</span>
-            </div>
-            <svg className="absolute inset-0 w-full h-[calc(100%-24px)] z-10 pl-6 pr-2 overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.05"></stop>
-                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0"></stop>
-                </linearGradient>
-              </defs>
-              <path d="M5,100 L5,70 L20,50 L35,80 L50,40 L65,60 L80,20 L95,45 L95,100 Z" fill="url(#chartGradient)"></path>
-              <path d="M5,70 L20,50 L35,80 L50,40 L65,60 L80,20 L95,45" fill="none" stroke="var(--color-primary)" strokeWidth="2"></path>
-              <circle cx="5" cy="70" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="20" cy="50" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="35" cy="80" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="50" cy="40" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="65" cy="60" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="80" cy="20" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-              <circle cx="95" cy="45" fill="var(--color-surface)" r="2" stroke="var(--color-primary)" strokeWidth="2"></circle>
-            </svg>
-            <div className="absolute bottom-0 left-24 right-8 flex justify-between text-muted font-medium text-text-muted/50 z-10 uppercase tracking-tighter">
-              <span>Pzt</span>
-              <span>Sal</span>
-              <span>Çar</span>
-              <span>Per</span>
-              <span>Cum</span>
-              <span>Cmt</span>
-              <span>Paz</span>
-            </div>
+          <div className="flex-1 flex items-end gap-2 pt-2">
+            {weekly.map((d) => (
+              <div key={d.key} className="flex-1 flex flex-col items-center justify-end h-full gap-1" title={`${d.key}: ${d.count} evrak`}>
+                <span className="text-[11px] font-semibold text-text-muted">{d.count > 0 ? d.count : ''}</span>
+                <div className="w-full rounded-t bg-primary/60" style={{ height: `${Math.max(4, Math.round((d.count / weeklyMax) * 100))}%`, opacity: d.count > 0 ? 1 : 0.25 }} />
+                <span className="text-[10px] uppercase font-semibold text-text-muted">{d.label}</span>
+              </div>
+            ))}
           </div>
         </AppCard>
       </div>

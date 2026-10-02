@@ -30,6 +30,10 @@ export interface Client {
   address?: any;
   nextFollowUp?: string;
   recentAIAction?: string;
+  // Gerçek veri (yalnız aktif bağlantıda; onay bekleyende gösterilmez)
+  monthlyDocumentCount?: number;
+  pendingDocumentCount?: number;
+  connectedAt?: string;
 }
 
 export async function getClientsAction(): Promise<{ advisorCode: string | null; clients: Client[] }> {
@@ -161,6 +165,7 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
           id,
           status,
           created_at,
+          connected_at,
           taxpayer_organization_id,
           organizations (
             name
@@ -239,6 +244,27 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
             if (e) email = e.value;
           }
 
+          // Evrak sayıları yalnız AKTİF bağlantıda (onay bekleyen müşavir mükellefin verisini görmez).
+          // Ay başı İstanbul saatine göre (Türkiye 2016'dan beri sabit UTC+3).
+          let monthlyDocumentCount: number | undefined;
+          let pendingDocumentCount: number | undefined;
+          if (link.status === 'active') {
+            const ym = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit' }).format(new Date());
+            const monthStart = `${ym}-01T00:00:00+03:00`;
+            const { count: monthly } = await adminSupabase
+              .from('finance_documents')
+              .select('id', { count: 'exact', head: true })
+              .eq('organization_id', link.taxpayer_organization_id)
+              .gte('created_at', monthStart);
+            const { count: pending } = await adminSupabase
+              .from('finance_documents')
+              .select('id', { count: 'exact', head: true })
+              .eq('organization_id', link.taxpayer_organization_id)
+              .eq('ledger_official_status', 'taslak');
+            monthlyDocumentCount = monthly ?? 0;
+            pendingDocumentCount = pending ?? 0;
+          }
+
           clientsList.push({
             id: link.id,
             companyName: orgName,
@@ -254,6 +280,9 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
             country: 'Türkiye',
             language: 'Türkçe',
             address: address,
+            monthlyDocumentCount,
+            pendingDocumentCount,
+            connectedAt: link.connected_at ? new Date(link.connected_at).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : undefined,
           } as Client);
         }
       }

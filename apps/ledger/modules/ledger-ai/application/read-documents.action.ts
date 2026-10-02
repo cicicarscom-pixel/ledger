@@ -51,7 +51,9 @@ export async function getPendingDocumentsAction(firmId: string) {
         organizations (name)
       `)
       .in('organization_id', orgIds)
-      .eq('ledger_official_status', 'taslak')
+      // Anasayfa sayaçları (Onaylanan / AI İşliyor / Biten) ve 7 günlük grafik için yalnız 'taslak' yetmez:
+      // tüm taslaklar + son 30 günün bütün belgeleri. (Önceden yalnız taslak geliyordu; diğer sayaçlar hep 0'dı.)
+      .or(`ledger_official_status.eq.taslak,created_at.gte.${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`)
       .order('created_at', { ascending: false });
 
     if (error) {

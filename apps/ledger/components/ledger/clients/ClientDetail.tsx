@@ -97,16 +97,8 @@ export function ClientDetail({ client }: ClientDetailProps) {
                 <h3 className="mb-1 text-sm font-semibold text-white">Firma Bilgileri</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-[#8B949E]">Firma Türü</span>
-                    <span className="text-white">Limited Şirket</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-[#8B949E]">Kuruluş Tarihi</span>
-                    <span className="text-white">12.03.2018</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-[#8B949E]">Faaliyet Alanı</span>
-                    <span className="text-white">Yazılım</span>
+                    <span className="text-[#8B949E]">Bağlantı Tarihi</span>
+                    <span className="text-white">{client.connectedAt || "-"}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-2">
                     <span className="text-[#8B949E]">Ülke / Dil</span>
@@ -126,21 +118,25 @@ export function ClientDetail({ client }: ClientDetailProps) {
               <div className="rounded-xl border border-white/5 bg-[#161B22] p-5">
                 <h3 className="mb-1 text-sm font-semibold text-white">Operasyon Özeti</h3>
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between border-b border-white/5 pb-2">
+                  {client.nextFollowUp && (
+                    <div className="flex justify-between border-b border-white/5 pb-2">
                     <span className="text-[#8B949E]">Sonraki Takip</span>
-                    <span className="text-white">{client.nextFollowUp || "-"}</span>
+                    <span className="text-white">{client.nextFollowUp}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
+                  )}
+                  {client.recentAIAction && (
+                    <div className="flex justify-between border-b border-white/5 pb-2">
                     <span className="text-[#8B949E]">Son AI Aksiyonu</span>
-                    <span className="text-white">{client.recentAIAction || "-"}</span>
+                    <span className="text-white">{client.recentAIAction}</span>
                   </div>
+                  )}
                   <div className="flex justify-between border-b border-white/5 pb-2">
                     <span className="text-[#8B949E]">Bu ay gelen evrak</span>
-                    <span className="text-white">18</span>
+                    <span className="text-white">{client.monthlyDocumentCount ?? "-"}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-[#8B949E]">Eksik evrak</span>
-                    <span className="text-red-400">2</span>
+                    <span className="text-[#8B949E]">Onay bekleyen evrak</span>
+                    <span className={(client.pendingDocumentCount ?? 0) > 0 ? "text-amber-400" : "text-white"}>{client.pendingDocumentCount ?? "-"}</span>
                   </div>
                 </div>
               </div>
