@@ -1,168 +1,44 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
+import { AccountantScope, getAdminClient, normalizeName } from "./scope.ts"
 
-/**
- * Creates a Supabase Service Role client to bypass RLS for broadcasting notifications.
- */
-function getAdminClient() {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  
-  if (!serviceRoleKey) {
-    console.error("Missing SUPABASE_SERVICE_ROLE_KEY in environment variables.");
-  }
+// Bildirim araçları — YALNIZ müşavirin aktif mükelleflerine (02.10.2026).
+// Önceden: alıcı bütün platformda aranıyordu ve "herkese" aracı platformdaki TÜM kullanıcılara yazıyordu.
+// Ayrıca bildirim kullanıcı kimliğiyle yazılıyordu; notifications.profile_id = organizations.id olduğu için
+// kayıt hiç oluşmuyordu (yabancı anahtar hatası). Artık profile_id = mükellef işletmesinin kimliği.
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+async function insertNotifications(scope: AccountantScope, orgIds: string[], title: string, message: string): Promise<string | null> {
+  const rows = orgIds.map((id) => ({
+    profile_id: id,
+    sender_id: scope.userId,
+    title,
+    message,
+    type: 'ai_alert',
+    is_read: false,
+    metadata: { kind: 'accountant_message', accounting_firm_id: scope.firmId, firm_name: scope.firmName },
+  }));
+  const { error } = await getAdminClient().from('notifications').insert(rows);
+  return error ? error.message : null;
 }
 
-/**
- * Sends an in-app notification to a specific user by ID or Name.
- * 
- * @param userNameOrId The UUID of the user's profile OR their business name
- * @param title The title of the notification
- * @param message The message body of the notification
- * @param type The type of notification (e.g., ai_alert, system, ledger)
- */
-export async function sendNotificationToUser(
-  userNameOrId: string,
-  title: string,
-  message: string,
-  type: string = 'ai_alert'
-): Promise<string> {
-  try {
-    const supabaseAdmin = getAdminClient();
-    
-    let finalProfileId = userNameOrId;
-    
-    // Check if userNameOrId is a valid UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userNameOrId)) {
-      // It's a name, search in organizations table first
-      // Fix Turkish ILIKE issue by replacing problematic letters with '_'
-      let safeSearch = userNameOrId
-        .replace(/[ıIİi]/g, '%')
-        .replace(/[ğĞ]/g, '%')
-        .replace(/[üÜ]/g, '%')
-        .replace(/[şŞ]/g, '%')
-        .replace(/[öÖ]/g, '%')
-        .replace(/[çÇ]/g, '%');
+export async function sendNotificationToTaxpayer(scope: AccountantScope, nameOrId: string, title: string, message: string): Promise<string> {
+  if (scope.taxpayers.length === 0) return "Aktif bağlantılı mükellefiniz olmadığı için mesaj gönderilemedi.";
+  const query = normalizeName(nameOrId);
+  const exact = scope.taxpayers.filter((t) => t.id === nameOrId || normalizeName(t.name) === query);
+  const words = query.split(' ').filter((w) => w.length > 2);
+  const matches = exact.length > 0 ? exact
+    : scope.taxpayers.filter((t) => { const n = normalizeName(t.name); return words.length > 0 && words.every((w) => n.includes(w)); });
 
-      // Split into words, remove tiny words (likely suffixes like "a", "ya", "ne"), and join with wildcards
-      let searchWords = safeSearch.split(' ').filter(w => w.length > 2);
-      let smartSearchStr = searchWords.length > 0 ? searchWords.join('%') : safeSearch;
-
-      // 1. Check organizations table
-      const { data: orgData, error: orgError } = await supabaseAdmin
-        .from('organizations')
-        .select('id, name')
-        .ilike('name', `%${smartSearchStr}%`)
-        .limit(1);
-
-      if (!orgError && orgData && orgData.length > 0) {
-        // Find the owner/admin of this organization
-        const { data: memberData } = await supabaseAdmin
-          .from('organization_members')
-          .select('user_id')
-          .eq('organization_id', orgData[0].id)
-          .limit(1);
-          
-        if (memberData && memberData.length > 0) {
-          finalProfileId = memberData[0].user_id;
-        } else {
-          return `Firma bulundu ("${orgData[0].name}") ancak bağlı bir yetkili hesabı bulunamadı.`;
-        }
-      } else {
-        // 2. Fallback to profiles table
-        const { data, error: searchError } = await supabaseAdmin
-          .from('profiles')
-          .select('id, business_name')
-          .ilike('business_name', `%${smartSearchStr}%`)
-          .limit(1);
-          
-        if (searchError || !data || data.length === 0) {
-          return `Kullanıcı veya Firma bulunamadı: "${userNameOrId}". Lütfen adı kontrol edin.`;
-        }
-        finalProfileId = data[0].id;
-      }
-    }
-    
-    const { error } = await supabaseAdmin
-      .from('notifications')
-      .insert({
-        profile_id: finalProfileId,
-        title,
-        message,
-        type,
-        is_read: false
-      });
-
-    if (error) {
-      console.error("Error sending notification to user:", error);
-      return `Failed to send notification: ${error.message}`;
-    }
-
-    return `Successfully sent notification to user ${finalProfileId}.`;
-  } catch (error: any) {
-    console.error("Exception in sendNotificationToUser:", error);
-    return `Error: ${error.message}`;
+  if (matches.length === 0) {
+    return `"${nameOrId}" adında aktif bir mükellefiniz bulunamadı. Mükellefleriniz: ${scope.taxpayers.map((t) => t.name).join(', ')}.`;
   }
+  if (matches.length > 1) {
+    return `"${nameOrId}" birden fazla mükellefle eşleşti: ${matches.map((t) => t.name).join(', ')}. Hangisi olduğunu netleştirin.`;
+  }
+  const err = await insertNotifications(scope, [matches[0].id], title, message);
+  return err ? `Mesaj gönderilemedi: ${err}` : `Mesaj "${matches[0].name}" mükellefine iletildi.`;
 }
 
-/**
- * Sends a bulk broadcast notification to ALL users in the platform.
- * 
- * @param title The title of the notification
- * @param message The message body of the notification
- * @param type The type of notification (default: ai_broadcast)
- */
-export async function sendNotificationToAllUsers(
-  title: string,
-  message: string,
-  type: string = 'ai_broadcast'
-): Promise<string> {
-  try {
-    const supabaseAdmin = getAdminClient();
-    
-    // Fetch all user profiles
-    const { data: profiles, error: fetchError } = await supabaseAdmin
-      .from('profiles')
-      .select('id');
-
-    if (fetchError) {
-      console.error("Error fetching profiles:", fetchError);
-      return `Failed to fetch users: ${fetchError.message}`;
-    }
-
-    if (!profiles || profiles.length === 0) {
-      return "No users found in the platform to send notifications to.";
-    }
-
-    // Map to notification objects
-    const notificationsToInsert = profiles.map(profile => ({
-      profile_id: profile.id,
-      title,
-      message,
-      type,
-      is_read: false
-    }));
-
-    // Perform bulk insert
-    const { error: insertError } = await supabaseAdmin
-      .from('notifications')
-      .insert(notificationsToInsert);
-
-    if (insertError) {
-      console.error("Error performing bulk notification insert:", insertError);
-      return `Failed to broadcast notifications: ${insertError.message}`;
-    }
-
-    return `Successfully broadcasted the notification to ${profiles.length} users.`;
-  } catch (error: any) {
-    console.error("Exception in sendNotificationToAllUsers:", error);
-    return `Error: ${error.message}`;
-  }
+export async function sendNotificationToAllTaxpayers(scope: AccountantScope, title: string, message: string): Promise<string> {
+  if (scope.taxpayers.length === 0) return "Aktif bağlantılı mükellefiniz olmadığı için duyuru gönderilemedi.";
+  const err = await insertNotifications(scope, scope.taxpayers.map((t) => t.id), title, message);
+  return err ? `Duyuru gönderilemedi: ${err}` : `Duyuru ${scope.taxpayers.length} aktif mükellefinize iletildi.`;
 }

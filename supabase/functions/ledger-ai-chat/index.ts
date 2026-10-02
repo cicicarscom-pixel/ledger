@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
-import { sendNotificationToUser, sendNotificationToAllUsers } from "./notificationTools.ts"
-import { getTaxpayersSummary, getLatestInvoices, getRecentMessages } from "./ledgerTools.ts"
+import { sendNotificationToTaxpayer, sendNotificationToAllTaxpayers } from "./notificationTools.ts"
+import { resolveAccountantScope } from "./scope.ts"
+import { getTaxpayersSummary, getLatestInvoices } from "./ledgerTools.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +33,14 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
     if (userError || !user) throw new Error('Unauthorized: Invalid JWT')
 
+    // Erişim kapsamı: müşavirin firması + AKTİF mükellefleri. Firma üyesi değilse Ledger AI çalışmaz.
+    const scope = await resolveAccountantScope(user.id)
+    if (!scope) {
+      return new Response(JSON.stringify({ text: 'Ledger AI yalnız bir mali müşavirlik firmasının üyeleri tarafından kullanılabilir.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403,
+      })
+    }
+
     const apiKey = Deno.env.get('LEDGER_GEMINI_API_KEY')
     if (!apiKey) {
       throw new Error('LEDGER_GEMINI_API_KEY is not set in environment variables.')
@@ -46,12 +55,12 @@ ${customInstruction || 'Kullanıcıya nazikçe ve profesyonelce yardımcı ol. J
 ----------------------------------
 
 ÖZEL ARAÇ (TOOL) KULLANIM TALİMATLARI:
-Eğer kullanıcı "Bu mesajı [Kişi Adı]'na gönder" veya "Spesifik birine bildirim at" derse, 'sendNotificationToUser' aracını kullan.
-ÖNEMLİ KURAL: Eğer kullanıcı "bu mükellefe", "şu firmaya", "ona" gibi zamirler kullanırsa, sohbet geçmişine bakarak bahsettiği firmanın veya kişinin TAM ADINI (örn: YILMAZ İNŞAAT...) bul ve araca parametre olarak O TAM ADI gönder. Asla "bu mükellef" gibi belirsiz kelimeler gönderme.
-Eğer kullanıcı "Bunu tüm kullanıcılara gönder / herkese duyuru yap" derse, 'sendNotificationToAllUsers' aracını kullan.
-Eğer kullanıcı "kaç mükellefimiz var", "mükellef listesi", "firmalar" derse 'getTaxpayersSummary' aracını kullan.
-Eğer kullanıcı "gelen faturalar", "faturaları göster" derse 'getLatestInvoices' aracını kullan.
-Eğer kullanıcı "gelen bildirim cevapları", "mesajlar", "müşteriler ne demiş" derse 'getRecentMessages' aracını kullan.
+Eğer kullanıcı "Bu mesajı [Mükellef Adı]'na gönder", "şu firmaya hatırlatma gönder" derse 'sendNotificationToTaxpayer' aracını kullan.
+ÖNEMLİ KURAL: Eğer kullanıcı "bu mükellefe", "şu firmaya", "ona" gibi zamirler kullanırsa, sohbet geçmişine bakarak bahsettiği mükellefin TAM ADINI araca gönder.
+Eğer kullanıcı "tüm mükelleflerime duyuru gönder" derse 'sendNotificationToAllTaxpayers' aracını kullan (yalnız bu firmanın aktif mükelleflerine gider).
+Eğer kullanıcı "kaç mükellefimiz var", "mükellef listesi" derse 'getTaxpayersSummary' aracını kullan.
+Eğer kullanıcı "gelen faturalar", "faturaları göster", "son evraklar" derse 'getLatestInvoices' aracını kullan.
+Yalnız bu firmanın aktif bağlantılı mükellefleri hakkında bilgi verebilir ve yalnız onlara mesaj gönderebilirsin. Diğer işletmeler hakkında bilgi verme.
 Araçları sadece kullanıcı özellikle talep ettiğinde veya bilgi eksikliğin varsa kullan.
 
 SADECE aşağıdaki JSON formatında yanıt dön (eğer tool tetiklemezsen):
@@ -76,43 +85,38 @@ SADECE aşağıdaki JSON formatında yanıt dön (eğer tool tetiklemezsen):
     const tools = [{
       function_declarations: [
         {
-          name: "sendNotificationToUser",
-          description: "Belirli bir kullanıcıya bildirim gönderir.",
+          name: "sendNotificationToTaxpayer",
+          description: "Firmanın aktif bağlantılı bir mükellefine mesaj/hatırlatma gönderir. Mesaj mükellefin Flow uygulamasına düşer.",
           parameters: {
             type: "OBJECT",
             properties: {
-              userNameOrId: { type: "STRING", description: "Kullanıcının adı, unvanı veya ID'si" },
-              title: { type: "STRING", description: "Bildirim başlığı" },
-              message: { type: "STRING", description: "Bildirim içeriği" }
+              taxpayerNameOrId: { type: "STRING", description: "Mükellefin (işletmenin) adı veya kimliği" },
+              title: { type: "STRING", description: "Mesaj başlığı" },
+              message: { type: "STRING", description: "Mesaj içeriği" }
             },
-            required: ["userNameOrId", "title", "message"]
+            required: ["taxpayerNameOrId", "title", "message"]
           }
         },
         {
-          name: "sendNotificationToAllUsers",
-          description: "Sistemdeki tüm kullanıcılara genel duyuru ve bildirim gönderir.",
+          name: "sendNotificationToAllTaxpayers",
+          description: "Firmanın bütün aktif bağlantılı mükelleflerine duyuru gönderir.",
           parameters: {
             type: "OBJECT",
             properties: {
-              title: { type: "STRING", description: "Bildirim başlığı" },
-              message: { type: "STRING", description: "Bildirim içeriği" }
+              title: { type: "STRING", description: "Duyuru başlığı" },
+              message: { type: "STRING", description: "Duyuru içeriği" }
             },
             required: ["title", "message"]
           }
         },
         {
           name: "getTaxpayersSummary",
-          description: "Sistemdeki toplam mükellef sayısını ve özetini getirir.",
+          description: "Firmanın aktif bağlantılı mükelleflerinin sayısını ve listesini getirir.",
           parameters: { type: "OBJECT", properties: {} }
         },
         {
           name: "getLatestInvoices",
-          description: "Sisteme gelen son faturaları getirir.",
-          parameters: { type: "OBJECT", properties: {} }
-        },
-        {
-          name: "getRecentMessages",
-          description: "Müşterilerden/mükelleflerden gelen son mesajları ve bildirim cevaplarını getirir.",
+          description: "Firmanın aktif mükelleflerinden gelen son 10 evrakı getirir.",
           parameters: { type: "OBJECT", properties: {} }
         }
       ]
@@ -151,16 +155,16 @@ SADECE aşağıdaki JSON formatında yanıt dön (eğer tool tetiklemezsen):
           console.log(`Executing tool: ${call.name}`, call.args);
           
           let toolResult = "";
-          if (call.name === "sendNotificationToUser") {
-            toolResult = await sendNotificationToUser(call.args.userNameOrId, call.args.title, call.args.message);
-          } else if (call.name === "sendNotificationToAllUsers") {
-            toolResult = await sendNotificationToAllUsers(call.args.title, call.args.message);
+          if (call.name === "sendNotificationToTaxpayer") {
+            toolResult = await sendNotificationToTaxpayer(scope, call.args.taxpayerNameOrId, call.args.title, call.args.message);
+          } else if (call.name === "sendNotificationToAllTaxpayers") {
+            toolResult = await sendNotificationToAllTaxpayers(scope, call.args.title, call.args.message);
           } else if (call.name === "getTaxpayersSummary") {
-            toolResult = await getTaxpayersSummary();
+            toolResult = await getTaxpayersSummary(scope);
           } else if (call.name === "getLatestInvoices") {
-            toolResult = await getLatestInvoices();
-          } else if (call.name === "getRecentMessages") {
-            toolResult = await getRecentMessages();
+            toolResult = await getLatestInvoices(scope);
+          } else {
+            toolResult = `Bilinmeyen araç: ${call.name}`;
           }
           
           console.log(`Tool Result: ${toolResult}`);

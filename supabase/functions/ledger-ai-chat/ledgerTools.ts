@@ -1,75 +1,35 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0"
+import { AccountantScope, getAdminClient } from "./scope.ts"
 
-function getAdminClient() {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+// Okuma araçları — YALNIZ müşavirin aktif mükellefleri (02.10.2026).
+// Önceden: organizations tablosunun tamamı (platformdaki bütün işletmeler), var olmayan 'invoices' tablosu
+// ve işletmelerin sosyal medya gelen kutusu (müşteri mesajları) filtresiz okunuyordu.
+
+export async function getTaxpayersSummary(scope: AccountantScope): Promise<string> {
+  if (scope.taxpayers.length === 0) return "Şu an aktif bağlantılı mükellefiniz bulunmuyor.";
+  let result = `Aktif bağlantılı ${scope.taxpayers.length} mükellefiniz var:\n`;
+  scope.taxpayers.forEach((t, i) => { result += `${i + 1}. ${t.name}\n`; });
+  return result;
 }
 
-export async function getTaxpayersSummary(): Promise<string> {
+export async function getLatestInvoices(scope: AccountantScope): Promise<string> {
+  if (scope.taxpayers.length === 0) return "Aktif bağlantılı mükellefiniz olmadığı için gösterilecek fatura yok.";
   try {
-    const supabaseAdmin = getAdminClient();
-    const { data, error } = await supabaseAdmin
-      .from('organizations')
-      .select('id, name')
-      .limit(50);
-      
-    if (error) return `Mükellef listesi alınamadı: ${error.message}`;
-    if (!data || data.length === 0) return "Sistemde henüz kayıtlı mükellef bulunmuyor.";
-    
-    let result = `Sistemde şu an ${data.length} adet kayıtlı mükellef bulunmaktadır.\n\nMükellef Listesi:\n`;
-    data.forEach((org, i) => {
-      result += `${i + 1}. ${org.name}\n`;
-    });
-    return result;
-  } catch (error: any) {
-    return `Hata: ${error.message}`;
-  }
-}
-
-export async function getLatestInvoices(): Promise<string> {
-  try {
-    const supabaseAdmin = getAdminClient();
-    const { data, error } = await supabaseAdmin
-      .from('invoices')
-      .select('id, status, created_at, preview_data')
+    const { data, error } = await getAdminClient()
+      .from('finance_documents')
+      .select('title, counterparty_name, amount_minor, currency_code, created_at, ledger_official_status, organization_id')
+      .in('organization_id', scope.taxpayers.map((t) => t.id))
       .order('created_at', { ascending: false })
       .limit(10);
-      
     if (error) return `Faturalar alınamadı: ${error.message}`;
-    if (!data || data.length === 0) return "Sistemde henüz kayıtlı fatura bulunmuyor.";
-    
-    let result = "Son 10 Fatura:\n";
-    data.forEach((inv, i) => {
-      const date = new Date(inv.created_at).toLocaleDateString('tr-TR');
-      const company = inv.preview_data?.kesen_firma || "Bilinmeyen Firma";
-      const amount = inv.preview_data?.fatura_tutari ? `${inv.preview_data.fatura_tutari} TL` : "Belirtilmemiş";
-      result += `${i + 1}. [Tarih: ${date}] ${company} - Tutar: ${amount} (Durum: ${inv.status})\n`;
-    });
-    return result;
-  } catch (error: any) {
-    return `Hata: ${error.message}`;
-  }
-}
-
-export async function getRecentMessages(): Promise<string> {
-  try {
-    const supabaseAdmin = getAdminClient();
-    const { data, error } = await supabaseAdmin
-      .from('messages')
-      .select('content, direction, created_at, profiles(business_name, full_name)')
-      .order('created_at', { ascending: false })
-      .limit(10);
-      
-    if (error) return `Mesajlar alınamadı: ${error.message}`;
-    if (!data || data.length === 0) return "Sistemde okunacak yeni mesaj/cevap bulunmuyor.";
-    
-    let result = "Son 10 Mesaj / Bildirim Cevabı:\n";
-    data.forEach((msg, i) => {
-      const date = new Date(msg.created_at).toLocaleDateString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-      const sender = msg.profiles?.business_name || msg.profiles?.full_name || "Bilinmeyen Kullanıcı";
-      const dir = msg.direction === 'incoming' ? 'Gelen' : 'Giden';
-      result += `${i + 1}. [${date}] [${dir}] ${sender}: "${msg.content}"\n`;
+    if (!data || data.length === 0) return "Mükelleflerinizden henüz gelen fatura yok.";
+    const nameOf = (id: string) => scope.taxpayers.find((t) => t.id === id)?.name ?? 'Mükellef';
+    let result = "Son 10 evrak:\n";
+    data.forEach((d: any, i: number) => {
+      const date = new Date(d.created_at).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
+      const amount = typeof d.amount_minor === 'number'
+        ? new Intl.NumberFormat('tr-TR', { style: 'currency', currency: d.currency_code || 'TRY' }).format(d.amount_minor / 100)
+        : 'Belirtilmemiş';
+      result += `${i + 1}. [${date}] ${nameOf(d.organization_id)} — ${d.counterparty_name || d.title || 'Belge'} — ${amount} (Durum: ${d.ledger_official_status})\n`;
     });
     return result;
   } catch (error: any) {

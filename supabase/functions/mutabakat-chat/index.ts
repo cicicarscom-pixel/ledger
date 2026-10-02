@@ -86,14 +86,22 @@ YANIT FORMATI:
       // Use service role key to update the documents 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
       
-      const { error: updateError } = await supabaseAdmin
-        .from('finance_documents')
-        .update({ flow_payment_status: 'paid' })
-        .in('id', parsedResult.paid_document_ids)
-        // Ensure we only update this user's documents (assuming user_id is the foreign key, or the app uses something else like business_id. We'll rely on RLS if using anon key, but we are using admin key, so we need a check. finance_documents should have user_id or similar).
-        // Let's assume user_id exists. If not, the mutation will fail, and we can fix it later.
-        // Actually, we can just do an 'in' on 'id'.
-        
+      // Yalnız çağıranın üyesi olduğu işletmelerin belgeleri güncellenir (02.10.2026). Önceden belge
+      // kimlikleri yapay zekâ yanıtından gelip sahiplik kontrolü olmadan "ödendi" yapılıyordu.
+      const { data: memberships } = await supabaseAdmin
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+      const myOrgIds = (memberships ?? []).map((m: any) => m.organization_id)
+
+      const { error: updateError } = myOrgIds.length === 0
+        ? { error: null }
+        : await supabaseAdmin
+          .from('finance_documents')
+          .update({ flow_payment_status: 'paid' })
+          .in('id', parsedResult.paid_document_ids)
+          .in('organization_id', myOrgIds)
+
       if (updateError) {
         console.error("Error updating documents:", updateError);
       } else {

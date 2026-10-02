@@ -31,6 +31,14 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  // GÜVENLİK (02.10.2026): yalnız service-role anahtarıyla çağrılabilir. Önceden verify_jwt kapalıydı ve
+  // kimlik kontrolü yoktu; herkes bütün profilleri yeniden adlandırıp işletme adı + e-posta etiketlerini alabiliyordu.
+  // Canlıda şu an devre dışı (403) sürüm var; bu sürüm gerekirse Claude onayıyla deploy edilir.
+  if (!supabaseServiceKey || req.headers.get('Authorization') !== `Bearer ${supabaseServiceKey}`) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   async function buildReadableProfileLabel(orgId: string, profileSlot: number): Promise<string> {
