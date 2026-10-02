@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 import { Client } from "@/modules/clients/application/get-clients.action";
 import { AdvisorInviteCard } from "./AdvisorInviteCard";
 import { ClientList } from "./ClientList";
@@ -21,6 +22,21 @@ export function ClientsPage({ advisorCode, clients }: ClientsPageProps) {
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
   const router = useRouter();
 
+  // Yeni bağlantı isteği / iptal / koparma anında liste kendiliğinden güncellenir.
+  // RLS: firma üyesi yalnız kendi firmasının bağlantı olaylarını alır.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("ledger-client-connections")
+      .on("postgres_changes", { event: "*", schema: "public", table: "accountant_taxpayer_links" }, () => {
+        router.refresh();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
+
   const pendingClients = clients.filter((c) => c.connectionStatus === "activation_pending");
 
   const filteredClients = useMemo(() => {
@@ -38,7 +54,7 @@ export function ClientsPage({ advisorCode, clients }: ClientsPageProps) {
         value ? value.toLocaleLowerCase("tr").includes(normalized) : false,
       ),
     );
-  }, [query]);
+  }, [query, clients]); // clients de bağımlılık: yenilenen liste ekrana yansısın
 
   const selectedClient =
     clients.find((client) => client.id === selectedClientId) ?? clients[0];
