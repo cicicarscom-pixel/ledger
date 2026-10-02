@@ -116,5 +116,11 @@ begin
   select count(*) into c from public.get_available_slots_for_owner(v_owner2, v_mon) g, jsonb_array_elements(g.calendars) x where x->>'name' in ('T-A','T-B');
   if c <> 0 then raise exception 'FAIL T13c: ikinci işletmeye birincinin doktorları listelendi'; end if; n := n + 1;
 
+  -- T14 (Faz F1) eski sütunla yazılan kayıtlarda org_id doğru doldurulur
+  if exists (select 1 from public.calendars where id in (v_calA, v_calB) and org_id is distinct from v_org)
+     or exists (select 1 from public.appointments where booking_token like 'sched-%' and org_id is distinct from v_org)
+     or exists (select 1 from public.calendar_blocks where org_id not in (v_org, v_org2) and organization_id in (v_owner, v_owner2))
+  then raise exception 'FAIL T14: org_id eşitlemesi eksik'; end if; n := n + 1;
+
   raise exception 'SCHEDULING_CORE_TESTS_OK: % kontrol geçti (tüm değişiklikler geri alındı)', n;
 end $$;
