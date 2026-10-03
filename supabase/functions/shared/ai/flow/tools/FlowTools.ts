@@ -2,6 +2,7 @@ import type { AIContext } from '../../types.ts';
 import type { ITool, ToolResult } from '../../tools/types.ts';
 import { FLOW_GUIDES, FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCatalog.ts';
 import { HELP_TOPICS, findHelpTopic } from '../helpTopics.ts';
+import type { CaptionService } from '../CaptionService.ts';
 
 /**
  * Flow AI ilk araçları (FA1-3). Hepsi READ/PREPARE: dış dünyaya etkileri yoktur.
@@ -198,6 +199,37 @@ export class PreparePostDraftTool implements ITool {
   }
 }
 
+/**
+ * Gönderi metni üretir (PREPARE; yayınlamaz). AI Üretim ve web Paylaş ile AYNI CaptionService'i kullanır:
+ * persona tonu, platform kuralları, günlük sınır ve kullanım ölçümü orada. Sonra prepare_post_draft ile taslağa dönüştürülür.
+ */
+export class GenerateCaptionTool implements ITool {
+  readonly name = 'generate_caption';
+  readonly description = 'Verilen konu/talimata göre bir gönderi metni (caption) yazar; platforma ve işletmenin marka sesine uyar. Yayınlamaz. Metni kullanıcıya göster; taslak istenirse prepare_post_draft ile kaydet.';
+  readonly riskLevel = 'PREPARE' as const;
+  readonly schema = {
+    type: 'object',
+    properties: {
+      brief: { type: 'string', description: 'Gönderinin konusu / kullanıcının talimatı (en fazla 1000 karakter).' },
+      platforms: { type: 'array', items: { type: 'string' }, description: 'Hedef platformlar (ör. instagram). Opsiyonel.' },
+    },
+    required: ['brief'],
+  };
+  constructor(private readonly captions: Pick<CaptionService, 'generate'>) {}
+
+  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+    const platforms = Array.isArray(args.platforms) ? args.platforms.filter((p) => typeof p === 'string').map((p) => String(p)).slice(0, 10) : undefined;
+    const r = await this.captions.generate({
+      orgId: context.organizationId, userId: context.customerId,
+      brief: typeof args.brief === 'string' ? args.brief : '', platforms,
+    });
+    if (r.status === 'SUCCESS') return { status: 'SUCCESS', data: { text: r.text, maxChars: r.maxChars } };
+    if (r.status === 'DAILY_LIMIT') return { status: 'DAILY_LIMIT', message: 'Bugünlük metin üretim sınırına ulaşıldı.' };
+    if (r.status === 'INVALID_BRIEF') return { status: 'INVALID_BRIEF', message: 'Konu 1-1000 karakter olmalı.' };
+    return { status: 'ERROR', message: 'Metin şu an üretilemedi.' };
+  }
+}
+
 export class GetHelpTopicTool implements ITool {
   readonly name = 'get_help_topic';
   readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
@@ -220,7 +252,7 @@ export class GetHelpTopicTool implements ITool {
  * includeHighlight: mobilde vurgu (FlowHighlight, FA2-2) yayında olduğu için flow-ai-agent açar; testler ve eski
  * istemciler için varsayılan KAPALI kalır.
  */
-export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean } = {}): ITool[] {
+export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean; captionService?: Pick<CaptionService, 'generate'> } = {}): ITool[] {
   const tools: ITool[] = [
     new GetAppointmentsOverviewTool(admin),
     new GetConnectedSocialAccountsTool(admin),
@@ -231,5 +263,6 @@ export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; 
   if (opts.includeHighlight) tools.push(new HighlightTool());
   // includeDrafts: mobil AI Üretim ekranı draftId ile açmayı (FA3-3) destekleyene kadar KAPALI.
   if (opts.includeDrafts) tools.push(new PreparePostDraftTool(admin));
+  if (opts.captionService) tools.push(new GenerateCaptionTool(opts.captionService));
   return tools;
 }

@@ -22,4 +22,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Koruma testleri (WhatsApp asistanı)
-        run: deno test --no-check --allow-all supabase/functions/shared/ai/guards/ResponseGuards.test.ts supabase/functions/shared/ai/AIOrchestrator.test.ts supabase/functions/shared/ai/persona/PersonaService.test.ts supabase/functions/shared/ai/flow/FlowAIGate.test.ts supabase/functions/shared/ai/flow/tools/FlowTools.test.ts
+        run: deno test --no-check --allow-all supabase/functions/shared/ai/guards/ResponseGuards.test.ts supabase/functions/shared/ai/AIOrchestrator.test.ts supabase/functions/shared/ai/persona/PersonaService.test.ts supabase/functions/shared/ai/flow/FlowAIGate.test.ts supabase/functions/shared/ai/flow/tools/FlowTools.test.ts supabase/functions/shared/ai/flow/CaptionService.test.ts

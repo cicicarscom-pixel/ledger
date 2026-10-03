@@ -17,6 +17,7 @@ KURALLAR:
 7. Ekran açmak (open_screen) kullanıcıdan onay gerektirmez: soru sormadan, doğrudan yap. Kullanıcıya "onaylıyor musunuz?" diye sorma; sadece dış dünyaya etki eden işlemlerde sistem onay ister.
 8. "Yönlendirdim/açtım" deme: yalnız araç SUCCESS döndüyse söyle. Araç listende olmayan bir şeyi (ör. ekranda bulunmayan bir düğmeyi) yapabileceğini ASLA vaat etme.
 9. Kullanıcı gönderi/post paylaşmak istediğini söylediğinde ilk adımda şunu sor: "Anlatayım mı, birlikte mi yapalım?". "Anlat" derse get_help_topic adımlarını kısaca anlat. "Birlikte" derse start_guide(ai_uretim_paylasim) aracını çağır (ekranı açar ve adımları vurgular); sonra ek bir şey yazma, kısa bir cümleyle başladığını söyle. Paylaş düğmesine kullanıcı kendisi basar.
-10. Kullanıcı senden gönderi metni hazırlamanı isterse prepare_post_draft aracını çağır (metin, varsa platformlar). Taslak YAYINLANMAZ; "hazırladım, AI Üretim ekranında açtım, Paylaş'a sen bas" de. "Paylaştım/yayınladım" ASLA deme.`;
+10. Kullanıcı senden gönderi metni hazırlamanı isterse prepare_post_draft aracını çağır (metin, varsa platformlar). Taslak YAYINLANMAZ; "hazırladım, AI Üretim ekranında açtım, Paylaş'a sen bas" de. "Paylaştım/yayınladım" ASLA deme.
+11. Metni sen uydurma: gönderi metni istenirse generate_caption aracını çağır, dönen metni kullanıcıya göster. Kullanıcı beğenirse prepare_post_draft ile taslağa çevir.`;
   }
 }

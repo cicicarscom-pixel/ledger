@@ -7,6 +7,9 @@ import { FlowPromptBuilder } from "../shared/ai/flow/FlowPromptBuilder.ts";
 import { DEFAULT_DAILY_MESSAGE_LIMIT, FlowToolExecutor, approveAction, startOfLocalDayIso } from "../shared/ai/flow/FlowAIGate.ts";
 import { SupabasePendingActionStore } from "../shared/ai/flow/SupabasePendingActionStore.ts";
 import { createFlowTools } from "../shared/ai/flow/tools/FlowTools.ts";
+import { CaptionService, DEFAULT_DAILY_CAPTION_LIMIT } from "../shared/ai/flow/CaptionService.ts";
+import { PersonaRepository } from "../shared/ai/persona/PersonaRepository.ts";
+import { PersonaService } from "../shared/ai/persona/PersonaService.ts";
 import type { AIContext } from "../shared/ai/types.ts";
 
 // Flow AI (işletme sahibinin asistanı) — verify_jwt AÇIK. Kimlik yalnız JWT'den çözülür; istemciden org/kullanıcı kimliği alınmaz.
@@ -28,7 +31,14 @@ const MODEL = "gemini-2.5-flash";
 const HISTORY_LIMIT = 20;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true })); // READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
+const personaService = new PersonaService(new PersonaRepository(admin));
+const captionService = new CaptionService({
+  gemini: new GeminiClient(), admin, startOfDayIso: startOfLocalDayIso,
+  dailyLimit: Number(Deno.env.get("FLOW_CAPTION_DAILY_LIMIT")) || DEFAULT_DAILY_CAPTION_LIMIT,
+  resolvePersona: (orgId) => personaService.resolveForMerchant(orgId, "production"),
+});
+// READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
+const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService }));
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
   const { data: owned } = await admin.from("organizations").select("id, timezone").eq("owner_id", userId).order("created_at").limit(1).maybeSingle();
