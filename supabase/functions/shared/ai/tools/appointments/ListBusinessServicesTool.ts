@@ -21,15 +21,15 @@ export class ListBusinessServicesTool implements ITool {
       const { data: services, error } = await this.supabase
         .from('business_services')
         .select('id, name, duration_minutes, price, currency, unit, description')
-        .eq('merchant_id', context.merchantId)
+        .eq('org_id', context.organizationId)
         .eq('is_visible', true);
 
       if (error) {
-        console.error(`[ListBusinessServicesTool] merchant_id=${context.merchantId} database error:`, error);
+        console.error(`[ListBusinessServicesTool] org_id=${context.organizationId} database error:`, error);
         return { status: "ERROR", message: "Hizmet listesi alınamadı." };
       }
 
-      console.log(`[ListBusinessServicesTool] merchant_id=${context.merchantId} hizmet sayısı: ${services?.length ?? 0}`);
+      console.log(`[ListBusinessServicesTool] org_id=${context.organizationId} hizmet sayısı: ${services?.length ?? 0}`);
 
       if (!services || services.length === 0) {
         return {

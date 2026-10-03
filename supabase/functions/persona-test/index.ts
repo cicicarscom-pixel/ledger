@@ -122,13 +122,24 @@ serve(async (req) => {
   try {
     const { aiOrchestrator, personaRepository, personaService } = createPersonaTestPipeline(supabaseAdmin);
 
+    // Tenant kimliği JWT ile doğrulanmış sahipten çözülür (organizations.id).
+    const { data: orgRow } = await supabaseAdmin
+      .from("organizations")
+      .select("id")
+      .eq("owner_id", merchantId)
+      .maybeSingle();
+    if (!orgRow?.id) {
+      return jsonResponse({ success: false, error: "Organization not found for this user" }, 404);
+    }
+    const orgId: string = orgRow.id;
+
     // Legacy fallback context — mirrors production's botSettings fetch, but
     // tolerant of "no row yet" (a brand-new merchant should still be able to
     // preview Live Test before ever saving bot_settings).
     const { data: botSettings } = await supabaseAdmin
       .from("bot_settings")
       .select("*")
-      .eq("merchant_id", merchantId)
+      .eq("org_id", orgId)
       .maybeSingle();
 
     // Resolve the persona config from the REQUEST BODY's draft values, not
@@ -151,6 +162,7 @@ serve(async (req) => {
         persona,
         {
           merchant_id: merchantId,
+          org_id: orgId,
           persona_id: persona.id,
           business_role: body.businessRole ?? null,
           tone: body.tone ?? null,
@@ -170,7 +182,7 @@ serve(async (req) => {
     // merchant with no persona selected.
 
     const aiContext: AIContext = {
-      organizationId: merchantId,
+      organizationId: orgId,
       customerId: `persona-test-${crypto.randomUUID()}`,
       merchantId,
       now: new Date(),

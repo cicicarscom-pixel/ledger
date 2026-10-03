@@ -21,7 +21,7 @@ export class ListCalendarsTool implements ITool {
       const { data: calendars, error } = await this.supabase
         .from('calendars')
         .select('id, name')
-        .eq('merchant_id', context.merchantId)
+        .eq('org_id', context.organizationId)
         .eq('is_active', true);
 
       if (error) {

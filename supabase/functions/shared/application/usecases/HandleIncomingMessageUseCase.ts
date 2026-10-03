@@ -65,20 +65,24 @@ export class HandleIncomingMessageUseCase {
     const { merchantId, source, senderId, userMessage, platform, isComment, postId, zernioAccountId: initialZernioAccountId } = payload;
     let zernioAccountId = initialZernioAccountId;
 
+    // 0. Tenant kimliği: kanal kimliği (merchantId = WAHA oturumu = sahibin auth id'si) burada
+    // bir kez organizations.id'ye çözülür; bundan sonra bütün sorgular orgId ile yapılır.
+    // Sosyal kanalda merchantId zaten organizations.id'dir; çözümleme boş dönerse aynen kullanılır.
+    const { data: orgData } = await supabaseClient
+      .from('organizations')
+      .select('id, multi_calendar_enabled')
+      .eq('owner_id', merchantId)
+      .maybeSingle();
+    const orgId: string = orgData?.id ?? merchantId;
+
     // 1. Fetch Bot Settings
-    const { data: botSettings, error: botError } = await BotSettingsRepository.resolveBotSettingsForOrg(supabaseClient, merchantId);
+    const { data: botSettings, error: botError } = await BotSettingsRepository.resolveBotSettingsForOrg(supabaseClient, orgId);
       
     // Fetch organization AI settings for timezone
     const { data: orgAiSettings } = await supabaseClient
       .from('organization_ai_settings')
       .select('timezone, appointment_module_enabled')
-      .eq('merchant_id', merchantId)
-      .maybeSingle();
-
-    const { data: orgData } = await supabaseClient
-      .from('organizations')
-      .select('id, multi_calendar_enabled')
-      .eq('owner_id', merchantId)
+      .eq('org_id', orgId)
       .maybeSingle();
       
     const resolvedTimezone = orgAiSettings?.timezone || 'Europe/Istanbul';
@@ -107,7 +111,7 @@ export class HandleIncomingMessageUseCase {
     // with that — this use case never needs to know the details.
     let personaConfig = null;
     try {
-      personaConfig = await this.deps.personaService.resolveForMerchant(merchantId, 'production');
+      personaConfig = await this.deps.personaService.resolveForMerchant(orgId, 'production', merchantId);
     } catch (error) {
       console.error('[HandleIncomingMessageUseCase] PersonaService resolution failed, falling back to legacy prompt:', error);
     }
@@ -116,7 +120,7 @@ export class HandleIncomingMessageUseCase {
     const { data: existingCustomer, error: existingCustomerError } = await supabaseClient
       .from('customers')
       .select('name, created_at, appointment_draft')
-      .eq('organization_id', merchantId)
+      .eq('org_id', orgId)
       .eq('phone', senderId)
       .maybeSingle();
 
@@ -129,7 +133,7 @@ export class HandleIncomingMessageUseCase {
       const { data: appts, error: apptsError } = await supabaseClient
         .from('appointments')
         .select('service_id, date, status')
-        .eq('organization_id', merchantId)
+        .eq('org_id', orgId)
         .eq('customer_phone', senderId)
         .order('date', { ascending: false })
         .limit(5);
@@ -142,15 +146,15 @@ export class HandleIncomingMessageUseCase {
       }
     }
 
-    const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(merchantId, senderId, resolvedTimezone).catch(() => []);
+    const activeAppointments = await this.deps.appointmentRepository.findActiveByPhone(orgId, senderId, resolvedTimezone).catch(() => []);
 
     let finalName = existingCustomer?.name || payload.customerName || null;
     if ((!existingCustomer || !existingCustomer.name) && payload.customerName) {
       const { error: upsertError } = await supabaseClient.from('customers').upsert({
-        organization_id: merchantId,
+        org_id: orgId,
         phone: senderId,
         name: payload.customerName
-      }, { onConflict: 'organization_id, phone' });
+      }, { onConflict: 'org_id, phone' });
       if (upsertError) {
         console.error('[HandleIncomingMessageUseCase] Error upserting customer name:', upsertError);
       }
@@ -158,9 +162,9 @@ export class HandleIncomingMessageUseCase {
 
     // 3. Build AI Context
     const aiContext: AIContext = {
-      organizationId: orgData?.id || merchantId,
+      organizationId: orgId,
       customerId: senderId, // For Waha, this is phone number. For Zernio, conversation/user ID.
-      merchantId: merchantId,
+      merchantId: merchantId, // yalnız WAHA oturumu (gönderim) için
       now: new Date(),
       timezone: resolvedTimezone,
       botSettings: botSettings,
@@ -187,7 +191,7 @@ export class HandleIncomingMessageUseCase {
     try {
       const history = await this.deps.logger.getRecentHistory(
         supabaseClient,
-        merchantId,
+        orgId,
         platform || source, // Use fine-grained platform (e.g. 'instagram') if available
         senderId,
         5 // fetch last 5 turns (10 messages)
@@ -218,7 +222,7 @@ export class HandleIncomingMessageUseCase {
           if (localPost) {
             await supabaseClient.from('comments').insert({
               post_id: localPost.id,
-              profile_id: merchantId,
+              profile_id: orgId,
               zernio_comment_id: replyRes?.data?.id || `ai_mock_${Date.now()}`,
               zernio_post_id: postId,
               content: aiResponse,
@@ -228,7 +232,7 @@ export class HandleIncomingMessageUseCase {
         } else {
           // Direct Message
           if (!zernioAccountId) {
-            const { data: accounts } = await supabaseClient.schema('integration').from('social_accounts').select('zernio_account_id').eq('organization_id', merchantId).limit(1);
+            const { data: accounts } = await supabaseClient.schema('integration').from('social_accounts').select('zernio_account_id').eq('organization_id', orgId).limit(1);
             if (accounts && accounts.length > 0) zernioAccountId = accounts[0].zernio_account_id;
           }
           if (zernioAccountId) {
@@ -239,7 +243,7 @@ export class HandleIncomingMessageUseCase {
             if (localConv) {
               await supabaseClient.from('messages').insert({
                 conversation_id: localConv.id,
-                profile_id: merchantId,
+                profile_id: orgId,
                 zernio_message_id: msgRes?.data?.id || `ai_mock_${Date.now()}`,
                 direction: 'outgoing',
                 content: aiResponse,
@@ -255,7 +259,7 @@ export class HandleIncomingMessageUseCase {
     // 6. Log the Interaction
     await this.deps.logger.logInteraction(
       supabaseClient,
-      merchantId,
+      orgId,
       platform || source, // Save the fine-grained platform so memory doesn't cross-contaminate
       senderId,
       userMessage,

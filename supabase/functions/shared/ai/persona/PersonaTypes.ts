@@ -57,6 +57,7 @@ export interface PersonaRow {
 // Raw row shape as stored in public.organization_ai_settings
 export interface OrganizationAiSettingsRow {
   merchant_id: string;
+  org_id?: string;
   persona_id: string | null;
   business_role: string | null;
   tone: string | null;

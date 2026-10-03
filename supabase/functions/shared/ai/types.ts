@@ -23,7 +23,9 @@ export interface AIActiveAppointment {
 }
 
 export interface AIContext {
+  /** organizations.id — tenant anahtarı. Veritabanı sorguları YALNIZ bunu kullanır. */
   organizationId: string;
+  /** İşletme sahibinin auth.users.id'si = WAHA oturum adı. Yalnız kanal (WhatsApp gönderimi) için; sorgularda kullanılmaz. */
   merchantId?: string;
   customerId: string;
   now: Date;

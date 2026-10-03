@@ -19,7 +19,7 @@ export class UpdateAppointmentTool implements ITool {
       return { status: "MODULE_DISABLED", message: "Appointment/reservation feature is disabled for this business." };
     }
     const result = await this.appointmentService.rescheduleAppointment({
-      organizationId: context.organizationId, customerId: context.customerId,
+      orgId: context.organizationId, customerId: context.customerId,
       appointmentId: args.appointmentId as string, newStartsAt: args.newStartsAt as string,
       executionMode: context.executionMode,
     });

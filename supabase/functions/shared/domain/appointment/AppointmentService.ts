@@ -30,7 +30,7 @@ export class AppointmentService {
    *    değilse CHOICE_REQUIRED (müşteriye sorulmalı — işletme kuralı; 28.09.2026 v93 gerilemesi)
    */
   async resolveCalendar(params: {
-    merchantId: string;
+    orgId: string;
     calendarId?: string;
     calendarName?: string;
     startsAt: string;
@@ -48,7 +48,7 @@ export class AppointmentService {
     const { data: rows, error } = await this.appointmentRepository["supabase"]
       .from("calendars")
       .select("id, name")
-      .eq("merchant_id", params.merchantId)
+      .eq("org_id", params.orgId)
       .eq("is_active", true);
 
     if (error) {
@@ -94,7 +94,7 @@ export class AppointmentService {
     let slots;
     try {
       slots = await this.appointmentRepository.getAvailableSlots(
-        params.merchantId,
+        params.orgId,
         date,
         params.serviceIds,
         true,
@@ -119,7 +119,7 @@ export class AppointmentService {
 
   async rescheduleAppointment(
     params: {
-      merchantId: string;
+      orgId: string;
       customerId?: string;
       appointmentId: string;
       newStartsAt: string;
@@ -139,7 +139,7 @@ export class AppointmentService {
       }
       const updated = await this.appointmentRepository
         .updateAppointmentDateTime(
-          params.merchantId,
+          params.orgId,
           params.appointmentId,
           params.customerId,
           params.newStartsAt,
@@ -165,8 +165,7 @@ export class AppointmentService {
   }
 
   async createPendingAppointment(params: {
-    organizationId: string;
-    merchantId: string;
+    organizationId: string; // organizations.id
     customerId?: string;
     customerName?: string;
     customerRequestRaw?: string;
@@ -200,7 +199,7 @@ export class AppointmentService {
         .from("calendars")
         .select("id")
         .eq("id", params.calendarId)
-        .eq("merchant_id", params.merchantId)
+        .eq("org_id", params.organizationId)
         .maybeSingle();
 
       if (!calExists) {
@@ -214,7 +213,7 @@ export class AppointmentService {
       }
     } else {
       const areServicesValid = await this.appointmentRepository
-        .validateServiceIds(params.merchantId, params.serviceIds);
+        .validateServiceIds(params.organizationId, params.serviceIds);
       if (!areServicesValid) {
         console.warn(
           "[AppointmentService] Invalid service IDs provided:",
@@ -241,7 +240,6 @@ export class AppointmentService {
       // 3. Insert Appointment (production only)
       await this.appointmentRepository.createPendingAppointment({
         organizationId: params.organizationId,
-        merchantId: params.merchantId,
         customerId: params.customerId!,
         customerName: params.customerName!,
         customerRequestRaw: params.customerRequestRaw,
@@ -281,7 +279,7 @@ export class AppointmentService {
    * appointments.date yerel saat metnidir (trigger doldurur): "YYYY-MM-DDTHH:mm:ss".
    */
   async findSameDayActiveAppointments(
-    merchantId: string,
+    orgId: string,
     customerPhone: string | undefined,
     startsAt: string,
   ): Promise<{ time: string; endTime: string; startMin: number; endMin: number; calendarName: string; reason: string }[]> {
@@ -291,7 +289,7 @@ export class AppointmentService {
     const { data: rows, error } = await supabase
       .from("appointments")
       .select("date, starts_at, ends_at, calendar_id, customer_request_raw")
-      .eq("organization_id", merchantId)
+      .eq("org_id", orgId)
       .eq("customer_phone", customerPhone)
       .in("status", ["Pending", "Approved"])
       .gte("date", `${day}T00:00:00`)
@@ -328,13 +326,13 @@ export class AppointmentService {
   }
 
   async getAvailableSlots(
-    merchantId: string,
+    orgId: string,
     date: string,
     serviceIds: string[],
     multiCalendarEnabled?: boolean,
   ): Promise<any> {
     return this.appointmentRepository.getAvailableSlots(
-      merchantId,
+      orgId,
       date,
       serviceIds,
       multiCalendarEnabled,

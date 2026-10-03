@@ -50,13 +50,14 @@ export class PersonaService {
    * live." Only a full "published" promotion (after this suite passes) opens
    * it to real customers generally.
    */
-  private static isComplianceTestMerchant(merchantId: string): boolean {
+  // Liste eski kayıtlar için sahip kimliği (owner id) ya da organizations.id içerebilir; ikisinden biri eşleşirse yeterli.
+  private static isComplianceTestMerchant(...ids: (string | undefined)[]): boolean {
     const raw = Deno.env.get("PERSONA_COMPLIANCE_TEST_MERCHANT_IDS") ?? "";
     return raw
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean)
-      .includes(merchantId);
+      .some((id) => ids.includes(id));
   }
 
   /**
@@ -76,10 +77,11 @@ export class PersonaService {
    * fallback itself — it only ever answers "is there a usable persona here".
    */
   async resolveForMerchant(
-    merchantId: string,
+    orgId: string,
     executionMode: ExecutionMode = "production",
+    legacyOwnerId?: string,
   ): Promise<PersonaRenderConfig | null> {
-    const orgSettings = await this.repository.getOrganizationSettings(merchantId);
+    const orgSettings = await this.repository.getOrganizationSettings(orgId);
     if (!orgSettings) {
       return null;
     }
@@ -113,7 +115,7 @@ export class PersonaService {
     if (!persona) {
       console.warn(
         `[PersonaService] organization_ai_settings.persona_id=${orgSettings.persona_id} ` +
-          `for merchant=${merchantId} does not resolve to an ai_personas row (deleted?). Falling back to Standart.`,
+          `for org=${orgId} does not resolve to an ai_personas row (deleted?). Falling back to Standart.`,
       );
       return {
         personaId: "standart",
@@ -141,7 +143,7 @@ export class PersonaService {
     }
 
     return this.resolveFromRows(persona, orgSettings, executionMode, {
-      allowTestingStatus: PersonaService.isComplianceTestMerchant(merchantId),
+      allowTestingStatus: PersonaService.isComplianceTestMerchant(orgId, legacyOwnerId),
     });
   }
 

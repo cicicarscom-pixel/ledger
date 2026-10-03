@@ -1,6 +1,6 @@
 export class BotSettingsRepository {
-  static async resolveBotSettingsForOrg(supabaseClient: any, merchantId: string) {
-    // merchantId is actually the user_id (owner_id) because Waha session is named after user.id
-    return await supabaseClient.from('bot_settings').select('*').eq('merchant_id', merchantId).maybeSingle();
+  static async resolveBotSettingsForOrg(supabaseClient: any, orgId: string) {
+    // orgId = organizations.id (WAHA oturum adındaki sahip kimliği kullanım yerinde orgId'ye çözülür)
+    return await supabaseClient.from('bot_settings').select('*').eq('org_id', orgId).maybeSingle();
   }
 }

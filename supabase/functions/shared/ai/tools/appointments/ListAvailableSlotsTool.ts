@@ -24,12 +24,12 @@ export class ListAvailableSlotsTool implements ITool {
     const date = args.date as string;
     const serviceIds = args.serviceIds as string[];
 
-    console.log(`[DEBUG] ListAvailableSlotsTool service_id=${serviceIds?.join(',')}, merchant_id=${context.organizationId}`);
+    console.log(`[DEBUG] ListAvailableSlotsTool service_id=${serviceIds?.join(',')}, org_id=${context.organizationId}`);
 
     let slots;
     try {
       slots = await this.appointmentService.getAvailableSlots(
-        context.merchantId!,
+        context.organizationId,
         date,
         serviceIds,
         context.multiCalendarEnabled
@@ -52,7 +52,7 @@ export class ListAvailableSlotsTool implements ITool {
     // Müşterinin o günkü KENDİ randevuları: asistan bu saatleri müsait saat gibi önermesin
     // (28.09.2026 22:44: müşterinin kendi 16:00 randevusu varken 16:00 için doktor seçtirildi).
     const own = await this.appointmentService
-      .findSameDayActiveAppointments(context.merchantId!, context.customerId, `${date}T00:00:00`)
+      .findSameDayActiveAppointments(context.organizationId, context.customerId, `${date}T00:00:00`)
       .catch(() => []);
 
     if (own.length === 0) {

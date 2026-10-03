@@ -1,7 +1,7 @@
 export class CommunicationLoggerRepository {
   async logInteraction(
     supabaseClient: any,
-    merchantId: string,
+    orgId: string,
     platform: string,
     senderId: string,
     userMessage: string,
@@ -10,7 +10,7 @@ export class CommunicationLoggerRepository {
     const { error } = await supabaseClient
       .from('ai_communication_logs')
       .insert({
-        merchant_id: merchantId,
+        org_id: orgId,
         platform,
         sender_id: senderId,
         user_message: userMessage,
@@ -24,7 +24,7 @@ export class CommunicationLoggerRepository {
 
   async getRecentHistory(
     supabaseClient: any,
-    merchantId: string,
+    orgId: string,
     platform: string,
     senderId: string,
     limit: number = 5
@@ -32,7 +32,7 @@ export class CommunicationLoggerRepository {
     const { data, error } = await supabaseClient
       .from('ai_communication_logs')
       .select('user_message, ai_response')
-      .eq('merchant_id', merchantId)
+      .eq('org_id', orgId)
       .eq('platform', platform)
       .eq('sender_id', senderId)
       .order('created_at', { ascending: false })

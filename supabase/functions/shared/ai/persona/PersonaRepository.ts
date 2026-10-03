@@ -17,11 +17,11 @@ import { OrganizationAiSettingsRow, PersonaRow } from "./PersonaTypes.ts";
 export class PersonaRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async getOrganizationSettings(merchantId: string): Promise<OrganizationAiSettingsRow | null> {
+  async getOrganizationSettings(orgId: string): Promise<OrganizationAiSettingsRow | null> {
     const { data, error } = await this.supabase
       .from("organization_ai_settings")
       .select("*")
-      .eq("merchant_id", merchantId)
+      .eq("org_id", orgId)
       .maybeSingle();
 
     if (error) {

@@ -27,11 +27,11 @@ function localToUtc(local: string, tz: string): string {
 export class AppointmentRepository {
   constructor(private readonly supabase: any) {}
 
-  async findConflictingSlot(merchantId: string, startsAt: string, calendarId?: string): Promise<boolean> {
+  async findConflictingSlot(orgId: string, startsAt: string, calendarId?: string): Promise<boolean> {
     let query = this.supabase
       .from('appointments')
       .select('id')
-      .eq('organization_id', merchantId)
+      .eq('org_id', orgId)
       .eq('date', startsAt)
       .in('status', ['Pending', 'Approved']);
 
@@ -54,8 +54,7 @@ export class AppointmentRepository {
   }
 
   async createPendingAppointment(params: {
-    organizationId: string; // Used only for organizations table query
-    merchantId: string;
+    organizationId: string; // organizations.id (tenant anahtarı)
     customerId: string;
     customerName: string;
     customerRequestRaw?: string;
@@ -123,7 +122,7 @@ export class AppointmentRepository {
       const { data: overlaps, error: ovErr } = await this.supabase
         .from('appointments')
         .select('id, starts_at, calendar_id')
-        .eq('organization_id', params.merchantId)
+        .eq('org_id', params.organizationId)
         .eq('customer_phone', params.customerId)
         .in('status', ['Pending', 'Approved'])
         .lt('starts_at', endsAt)
@@ -140,7 +139,7 @@ export class AppointmentRepository {
     const { data, error } = await this.supabase
       .from('appointments')
       .insert({
-          organization_id: params.merchantId,
+          org_id: params.organizationId,
           customer_phone: params.customerId,
           customer_name: params.customerName,
           service_id: primaryServiceId,
@@ -165,7 +164,7 @@ export class AppointmentRepository {
     if (params.serviceIds.length > 0 && data?.id) {
       const serviceInserts = params.serviceIds.map(sid => ({
         appointment_id: data.id,
-        organization_id: params.merchantId,
+        org_id: params.organizationId,
         service_id: sid
       }));
       
@@ -179,7 +178,7 @@ export class AppointmentRepository {
     }
 
     // 3. Upsert customer record
-    await this.upsertCustomer(params.merchantId, params.customerId, params.customerName);
+    await this.upsertCustomer(params.organizationId, params.customerId, params.customerName);
 
     // 4. Fetch all service names for notification
     let serviceNames = params.customerRequestRaw || "Belirtilmemiş";
@@ -198,14 +197,14 @@ export class AppointmentRepository {
     return data;
   }
 
-  async findActiveByPhone(merchantId: string, phone: string, timezone = 'Europe/Istanbul'): Promise<any[]> {
+  async findActiveByPhone(orgId: string, phone: string, timezone = 'Europe/Istanbul'): Promise<any[]> {
     // Yalnız bugün ve sonrası: geçmiş tarihli "Pending" kayıtlar limit(5)'i doldurup
     // gelecekteki randevuları listeden düşürmesin.
     const todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
     const { data, error } = await this.supabase
       .from('appointments')
       .select('id, service_id, date, status')
-      .eq('organization_id', merchantId)
+      .eq('org_id', orgId)
       .eq('customer_phone', phone)
       .in('status', ['Pending', 'Approved'])
       .gte('date', `${todayLocal}T00:00:00`)
@@ -232,10 +231,10 @@ export class AppointmentRepository {
     // Bildirim hatası ASLA randevu işlemini geri almaz veya başarısız göstermez.
   }
   
-  async updateAppointmentDateTime(merchantId: string, appointmentId: string, customerPhone: string, newStartsAt: string): Promise<any> {
+  async updateAppointmentDateTime(orgId: string, appointmentId: string, customerPhone: string, newStartsAt: string): Promise<any> {
     const { data: existing, error: fetchError } = await this.supabase
       .from('appointments').select('*')
-      .eq('id', appointmentId).eq('organization_id', merchantId).eq('customer_phone', customerPhone)
+      .eq('id', appointmentId).eq('org_id', orgId).eq('customer_phone', customerPhone)
       .maybeSingle();
     if (fetchError) { console.error("[AppointmentRepository] Error fetching appointment before reschedule:", fetchError); throw fetchError; }
     if (!existing) return null;
@@ -245,18 +244,18 @@ export class AppointmentRepository {
   
     const serviceName = await this.getServiceName(existing.service_id);
     await this.notifyMerchant(
-      merchantId, 'Randevu Güncellendi',
+      orgId, 'Randevu Güncellendi',
       `${existing.customer_name || 'Müşteri'}'in "${serviceName}" için ${this.formatLocalTime(existing.date)} saatindeki randevusu ${this.formatLocalTime(newStartsAt)}'a alındı.`
     );
     return data;
   }
 
-  async upsertCustomer(merchantId: string, phone: string, name: string): Promise<void> {
+  async upsertCustomer(orgId: string, phone: string, name: string): Promise<void> {
     const { error } = await this.supabase.from('customers').upsert({
-      organization_id: merchantId,
+      org_id: orgId,
       phone: phone,
       name: name
-    }, { onConflict: 'organization_id,phone' });
+    }, { onConflict: 'org_id,phone' });
 
     if (error) {
       console.error("[AppointmentRepository] Error upserting customer:", error);
@@ -265,7 +264,7 @@ export class AppointmentRepository {
   }
 
   /**
-   * Müsait saatler — tek müsaitlik çekirdeği (DB: get_available_slots_for_owner).
+   * Müsait saatler — tek müsaitlik çekirdeği (DB: get_available_slots_for_org).
    * Web ve mobil aynı hesabı get_available_slots / get_day_schedule ile görür.
    * Kurallar DB'de: doktor çalışma saatleri, hizmet süresi, starts_at/ends_at çakışması,
    * calendar_blocks rezervasyonları (doktor ya da tüm klinik), geçmiş saatler hariç.
@@ -276,16 +275,16 @@ export class AppointmentRepository {
    *   multiCalendarEnabled=false → ["09:30", "10:00", ...]
    *   multiCalendarEnabled=true  → [{ time: "09:30", availableCalendars: [{ id, name }] }, ...]
    */
-  async getAvailableSlots(merchantId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
-    const { data, error } = await this.supabase.rpc('get_available_slots_for_owner', {
-      p_owner: merchantId,
+  async getAvailableSlots(orgId: string, date: string, serviceIds: string[], multiCalendarEnabled?: boolean): Promise<any> {
+    const { data, error } = await this.supabase.rpc('get_available_slots_for_org', {
+      p_org: orgId,
       p_date: date,
       p_service_ids: serviceIds && serviceIds.length > 0 ? serviceIds : null,
       p_calendar_id: null,
     });
 
     if (error) {
-      console.error(`[availability_verification_failed] get_available_slots_for_owner RPC failed for owner ${merchantId}:`, error);
+      console.error(`[availability_verification_failed] get_available_slots_for_org RPC failed for org ${orgId}:`, error);
       throw new Error("availability_verification_failed");
     }
 
@@ -296,13 +295,13 @@ export class AppointmentRepository {
     return rows.map((r) => ({ time: r.local_time, availableCalendars: r.calendars ?? [] }));
   }
 
-  async validateServiceIds(merchantId: string, serviceIds: string[]): Promise<boolean> {
+  async validateServiceIds(orgId: string, serviceIds: string[]): Promise<boolean> {
     if (!serviceIds || serviceIds.length === 0) return false;
     try {
       const { data, error } = await this.supabase
         .from('business_services')
         .select('id')
-        .eq('merchant_id', merchantId)
+        .eq('org_id', orgId)
         .in('id', serviceIds);
       if (error) {
         console.error("[AppointmentRepository] DB Error validating service IDs:", error);

@@ -53,7 +53,7 @@ export class CreatePendingAppointmentTool implements ITool {
     }
 
     const sameDay = await this.appointmentService.findSameDayActiveAppointments(
-      context.merchantId!, context.customerId, startsAt,
+      context.organizationId, context.customerId, startsAt,
     );
 
     // 1) Önce TAM SAAT çakışması: müşterinin tam bu saatte kendi randevusu varsa bunu doğrudan söyle
@@ -90,7 +90,7 @@ export class CreatePendingAppointmentTool implements ITool {
     }
 
     const resolved = await this.appointmentService.resolveCalendar({
-      merchantId: context.merchantId!,
+      orgId: context.organizationId,
       calendarId: requestedCalendarId,
       calendarName: requestedCalendarName,
       startsAt,
@@ -141,7 +141,6 @@ export class CreatePendingAppointmentTool implements ITool {
 
     const result = await this.appointmentService.createPendingAppointment({
       organizationId: context.organizationId,
-      merchantId: context.merchantId!,
       customerId: context.customerId,
       customerName,
       serviceIds,
