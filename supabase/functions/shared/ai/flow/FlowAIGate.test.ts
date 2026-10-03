@@ -147,3 +147,42 @@ Deno.test("uçtan uca: model EXTERNAL_ACTION çağırır → çalışmaz, yanıt
   assertEquals(calls.length, 0);
   assertEquals(store.rows.size, 1);
 });
+
+Deno.test("Flow AI: araç SUCCESS dönmeden 'başlattım' iddiası engellenir, araçtan sonra geçer", async () => {
+  const { claimsUiAction } = await import("./FlowAIOrchestrator.ts");
+  assertEquals(claimsUiAction("AI Üretim ile gönderi paylaşım rehberini başlattım."), true);
+  assertEquals(claimsUiAction("Sosyal medya ekranına yönlendirdim."), true);
+  assertEquals(claimsUiAction("Anlatayım mı, birlikte mi yapalım?"), false);
+  assertEquals(claimsUiAction("Bugün 3 randevun var."), false);
+
+  const calls: Record<string, unknown>[] = [];
+  const guideTool: ITool = { name: "start_guide", description: "g", schema: {}, riskLevel: "PREPARE", execute: (_c, a) => { calls.push(a); return Promise.resolve({ status: "SUCCESS", data: { clientAction: { type: "start_guide", guide: "x" } } }); } };
+  const reg: any = { getTool: (n: string) => (n === "start_guide" ? guideTool : undefined), getAllSchemas: () => [] };
+  const sent: any[][] = [];
+  const turns: any[] = [
+    { type: "text", text: "Rehberi başlattım." },                                   // yalan: araç çağrılmadı
+    { type: "tool_calls", calls: [{ name: "start_guide", args: { guide: "x" } }] },  // düzeltme sonrası araç
+    { type: "text", text: "Rehberi başlattım." },                                   // artık doğru
+  ];
+  let i = 0;
+  const orch = new FlowAIOrchestrator({
+    geminiClient: { generateResponse: (_s: string, m: any[]) => { sent.push(m); return Promise.resolve(turns[i++]); } } as any,
+    toolExecutor: new FlowToolExecutor(reg, new FakeStore(), who), toolRegistry: reg, promptBuilder: { build: () => "p" },
+  });
+  const r = await orch.run(ctx, "birlikte");
+  assertEquals(r.text, "Rehberi başlattım.");
+  assertEquals(calls.length, 1);                       // araç gerçekten çağrıldı
+  assertEquals(r.actions.map((a) => a.status), ["SUCCESS"]);
+  assertEquals(JSON.stringify(sent[1]).includes("SUCCESS dönmedi"), true); // model düzeltme aldı
+});
+
+Deno.test("Flow AI: araç hiç çağrılmazsa doğrulanmamış iddia 2 düzeltmeden sonra kullanıcıya GİTMEZ", async () => {
+  const reg: any = { getTool: () => undefined, getAllSchemas: () => [] };
+  const orch = new FlowAIOrchestrator({
+    geminiClient: { generateResponse: () => Promise.resolve({ type: "text", text: "Ekranı açtım." }) } as any,
+    toolExecutor: new FlowToolExecutor(reg, new FakeStore(), who), toolRegistry: reg, promptBuilder: { build: () => "p" },
+  });
+  const r = await orch.run(ctx, "aç");
+  assertEquals(r.text.includes("açtım"), false);
+  assertEquals(r.text, "İsteğini tam olarak uygulayamadım. Ne yapmamı istediğini bir kez daha yazar mısın?");
+});
