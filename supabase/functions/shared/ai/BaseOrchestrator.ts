@@ -1,14 +1,21 @@
 import { AIContext, ToolCall } from './types.ts';
-import { PromptBuilder } from './PromptBuilder.ts';
-import { ToolExecutor } from './tools/ToolExecutor.ts';
 import { ToolRegistry } from './tools/ToolRegistry.ts';
+import type { ToolResult } from './tools/types.ts';
 import { GeminiClient } from '../infrastructure/clients/GeminiClient.ts';
 
+export interface ToolExecutorLike {
+  executeCall(context: AIContext, call: ToolCall): Promise<ToolResult>;
+}
+
+export interface PromptBuilderLike {
+  build(context: AIContext): string;
+}
+
 export interface OrchestratorDeps {
-  geminiClient: GeminiClient;
-  toolExecutor: ToolExecutor;
-  toolRegistry: ToolRegistry;
-  promptBuilder: PromptBuilder;
+  geminiClient: Pick<GeminiClient, 'generateResponse'>;
+  toolExecutor: ToolExecutorLike;
+  toolRegistry: Pick<ToolRegistry, 'getAllSchemas'>;
+  promptBuilder: PromptBuilderLike;
 }
 
 export type AIHistory = { role: string; parts: { text: string }[] }[];

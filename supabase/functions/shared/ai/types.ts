@@ -1,6 +1,6 @@
 import type { ExecutionMode, PersonaRenderConfig } from './persona/PersonaTypes.ts';
 
-export type AIChannelSource = 'whatsapp' | 'social';
+export type AIChannelSource = 'whatsapp' | 'social' | 'flow_ai';
 
 export interface AIChannelContext {
   source: AIChannelSource;
