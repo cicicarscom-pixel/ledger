@@ -6,10 +6,11 @@ import { FlowAIOrchestrator } from "../shared/ai/flow/FlowAIOrchestrator.ts";
 import { FlowPromptBuilder } from "../shared/ai/flow/FlowPromptBuilder.ts";
 import { DEFAULT_DAILY_MESSAGE_LIMIT, FlowToolExecutor, approveAction, startOfLocalDayIso } from "../shared/ai/flow/FlowAIGate.ts";
 import { SupabasePendingActionStore } from "../shared/ai/flow/SupabasePendingActionStore.ts";
+import { createFlowTools } from "../shared/ai/flow/tools/FlowTools.ts";
 import type { AIContext } from "../shared/ai/types.ts";
 
 // Flow AI (işletme sahibinin asistanı) — verify_jwt AÇIK. Kimlik yalnız JWT'den çözülür; istemciden org/kullanıcı kimliği alınmaz.
-// Araç kaydı FA1-3'te dolar; dış etkili (EXTERNAL_ACTION) araçlar yalnız FlowAIGate onay kapısından geçer.
+// Araçlar FlowTools.ts (FA1-3); dış etkili (EXTERNAL_ACTION) araçlar yalnız FlowAIGate onay kapısından geçer.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,7 +28,7 @@ const MODEL = "gemini-2.5-flash";
 const HISTORY_LIMIT = 20;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-const registry = new ToolRegistry([]); // FA1-3'te araçlar eklenir
+const registry = new ToolRegistry(createFlowTools(admin)); // READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
   const { data: owned } = await admin.from("organizations").select("id, timezone").eq("owner_id", userId).order("created_at").limit(1).maybeSingle();
