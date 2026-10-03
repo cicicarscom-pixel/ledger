@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
 import { ZernioError } from "../shared/infrastructure/zernio/ZernioError.ts";
+import { buildScopedPayload, cacheKeyFor, cacheMetricFor, sanitizeAnalyticsQuery, scopeIsEmpty } from "../shared/infrastructure/zernio/analyticsScope.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,47 +80,74 @@ serve(async (req) => {
       return profileSlot > 1 ? `${base} (#${profileSlot})` : base;
     }
 
-    async function fetchAnalyticsWithCache(accountId: string, platform: string, metricType: string, fetchFn: () => Promise<any>) {
-      if (!accountId || !platform) {
-         // Fallback if we don't have enough keys to cache properly
-         return await fetchFn();
+    /**
+     * Kiracı kapsamlı analitik (Seçenek A güvenlik düzeltmesi).
+     * - Istemci sorgusu izin listesiyle temizlenir; profileId/accountId istemciden ALINMAZ.
+     * - Kapsam sunucuda çözülür: kuruluşun Zernio profili (integration.zernio_profiles) ve
+     *   bağlı hesapları (integration.social_accounts). Kapsam boşsa Zernio'ya HİÇ gidilmez.
+     * - Önbellek anahtarı daima org:<organizations.id>[:acc:<accountId>] — `global` yok.
+     * - Taze (< 1 saat) önbellek varsa onu döner; yoksa Zernio'dan alır ve yazar.
+     */
+    async function loadAnalyticsScope(): Promise<any> {
+      const [{ data: profs }, { data: accs }] = await Promise.all([
+        supabase.schema('integration').from('zernio_profiles')
+          .select('zernio_profile_id').eq('organization_id', callerOrgId).eq('status', 'active'),
+        supabase.schema('integration').from('social_accounts')
+          .select('zernio_account_id, platform').eq('organization_id', callerOrgId).eq('is_active', true),
+      ]);
+      return {
+        orgId: callerOrgId,
+        profileIds: (profs || []).map((r: any) => r.zernio_profile_id).filter(Boolean),
+        accountIds: (accs || []).map((r: any) => r.zernio_account_id).filter(Boolean),
+        accounts: accs || [],
+      };
+    }
+
+    async function scopedAnalytics(
+      platform: string, metricType: string, clientPayload: any, requireAccount: boolean,
+      fetchFn: (scopedPayload: any) => Promise<any>,
+    ) {
+      const scope = await loadAnalyticsScope();
+      let accountId: string | null = clientPayload?.accountId || clientPayload?.query?.accountId || null;
+
+      if (!accountId && requireAccount) {
+        // Hesap belirtilmediyse: kuruluşun bu platformdaki (ilk) aktif hesabı.
+        const match = (scope.accounts || []).find((a: any) => String(a.platform || '').toLowerCase() === platform);
+        accountId = match?.zernio_account_id || null;
+        if (!accountId) return {}; // Bağlı hesap yok → boş, Zernio'ya gitme.
       }
-      
+      if (!accountId && scopeIsEmpty(scope)) return {}; // Kuruluşun profili/hesabı yok → boş.
+
+      const scopedPayload = buildScopedPayload(clientPayload, scope, accountId);
+      const cacheAccount = cacheKeyFor(callerOrgId, accountId);
+      const cacheMetric = cacheMetricFor(metricType, sanitizeAnalyticsQuery(clientPayload));
+      const cachePlatform = platform || 'all';
+
       const { data: cacheData } = await supabase
         .from('analytics_cache')
         .select('data, updated_at')
-        .eq('account_id', accountId)
-        .eq('platform', platform)
-        .eq('metric_type', metricType)
+        .eq('account_id', cacheAccount)
+        .eq('platform', cachePlatform)
+        .eq('metric_type', cacheMetric)
         .maybeSingle();
 
-      if (cacheData) {
-        const updatedAt = new Date(cacheData.updated_at).getTime();
-        const now = Date.now();
-        const oneHour = 60 * 60 * 1000;
-        if (now - updatedAt < oneHour) {
-          console.log(`[Cache HIT] ${platform} - ${metricType}`);
-          return cacheData.data;
-        }
+      if (cacheData && Date.now() - new Date(cacheData.updated_at).getTime() < 60 * 60 * 1000) {
+        console.log(`[Cache HIT] ${cachePlatform} - ${cacheMetric}`);
+        return cacheData.data;
       }
 
-      console.log(`[Cache MISS/STALE] Fetching from API: ${platform} - ${metricType}`);
-      const freshDataRes = await fetchFn();
-      
-      // Extract data safely, sometimes sdk wraps it in { data: ... }
-      const freshData = freshDataRes.data || freshDataRes;
+      console.log(`[Cache MISS/STALE] Fetching from API: ${cachePlatform} - ${cacheMetric}`);
+      const freshRes = await fetchFn(scopedPayload);
+      const freshData = freshRes?.data || freshRes;
 
       const { error: upsertErr } = await supabase.from('analytics_cache').upsert({
-        account_id: accountId,
-        platform,
-        metric_type: metricType,
+        account_id: cacheAccount,
+        platform: cachePlatform,
+        metric_type: cacheMetric,
         data: freshData,
         updated_at: new Date().toISOString()
       }, { onConflict: 'account_id,platform,metric_type' });
-      
-      if (upsertErr) {
-        console.error(`[Cache Write Error] ${platform} - ${metricType}:`, upsertErr);
-      }
+      if (upsertErr) console.error(`[Cache Write Error] ${cachePlatform} - ${cacheMetric}:`, upsertErr);
 
       return freshData;
     }
@@ -987,107 +1015,89 @@ serve(async (req) => {
 
 
       // ==========================================
-      // CACHED ANALYTICS ENDPOINTS
+      // CACHED ANALYTICS ENDPOINTS (kiracı kapsamlı — bkz. shared/infrastructure/zernio/analyticsScope.ts)
+      // Istemci profileId/accountId gonderemez; sorgu sunucuda org profil/hesaplariyla kurulur.
+      // Onbellek anahtari her zaman org:<organizations.id> ile baslar.
       // ==========================================
-      case 'get-youtube-insights': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'youtube', 'channel_insights', () => zernio.analytics.getYouTubeChannelInsights(payload)); 
-        break; 
+      case 'get-youtube-insights': {
+        result = await scopedAnalytics('youtube', 'channel_insights', payload, true, (p) => zernio.analytics.getYouTubeChannelInsights(p));
+        break;
       }
-      case 'get-youtube-demographics': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'youtube', 'demographics', () => zernio.analytics.getYouTubeDemographics(payload)); 
-        break; 
+      case 'get-youtube-demographics': {
+        result = await scopedAnalytics('youtube', 'demographics', payload, true, (p) => zernio.analytics.getYouTubeDemographics(p));
+        break;
       }
-      case 'get-tiktok-insights': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'tiktok', 'account_insights', () => zernio.analytics.getTikTokAccountInsights(payload)); 
-        break; 
+      case 'get-tiktok-insights': {
+        result = await scopedAnalytics('tiktok', 'account_insights', payload, true, (p) => zernio.analytics.getTikTokAccountInsights(p));
+        break;
       }
-      case 'get-youtube-daily-views': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'youtube', 'daily_views', () => zernio.analytics.getYouTubeDailyViews(payload)); 
-        break; 
+      case 'get-youtube-daily-views': {
+        result = await scopedAnalytics('youtube', 'daily_views', payload, true, (p) => zernio.analytics.getYouTubeDailyViews(p));
+        break;
       }
-      case 'get-linkedin-page-analytics': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'linkedin', 'org_aggregate', () => zernio.analytics.getLinkedInOrgAggregateAnalytics(payload)); 
-        break; 
+      case 'get-linkedin-page-analytics': {
+        result = await scopedAnalytics('linkedin', 'org_aggregate', payload, true, (p) => zernio.analytics.getLinkedInOrgAggregateAnalytics(p));
+        break;
       }
-      case 'get-linkedin-post-stats': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'linkedin', 'post_stats', () => zernio.analytics.getLinkedInPostAnalytics(payload)); 
-        break; 
+      case 'get-linkedin-post-stats': {
+        result = await scopedAnalytics('linkedin', 'post_stats', payload, true, (p) => zernio.analytics.getLinkedInPostAnalytics(p));
+        break;
       }
-      case 'get-linkedin-aggregate-stats': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'linkedin', 'aggregate', () => zernio.analytics.getLinkedInAggregateAnalytics(payload)); 
-        break; 
+      case 'get-linkedin-aggregate-stats': {
+        result = await scopedAnalytics('linkedin', 'aggregate', payload, true, (p) => zernio.analytics.getLinkedInAggregateAnalytics(p));
+        break;
       }
-      case 'get-instagram-insights': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'instagram', 'account_insights', () => zernio.analytics.getInstagramAccountInsights(payload)); 
-        break; 
+      case 'get-instagram-insights': {
+        result = await scopedAnalytics('instagram', 'account_insights', payload, true, (p) => zernio.analytics.getInstagramAccountInsights(p));
+        break;
       }
-      case 'get-instagram-demographics': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'instagram', 'demographics', () => zernio.analytics.getInstagramDemographics(payload)); 
-        break; 
+      case 'get-instagram-demographics': {
+        result = await scopedAnalytics('instagram', 'demographics', payload, true, (p) => zernio.analytics.getInstagramDemographics(p));
+        break;
       }
-      case 'get-instagram-follower-history': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'instagram', 'follower_history', () => zernio.analytics.getInstagramFollowerHistory(payload)); 
-        break; 
+      case 'get-instagram-follower-history': {
+        result = await scopedAnalytics('instagram', 'follower_history', payload, true, (p) => zernio.analytics.getInstagramFollowerHistory(p));
+        break;
       }
-      case 'get-gbp-search-keywords': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'googlebusiness', 'search_keywords', () => zernio.analytics.getGoogleBusinessSearchKeywords(payload)); 
-        break; 
+      case 'get-gbp-search-keywords': {
+        result = await scopedAnalytics('googlebusiness', 'search_keywords', payload, true, (p) => zernio.analytics.getGoogleBusinessSearchKeywords(p));
+        break;
       }
-      case 'get-gbp-performance': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'googlebusiness', 'performance', () => zernio.analytics.getGoogleBusinessPerformance(payload)); 
-        break; 
+      case 'get-gbp-performance': {
+        result = await scopedAnalytics('googlebusiness', 'performance', payload, true, (p) => zernio.analytics.getGoogleBusinessPerformance(p));
+        break;
       }
-      case 'get-facebook-insights': { 
-        const accId = payload.accountId || payload.query?.accountId;
-        result = await fetchAnalyticsWithCache(accId, 'facebook', 'page_insights', () => zernio.analytics.getFacebookPageInsights(payload)); 
-        break; 
+      case 'get-facebook-insights': {
+        result = await scopedAnalytics('facebook', 'page_insights', payload, true, (p) => zernio.analytics.getFacebookPageInsights(p));
+        break;
       }
-      case 'get-follower-stats': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, 'all', 'follower_stats', () => zernio.accounts.getFollowerStats(payload)); 
-        break; 
+      case 'get-follower-stats': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'follower_stats', payload, false, (p) => zernio.accounts.getFollowerStats(p));
+        break;
       }
-      case 'get-daily-metrics': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'daily_metrics', () => zernio.analytics.getDailyMetrics(payload)); 
-        break; 
+      case 'get-daily-metrics': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'daily_metrics', payload, false, (p) => zernio.analytics.getDailyMetrics(p));
+        break;
       }
-      case 'get-content-decay': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'content_decay', () => zernio.analytics.getContentDecay(payload)); 
-        break; 
+      case 'get-content-decay': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'content_decay', payload, false, (p) => zernio.analytics.getContentDecay(p));
+        break;
       }
-      case 'get-post-timeline': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'post_timeline', () => zernio.analytics.getPostTimeline(payload)); 
-        break; 
+      case 'get-post-timeline': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'post_timeline', payload, false, (p) => zernio.analytics.getPostTimeline(p));
+        break;
       }
-      case 'get-posting-frequency': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'posting_frequency', () => zernio.analytics.getPostingFrequency(payload)); 
-        break; 
+      case 'get-posting-frequency': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'posting_frequency', payload, false, (p) => zernio.analytics.getPostingFrequency(p));
+        break;
       }
-      case 'get-best-times': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'best_times', () => zernio.analytics.getBestTimeToPost(payload)); 
-        break; 
+      case 'get-best-times': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'best_times', payload, false, (p) => zernio.analytics.getBestTimeToPost(p));
+        break;
       }
-      case 'get-post-analytics': { 
-        const accId = payload.accountId || payload.query?.accountId || 'global';
-        result = await fetchAnalyticsWithCache(accId, payload.query?.platform || 'all', 'post_analytics', () => zernio.analytics.getAnalytics(payload)); 
-        break; 
+      case 'get-post-analytics': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'post_analytics', payload, false, (p) => zernio.analytics.getAnalytics(p));
+        break;
       }
 
       case 'create-profile': {

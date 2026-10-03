@@ -90,22 +90,19 @@ serve(async (req) => {
         }
 
         // 3. Upsert into flow.social_account_metrics
-        await supabase
-          .schema('flow')
-          .from('social_account_metrics')
-          .upsert({
-            organization_id: account.organization_id,
-            social_account_id: account.id,
-            metric_date: metricDate,
-            followers: metrics.followers,
-            impressions: metrics.impressions,
-            reach: metrics.reach,
-            engagements: metrics.engagements,
-            posts_count: metrics.posts_count,
-            raw_metrics: rawData,
-            synced_at: new Date().toISOString()
-          }, { onConflict: 'social_account_id,metric_date' });
-          
+        // flow şeması service_role'e PostgREST'ten açık değil → SECURITY DEFINER RPC.
+        const { error: upsertErr } = await supabase.rpc('upsert_social_account_metrics', {
+          p_social_account_id: account.id,
+          p_metric_date: metricDate,
+          p_followers: Math.round(Number(metrics.followers) || 0),
+          p_impressions: Math.round(Number(metrics.impressions) || 0),
+          p_reach: Math.round(Number(metrics.reach) || 0),
+          p_engagements: Math.round(Number(metrics.engagements) || 0),
+          p_posts_count: Math.round(Number(metrics.posts_count) || 0),
+          p_raw_metrics: rawData ?? {},
+        });
+        if (upsertErr) throw new Error(`metrics upsert failed: ${upsertErr.message}`);
+
         successCount++;
       } catch (err: any) {
         console.error(`Failed to sync analytics for account ${account.zernio_account_id}:`, err.message);
