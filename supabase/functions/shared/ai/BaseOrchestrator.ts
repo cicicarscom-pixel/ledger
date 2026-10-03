@@ -25,6 +25,8 @@ export interface ExecutedAction {
   name: string;
   args: Record<string, unknown>;
   status?: string;
+  /** Araç sonucundaki istemci talimatı (ekran aç / vurgula). Yalnız Flow AI istemcisi kullanır. */
+  clientAction?: unknown;
 }
 
 /** Jeton sayısı Gemini istemcisinden gelmediği için yalnız tur/araç sayıları. */
@@ -125,7 +127,10 @@ export abstract class BaseOrchestrator {
         for (const call of turnResult.calls) {
           const result = await this.deps.toolExecutor.executeCall(context, call);
           usage.toolCalls++;
-          actions.push({ name: call.name, args: call.args, status: result?.status });
+          const executed: ExecutedAction = { name: call.name, args: call.args, status: result?.status };
+          const clientAction = (result?.data as any)?.clientAction;
+          if (clientAction) executed.clientAction = clientAction;
+          actions.push(executed);
           guard.onToolResult(call, result);
 
           toolResponses.push({

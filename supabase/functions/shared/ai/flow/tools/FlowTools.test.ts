@@ -106,3 +106,23 @@ Deno.test("FlowToolExecutor üzerinden: bu araçlar onay beklemeden çalışır,
   assertEquals((await ex.executeCall(ctx, { name: "get_help_topic", args: { topic: "odeme" } })).status, "SUCCESS");
   assertEquals(inserted, 0);
 });
+
+Deno.test("open_screen sonucundaki clientAction orkestratör sonucuna taşınır (istemci eylemi)", async () => {
+  const { FlowAIOrchestrator } = await import("../FlowAIOrchestrator.ts");
+  const tools = createFlowTools({});
+  const reg: any = { getTool: (n: string) => tools.find((x) => x.name === n), getAllSchemas: () => [] };
+  const store: PendingActionStore = { insert: () => Promise.reject(new Error("olmamalı")), claim: () => Promise.resolve(null), finish: () => Promise.resolve(), reject: () => Promise.resolve(false) };
+  const turns: any[] = [
+    { type: "tool_calls", calls: [{ name: "open_screen", args: { screen: "randevu" } }] },
+    { type: "text", text: "Randevu ekranını açtım." },
+  ];
+  let i = 0;
+  const orch = new FlowAIOrchestrator({
+    geminiClient: { generateResponse: () => Promise.resolve(turns[i++]) } as any,
+    toolExecutor: new FlowToolExecutor(reg, store, { orgId: "ORG-A", userId: "u1", conversationId: null }),
+    toolRegistry: reg,
+    promptBuilder: { build: () => "p" },
+  });
+  const r = await orch.run(ctx, "randevuları aç");
+  assertEquals(r.actions.map((a) => a.clientAction), [{ type: "navigate", screen: "randevu", route: "RandevuMain" }]);
+});

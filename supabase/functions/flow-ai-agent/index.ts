@@ -144,6 +144,7 @@ serve(async (req) => {
     return json({
       conversationId,
       reply: result.text,
+      clientActions: result.actions.filter((a) => a.clientAction).map((a) => a.clientAction),
       pendingActions: (pending ?? []).map((p: any) => ({ id: p.id, toolName: p.tool_name, preview: p.preview, payloadHash: p.payload_hash, expiresAt: p.expires_at })),
       remainingToday: Math.max(0, DAILY_LIMIT - (usedToday ?? 0) - 1),
     });
