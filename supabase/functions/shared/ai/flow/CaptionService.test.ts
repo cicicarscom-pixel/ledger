@@ -35,10 +35,10 @@ Deno.test("başarılı üretim: persona tonu + platform kuralı isteme girer, ku
   assertEquals(inserted, [{ org_id: "ORG-A", user_id: "U1", source: "flow_caption", event_type: "caption", model: "gemini-2.5-flash" }]);
 });
 
-Deno.test("görsel inlineData olarak iletilir", async () => {
+Deno.test("görsel/video inlineData olarak iletilir", async () => {
   const { svc, calls } = make();
-  await svc.generate({ ...base, image: { data: "AAAA", mimeType: "image/png" } });
-  assertEquals(calls[0].m[0].parts[1], { inlineData: { mimeType: "image/png", data: "AAAA" } });
+  await svc.generate({ ...base, media: { data: "AAAA", mimeType: "video/mp4" } });
+  assertEquals(calls[0].m[0].parts[1], { inlineData: { mimeType: "video/mp4", data: "AAAA" } });
 });
 
 Deno.test("günlük sınır dolunca Gemini çağrılmaz, kayıt yazılmaz", async () => {
@@ -71,6 +71,8 @@ Deno.test("persona yoksa da çalışır; çoklu platformda en kısıtlayıcı s�
   assertEquals((r as any).text.length <= 280, true);
   assertEquals(calls[0].s.includes("Marka sesi"), false);
   assertEquals(calls[0].s.includes("en kısıtlayıcı sınıra (280"), true);
+  // içerik türü reklamla sınırlı değil: haber/siyasi içerik için satış dili yasak, uydurma yasak
+  for (const needle of ["haber, siyasi", "satış dili kullanma", "Doğrulanamayan olgu", "konuşulanları"]) assertEquals(calls[0].s.includes(needle), true, needle);
   assertEquals(strictestRule(["bilinmeyen"]).maxChars, 2000);
   assertEquals(fitToLimit("kısa", 100), "kısa");
   assertEquals(buildCaptionPrompt(null, { maxChars: 10, notes: [] }).includes("10 karakteri"), true);

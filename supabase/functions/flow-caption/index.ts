@@ -21,7 +21,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const DAILY_LIMIT = Number(Deno.env.get("FLOW_CAPTION_DAILY_LIMIT")) || DEFAULT_DAILY_CAPTION_LIMIT;
-const MAX_IMAGE_B64_CHARS = 6_000_000; // ~4.5 MB
+const MAX_IMAGE_B64_CHARS = 6_000_000;   // ~4.5 MB görsel
+const MAX_VIDEO_B64_CHARS = 14_000_000;  // ~10 MB kısa video (Gemini satır içi istek sınırı 20 MB)
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 const personaService = new PersonaService(new PersonaRepository(admin));
@@ -50,17 +51,21 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const platforms = Array.isArray(body.platforms) ? body.platforms.filter((p: unknown) => typeof p === "string").slice(0, 10) : undefined;
-    let image: { data: string; mimeType: string } | undefined;
-    if (typeof body.image === "string" && body.image) {
-      if (body.image.length > MAX_IMAGE_B64_CHARS) return json({ error: "IMAGE_TOO_LARGE" }, 413);
-      image = { data: body.image, mimeType: typeof body.mimeType === "string" && /^image\/[a-z0-9.+-]+$/i.test(body.mimeType) ? body.mimeType : "image/jpeg" };
+    // media: görsel ya da kısa video (base64). Eski istemciler için body.image de kabul edilir.
+    let media: { data: string; mimeType: string } | undefined;
+    const rawMedia = typeof body.media === "string" && body.media ? body.media : typeof body.image === "string" ? body.image : "";
+    if (rawMedia) {
+      const mt = typeof body.mimeType === "string" && /^(image|video)\/[a-z0-9.+-]+$/i.test(body.mimeType) ? body.mimeType.toLowerCase() : "image/jpeg";
+      const maxChars = mt.startsWith("video/") ? MAX_VIDEO_B64_CHARS : MAX_IMAGE_B64_CHARS;
+      if (rawMedia.length > maxChars) return json({ error: "MEDIA_TOO_LARGE" }, 413);
+      media = { data: rawMedia, mimeType: mt };
     }
 
     const service = new CaptionService({
       gemini: new GeminiClient(), admin, dailyLimit: DAILY_LIMIT, timezone: org.timezone ?? "Europe/Istanbul", startOfDayIso: startOfLocalDayIso,
       resolvePersona: (orgId) => personaService.resolveForMerchant(orgId, "production"),
     });
-    const result = await service.generate({ orgId: org.id, userId, brief: typeof body.brief === "string" ? body.brief : "", platforms, image });
+    const result = await service.generate({ orgId: org.id, userId, brief: typeof body.brief === "string" ? body.brief : "", platforms, media });
 
     if (result.status === "SUCCESS") return json({ success: true, text: result.text, maxChars: result.maxChars });
     if (result.status === "DAILY_LIMIT") return json({ success: false, error: "DAILY_LIMIT", limit: result.limit }, 429);

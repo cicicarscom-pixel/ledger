@@ -29,7 +29,8 @@ export interface CaptionRequest {
   userId: string;
   brief: string;
   platforms?: string[];
-  image?: { data: string; mimeType: string };
+  /** Görsel veya kısa video (base64). Video ise ses ve görüntüden içerik çıkarılır. */
+  media?: { data: string; mimeType: string };
 }
 export type CaptionResult =
   | { status: 'SUCCESS'; text: string; maxChars: number }
@@ -56,12 +57,17 @@ export function strictestRule(platforms: string[] | undefined): { maxChars: numb
 
 export function buildCaptionPrompt(persona: PersonaRenderConfig | null, rule: { maxChars: number; notes: string[] }): string {
   const lines = [
-    'Sen yaratıcı bir sosyal medya metin yazarısın. SADECE gönderi metnini (caption) yaz; açıklama, başlık etiketi, tırnak veya "İşte metin" gibi giriş cümlesi ekleme.',
-    'KESİNLİKLE yeni bir görsel üretme. Görsel verildiyse onu analiz edip metni ona göre yaz.',
+    'Sen deneyimli bir sosyal medya metin yazarısın. SADECE gönderi metnini (caption) yaz; açıklama, başlık etiketi, tırnak veya "İşte metin" gibi giriş cümlesi ekleme.',
+    'KESİNLİKLE yeni bir görsel üretme. Görsel veya video verildiyse onu (video ise konuşulanları ve görüntüyü) analiz edip metni ONA göre yaz; kullanıcının talimatı varsa onu da uygula.',
+    'İÇERİK TÜRÜNÜ önce anla: ürün/hizmet tanıtımı olabilir, ama haber, siyasi ya da toplumsal içerik, etkinlik, eğitim, kişisel paylaşım veya duyuru da olabilir. Metni içeriğin türüne göre yaz.',
+    'İçerik bir ürün/hizmet DEĞİLSE satış dili kullanma: "kaçırmayın", "indirim", "hemen sipariş ver", reklam sloganı ve satış çağrısı ekleme.',
+    'Siyasi veya hassas içerikte ağırbaşlı ve net ol: videoda/görselde söylenenleri ve kullanıcının verdiği görüşü olduğu gibi yansıt, kendi görüşünü katma. Doğrulanamayan olgu, rakam veya alıntı uydurma; kişi, parti veya gruplara hakaret, nefret ya da iftira içeren ifade yazma.',
+    'Görsel/video yoksa ya da içerik anlaşılamıyorsa YALNIZ kullanıcının yazdıklarına dayan; bilmediğin ayrıntıyı uydurma.',
     'Kullanıcı hangi dilde yazdıysa o dilde yaz. Uydurma bilgi, fiyat veya iddia ekleme.',
   ];
   if (persona) {
     const s = persona.speakingStyle;
+    lines.push('Aşağıdaki marka sesi yalnız ÜSLUP içindir; içerik ürün değilse satış amacı katma.');
     if (persona.personaId !== 'standart' && persona.identityPrompt) lines.push(`Marka sesi (${persona.name}): ${persona.identityPrompt}`);
     lines.push(`Ton: resmiyet ${s.formal}/100, sıcaklık ${s.warm}/100, mizah ${s.humorous}/100; emoji düzeyi: ${persona.emojiLevel}.`);
     if (persona.tone) lines.push(`İstenen ton: ${persona.tone}.`);
@@ -100,7 +106,7 @@ export class CaptionService {
     const persona = await this.deps.resolvePersona(req.orgId).catch(() => null);
     const rule = strictestRule(req.platforms);
     const parts: any[] = [{ text: brief }];
-    if (req.image) parts.push({ inlineData: { mimeType: req.image.mimeType, data: req.image.data } });
+    if (req.media) parts.push({ inlineData: { mimeType: req.media.mimeType, data: req.media.data } });
 
     let turn;
     try {
