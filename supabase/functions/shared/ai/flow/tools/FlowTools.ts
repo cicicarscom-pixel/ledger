@@ -1,6 +1,6 @@
 import type { AIContext } from '../../types.ts';
 import type { ITool, ToolResult } from '../../tools/types.ts';
-import { FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCatalog.ts';
+import { FLOW_GUIDES, FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCatalog.ts';
 import { HELP_TOPICS, findHelpTopic } from '../helpTopics.ts';
 
 /**
@@ -135,6 +135,23 @@ export class HighlightTool implements ITool {
   }
 }
 
+export class StartGuideTool implements ITool {
+  readonly name = 'start_guide';
+  readonly description = 'Kullanıcı bir işi "birlikte yapalım" dediğinde adım adım rehber modunu başlatır: doğru ekranı açar ve sırayla öğeleri vurgular. Kullanıcı "anlat" derse bunu çağırma, get_help_topic adımlarını anlat.';
+  readonly riskLevel = 'PREPARE' as const;
+  readonly schema = {
+    type: 'object',
+    properties: { guide: { type: 'string', enum: Object.keys(FLOW_GUIDES), description: 'Başlatılacak rehber anahtarı.' } },
+    required: ['guide'],
+  };
+  async execute(_context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+    const key = String(args.guide ?? '');
+    const g = Object.prototype.hasOwnProperty.call(FLOW_GUIDES, key) ? FLOW_GUIDES[key] : null;
+    if (!g) return { status: 'INVALID_GUIDE', message: `Geçerli rehberler: ${Object.keys(FLOW_GUIDES).join(', ')}` };
+    return { status: 'SUCCESS', data: { clientAction: { type: 'start_guide', guide: key }, title: g.title } };
+  }
+}
+
 export class GetHelpTopicTool implements ITool {
   readonly name = 'get_help_topic';
   readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
@@ -154,8 +171,8 @@ export class GetHelpTopicTool implements ITool {
 }
 
 /**
- * includeHighlight: mobilde vurgu abonesi (FA2-2) olmadan highlight aracı kullanıcıya hiçbir şey göstermez ama model
- * "vurguladım" diyebilir. Bu yüzden FA2-2 yayınlanana kadar varsayılan KAPALI.
+ * includeHighlight: mobilde vurgu (FlowHighlight, FA2-2) yayında olduğu için flow-ai-agent açar; testler ve eski
+ * istemciler için varsayılan KAPALI kalır.
  */
 export function createFlowTools(admin: any, opts: { includeHighlight?: boolean } = {}): ITool[] {
   const tools: ITool[] = [
@@ -163,6 +180,7 @@ export function createFlowTools(admin: any, opts: { includeHighlight?: boolean }
     new GetConnectedSocialAccountsTool(admin),
     new OpenScreenTool(),
     new GetHelpTopicTool(),
+    new StartGuideTool(),
   ];
   if (opts.includeHighlight) tools.push(new HighlightTool());
   return tools;

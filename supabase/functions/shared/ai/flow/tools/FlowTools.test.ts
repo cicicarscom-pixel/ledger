@@ -79,6 +79,15 @@ Deno.test("open_screen ve highlight yalnız izin listesindeki değerleri kabul e
   assertEquals((await hl.execute(ctx, { screen: "randevu", target: "share_button" })).status, "INVALID_TARGET");
 });
 
+Deno.test("start_guide yalnız tanımlı rehberleri başlatır ve istemci eylemi döndürür", async () => {
+  const { StartGuideTool } = await import("./FlowTools.ts");
+  const t = new StartGuideTool();
+  const ok = await t.execute(ctx, { guide: "ai_uretim_paylasim" });
+  assertEquals((ok.data as any).clientAction, { type: "start_guide", guide: "ai_uretim_paylasim" });
+  assertEquals((await t.execute(ctx, { guide: "yok" })).status, "INVALID_GUIDE");
+  assertEquals((await t.execute(ctx, { guide: "__proto__" })).status, "INVALID_GUIDE");
+});
+
 Deno.test("yardım konusu: anahtar, kelime eşleşmesi, bulunamayan konuda uydurma yok", async () => {
   const t = new GetHelpTopicTool();
   assertEquals(((await t.execute(ctx, { topic: "ai_uretim_paylasim" })).data as any).key, "ai_uretim_paylasim");
@@ -88,7 +97,7 @@ Deno.test("yardım konusu: anahtar, kelime eşleşmesi, bulunamayan konuda uydur
 
 Deno.test("her Flow aracı açık riskLevel taşır ve EXTERNAL_ACTION değildir; ekran anahtarları tutarlı", () => {
   const tools = createFlowTools({});
-  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen"]); // highlight: FA2-2'ye kadar kapalı
+  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
   assertEquals(createFlowTools({}, { includeHighlight: true }).map((x) => x.name).includes("highlight"), true);
   for (const x of createFlowTools({}, { includeHighlight: true })) assertEquals(["READ", "PREPARE"].includes(x.riskLevel as string), true, x.name);
   for (const [k, v] of Object.entries(FLOW_SCREENS)) assertEquals(v.route.length > 0 && k === k.toLowerCase(), true);

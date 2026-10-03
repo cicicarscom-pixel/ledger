@@ -22,6 +22,11 @@ export const FLOW_SCREENS: Record<string, { route: string; label: string }> = {
   profil: { route: 'Profil', label: 'Profil' },
 };
 
+/** Rehber modu (birlikte yapalım) için izinli rehberler. İstemcideki flowAiGuides.js ile aynı anahtarlar. */
+export const FLOW_GUIDES: Record<string, { screen: string; title: string }> = {
+  ai_uretim_paylasim: { screen: 'ai_uretim', title: 'AI Üretim ile gönderi hazırlayıp paylaşma' },
+};
+
 /**
  * Vurgulanabilir öğeler: screen → targetId listesi. targetId'ler mobilde testID olarak FA2-2'de eklenir;
  * o zamana kadar istemci bilinmeyen hedefi sessizce yok sayar.
