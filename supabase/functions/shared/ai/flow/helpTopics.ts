@@ -12,7 +12,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
     screen: 'ai_uretim',
     keywords: ['paylaş', 'gönderi', 'post', 'içerik', 'ai üretim', 'metin', 'caption', 'yayınla'],
     steps: [
-      'AI Üretim ekranını aç.',
+      'AI Üretim ekranını aç (Sosyal Medya ekranındaki "Paylaşım Merkezi" kartından da ulaşılır).',
       'Paylaşmak istediğin medyayı (fotoğraf/video) seç.',
       'Paylaşacağın platformları seç.',
       'Gönderi metnini yazdır veya kendin yaz.',

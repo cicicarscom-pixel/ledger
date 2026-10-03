@@ -153,12 +153,17 @@ export class GetHelpTopicTool implements ITool {
   }
 }
 
-export function createFlowTools(admin: any): ITool[] {
-  return [
+/**
+ * includeHighlight: mobilde vurgu abonesi (FA2-2) olmadan highlight aracı kullanıcıya hiçbir şey göstermez ama model
+ * "vurguladım" diyebilir. Bu yüzden FA2-2 yayınlanana kadar varsayılan KAPALI.
+ */
+export function createFlowTools(admin: any, opts: { includeHighlight?: boolean } = {}): ITool[] {
+  const tools: ITool[] = [
     new GetAppointmentsOverviewTool(admin),
     new GetConnectedSocialAccountsTool(admin),
     new OpenScreenTool(),
-    new HighlightTool(),
     new GetHelpTopicTool(),
   ];
+  if (opts.includeHighlight) tools.push(new HighlightTool());
+  return tools;
 }

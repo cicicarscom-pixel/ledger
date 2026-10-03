@@ -88,8 +88,9 @@ Deno.test("yardım konusu: anahtar, kelime eşleşmesi, bulunamayan konuda uydur
 
 Deno.test("her Flow aracı açık riskLevel taşır ve EXTERNAL_ACTION değildir; ekran anahtarları tutarlı", () => {
   const tools = createFlowTools({});
-  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "highlight", "open_screen"]);
-  for (const x of tools) assertEquals(["READ", "PREPARE"].includes(x.riskLevel as string), true, x.name);
+  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen"]); // highlight: FA2-2'ye kadar kapalı
+  assertEquals(createFlowTools({}, { includeHighlight: true }).map((x) => x.name).includes("highlight"), true);
+  for (const x of createFlowTools({}, { includeHighlight: true })) assertEquals(["READ", "PREPARE"].includes(x.riskLevel as string), true, x.name);
   for (const [k, v] of Object.entries(FLOW_SCREENS)) assertEquals(v.route.length > 0 && k === k.toLowerCase(), true);
 });
 
