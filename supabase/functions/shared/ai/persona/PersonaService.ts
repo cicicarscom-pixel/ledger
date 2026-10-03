@@ -160,8 +160,17 @@ export class PersonaService {
       return null;
     }
 
-    // Publish-gate bypassed per user's explicit request
-    const statusAllowedInProduction = true;
+    // Publish-gate (guardrail #9): gerçek müşteri trafiğinde (production) yalnız "published"
+    // persona kullanılır. "testing" yalnız uyumluluk-testi işletmesi için (allowTestingStatus);
+    // "draft" hiçbir koşulda üretime çıkmaz. "simulation" (Canlı Test) her durumu görebilir.
+    if (executionMode === "production") {
+      const statusAllowedInProduction =
+        persona.status === "published" ||
+        (persona.status === "testing" && options?.allowTestingStatus === true);
+      if (!statusAllowedInProduction) {
+        return null;
+      }
+    }
 
     return {
       personaId: persona.id,
