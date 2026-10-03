@@ -28,7 +28,7 @@ const MODEL = "gemini-2.5-flash";
 const HISTORY_LIMIT = 20;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true })); // READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
+const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true })); // READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
   const { data: owned } = await admin.from("organizations").select("id, timezone").eq("owner_id", userId).order("created_at").limit(1).maybeSingle();

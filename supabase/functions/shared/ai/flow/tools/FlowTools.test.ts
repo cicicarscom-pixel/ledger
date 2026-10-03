@@ -79,6 +79,30 @@ Deno.test("open_screen ve highlight yalnız izin listesindeki değerleri kabul e
   assertEquals((await hl.execute(ctx, { screen: "randevu", target: "share_button" })).status, "INVALID_TARGET");
 });
 
+Deno.test("prepare_post_draft: kimlik bağlamdan, metin/platform doğrulanır, sınır uygulanır, yayınlamaz", async () => {
+  const { PreparePostDraftTool } = await import("./FlowTools.ts");
+  const inserted: any[] = [];
+  let activeCount = 0;
+  const admin: any = {
+    from: () => ({
+      select: () => { const b: any = { eq: () => b, gt: () => b, then: (r: any) => r({ count: activeCount, error: null }) }; return b; },
+      insert: (row: any) => { inserted.push(row); return { select: () => ({ single: () => Promise.resolve({ data: { id: "D1" }, error: null }) }) }; },
+    }),
+  };
+  const t = new PreparePostDraftTool(admin);
+  const c: any = { ...ctx, customerId: "USER-1" };
+  const r = await t.execute(c, { text: "  Yaz kampanyası!  ", platforms: ["Instagram", "instagram", "x y", "FACEBOOK"], org_id: "ORG-B", user_id: "U2" });
+  assertEquals(r.status, "SUCCESS");
+  assertEquals((r.data as any).clientAction, { type: "open_post_draft", draftId: "D1" });
+  assertEquals(inserted[0], { org_id: "ORG-A", user_id: "USER-1", caption: "Yaz kampanyası!", platforms: ["instagram", "facebook"] });
+  assertEquals((await t.execute(c, { text: "   " })).status, "INVALID_TEXT");
+  assertEquals((await t.execute(c, { text: "x".repeat(5001) })).status, "INVALID_TEXT");
+  activeCount = 20;
+  assertEquals((await t.execute(c, { text: "ok" })).status, "TOO_MANY_DRAFTS");
+  assertEquals(inserted.length, 1);
+  assertEquals(t.riskLevel, "PREPARE");
+});
+
 Deno.test("start_guide yalnız tanımlı rehberleri başlatır ve istemci eylemi döndürür", async () => {
   const { StartGuideTool } = await import("./FlowTools.ts");
   const t = new StartGuideTool();
@@ -99,7 +123,9 @@ Deno.test("her Flow aracı açık riskLevel taşır ve EXTERNAL_ACTION değildir
   const tools = createFlowTools({});
   assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
   assertEquals(createFlowTools({}, { includeHighlight: true }).map((x) => x.name).includes("highlight"), true);
-  for (const x of createFlowTools({}, { includeHighlight: true })) assertEquals(["READ", "PREPARE"].includes(x.riskLevel as string), true, x.name);
+  assertEquals(createFlowTools({}).some((x) => x.name === "prepare_post_draft"), false); // FA3-3'e kadar kapalı
+  assertEquals(createFlowTools({}, { includeDrafts: true }).some((x) => x.name === "prepare_post_draft"), true);
+  for (const x of createFlowTools({}, { includeHighlight: true, includeDrafts: true })) assertEquals(["READ", "PREPARE"].includes(x.riskLevel as string), true, x.name);
   for (const [k, v] of Object.entries(FLOW_SCREENS)) assertEquals(v.route.length > 0 && k === k.toLowerCase(), true);
 });
 

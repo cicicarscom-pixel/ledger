@@ -152,6 +152,52 @@ export class StartGuideTool implements ITool {
   }
 }
 
+const PLATFORM_RE = /^[a-z0-9_]{2,20}$/;
+const MAX_ACTIVE_DRAFTS = 20;
+
+/**
+ * Gönderi taslağı hazırlar (PREPARE). Yayınlamaz: taslak veritabanına yazılır, mobil AI Üretim ekranı draftId ile açıp
+ * alanları doldurur; Paylaş düğmesine kullanıcı kendisi basar. Kullanıcı kimliği context.customerId'dir (Flow AI'da konuşan kişi).
+ */
+export class PreparePostDraftTool implements ITool {
+  readonly name = 'prepare_post_draft';
+  readonly description = 'Kullanıcı için gönderi (post) metni taslağı hazırlar ve AI Üretim ekranında açılmasını sağlar. Yayınlamaz; paylaşımı kullanıcı kendisi yapar.';
+  readonly riskLevel = 'PREPARE' as const;
+  readonly schema = {
+    type: 'object',
+    properties: {
+      text: { type: 'string', description: 'Gönderi metni (1-5000 karakter).' },
+      platforms: { type: 'array', items: { type: 'string' }, description: 'İstenen platformlar (ör. instagram, facebook). Opsiyonel.' },
+    },
+    required: ['text'],
+  };
+  constructor(private readonly admin: any) {}
+
+  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
+    const text = typeof args.text === 'string' ? args.text.trim() : '';
+    if (!text || text.length > 5000) return { status: 'INVALID_TEXT', message: 'Metin 1-5000 karakter olmalı.' };
+    const raw = Array.isArray(args.platforms) ? args.platforms : [];
+    const platforms = [...new Set(raw.map((p) => String(p).toLowerCase().trim()).filter((p) => PLATFORM_RE.test(p)))].slice(0, 10);
+
+    const { count, error: cErr } = await this.admin.from('flow_ai_post_drafts').select('id', { count: 'exact', head: true })
+      .eq('org_id', context.organizationId).eq('user_id', context.customerId).eq('status', 'draft').gt('expires_at', new Date().toISOString());
+    if (cErr) {
+      console.error('[prepare_post_draft] sayım hatası:', cErr.message);
+      return { status: 'ERROR', message: 'Taslak şu an hazırlanamadı.' };
+    }
+    if ((count ?? 0) >= MAX_ACTIVE_DRAFTS) return { status: 'TOO_MANY_DRAFTS', message: 'Çok fazla açık taslak var; eskilerini kullan veya sil.' };
+
+    const { data, error } = await this.admin.from('flow_ai_post_drafts')
+      .insert({ org_id: context.organizationId, user_id: context.customerId, caption: text, platforms })
+      .select('id').single();
+    if (error || !data) {
+      console.error('[prepare_post_draft] yazma hatası:', error?.message);
+      return { status: 'ERROR', message: 'Taslak şu an hazırlanamadı.' };
+    }
+    return { status: 'SUCCESS', data: { draftId: data.id, platforms, clientAction: { type: 'open_post_draft', draftId: data.id } } };
+  }
+}
+
 export class GetHelpTopicTool implements ITool {
   readonly name = 'get_help_topic';
   readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
@@ -174,7 +220,7 @@ export class GetHelpTopicTool implements ITool {
  * includeHighlight: mobilde vurgu (FlowHighlight, FA2-2) yayında olduğu için flow-ai-agent açar; testler ve eski
  * istemciler için varsayılan KAPALI kalır.
  */
-export function createFlowTools(admin: any, opts: { includeHighlight?: boolean } = {}): ITool[] {
+export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean } = {}): ITool[] {
   const tools: ITool[] = [
     new GetAppointmentsOverviewTool(admin),
     new GetConnectedSocialAccountsTool(admin),
@@ -183,5 +229,7 @@ export function createFlowTools(admin: any, opts: { includeHighlight?: boolean }
     new StartGuideTool(),
   ];
   if (opts.includeHighlight) tools.push(new HighlightTool());
+  // includeDrafts: mobil AI Üretim ekranı draftId ile açmayı (FA3-3) destekleyene kadar KAPALI.
+  if (opts.includeDrafts) tools.push(new PreparePostDraftTool(admin));
   return tools;
 }
