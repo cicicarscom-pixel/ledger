@@ -240,13 +240,18 @@ export class HandleIncomingMessageUseCase {
           if (zernioAccountId) {
             const msgRes = await this.deps.zernioClient.inbox.sendMessage(zernioAccountId, senderId, aiResponse);
             
-            // Save AI message locally
-            const { data: localConv } = await supabaseClient.from('conversations').select('id').eq('zernio_conversation_id', senderId).single();
+            // Giden mesajı Zernio'nun gerçek kimliğiyle yerelde sakla. Kimlik dönmediyse
+            // sahte kimlikle eklemeyiz: zernio-webhook (message.sent) aynı mesajı gerçek
+            // kimliğiyle zaten kaydeder; sahte kayıt ekranda çift mesaj üretiyordu.
+            const sentId = msgRes?.data?.id ?? msgRes?.id ?? msgRes?.messageId ?? msgRes?.message?.id ?? msgRes?.data?.messageId;
+            const { data: localConv } = sentId
+              ? await supabaseClient.from('conversations').select('id').eq('zernio_conversation_id', senderId).single()
+              : { data: null };
             if (localConv) {
               await supabaseClient.from('messages').insert({
                 conversation_id: localConv.id,
                 profile_id: orgId,
-                zernio_message_id: msgRes?.data?.id || `ai_mock_${Date.now()}`,
+                zernio_message_id: sentId,
                 direction: 'outgoing',
                 content: aiResponse,
               });
