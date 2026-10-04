@@ -57,6 +57,10 @@ serve(async (req) => {
     if (!canUseWhatsapp(profile?.account_status)) return json({ success: false, error: "ACCOUNT_NOT_ACTIVE" }, 403);
 
     if (action === "start") {
+      // Zaten bağlı (WORKING) oturum yeniden BAŞLATILMAZ: aşağıdaki otomatik onarım "logout" yapar ve WhatsApp bağlantısını koparırdı.
+      const existing = await findSession();
+      if (existing?.status === "WORKING") return json({ success: true, data: { name: existing.name, status: existing.status, me: existing.me ?? null } });
+
       const body = { name, config: { webhooks: [{ url: WEBHOOK_URL, events: ["message", "session.status"] }] }, engine: "NOWEB" };
       const start = () => fetch(`${wahaBase()}/sessions/start`, { method: "POST", headers: wahaHeaders(), body: JSON.stringify(body) });
       let res = await start();
