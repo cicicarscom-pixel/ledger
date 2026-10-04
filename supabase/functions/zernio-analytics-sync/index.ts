@@ -34,7 +34,14 @@ serve(async (req) => {
     let successCount = 0;
     let failCount = 0;
     const failures: { platform: string; error: string }[] = [];
-    const metricDate = ymdInTimezone(new Date());
+    // Metrik günü her kuruluşun KENDİ saat dilimine göre (organizations.timezone); eksikse UTC.
+    const orgIds = [...new Set(accounts.map((a: any) => a.organization_id).filter(Boolean))];
+    const tzByOrg = new Map<string, string | null>();
+    if (orgIds.length > 0) {
+      const { data: orgs } = await supabase.from('organizations').select('id, timezone').in('id', orgIds);
+      for (const o of orgs ?? []) tzByOrg.set(o.id, o.timezone ?? null);
+    }
+    const now = new Date();
 
     // SDK hey-api biçimi: { query: {...} } ve { data, error } döner (atmaz).
     const unwrap = (res: any) => {
@@ -79,7 +86,7 @@ serve(async (req) => {
         // flow şeması service_role'e PostgREST'ten açık değil → SECURITY DEFINER RPC.
         const { error: upsertErr } = await supabase.rpc('upsert_social_account_metrics', {
           p_social_account_id: account.id,
-          p_metric_date: metricDate,
+          p_metric_date: ymdInTimezone(now, tzByOrg.get(account.organization_id)),
           p_followers: m.followers ?? null,
           p_impressions: m.impressions ?? null,
           p_reach: m.reach ?? null,

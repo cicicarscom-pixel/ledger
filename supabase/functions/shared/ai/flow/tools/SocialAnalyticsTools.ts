@@ -1,5 +1,6 @@
 import type { AIContext } from '../../types.ts';
 import type { ITool, ToolResult } from '../../tools/types.ts';
+import { ymdInTimezone } from '../../../infrastructure/zernio/analyticsMapping.ts';
 
 /**
  * FA4 — Flow AI salt-okunur sosyal medya analitiği. Hepsi READ.
@@ -206,7 +207,7 @@ export class GetContentPerformanceTool implements ITool {
     const days = clampDays(args.days);
     const to = new Date();
     const from = new Date(to.getTime() - days * 86400000);
-    const ymd = (d: Date) => d.toISOString().slice(0, 10); // Zernio sorgu aralığı (UTC) — gün gösterimi değil
+    const ymd = (d: Date) => ymdInTimezone(d, context.timezone); // kullanıcının/kuruluşun yerel günü
     const query: Record<string, unknown> = { fromDate: ymd(from), toDate: ymd(to) };
     if (platform) query.platform = platform;
     try {

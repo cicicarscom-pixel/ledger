@@ -25,6 +25,11 @@ Deno.test("takipçi eşlemesi: hesap id'siyle, yoksa ilk hesap", () => {
   assertEquals(mapFollowerStats({ accounts: [] }, "x"), { followers: null, posts_count: null });
 });
 
-Deno.test("işletme günü İstanbul'a göre (UTC 22:30 → ertesi gün)", () => {
-  assertEquals(ymdInTimezone(new Date("2026-10-03T22:30:00Z")), "2026-10-04");
+Deno.test("yerel gün kuruluşun saat dilimine göre; eksik/geçersiz → UTC", () => {
+  const d = new Date("2026-10-03T22:30:00Z");
+  assertEquals(ymdInTimezone(d, "Europe/Istanbul"), "2026-10-04");
+  assertEquals(ymdInTimezone(d, "America/Los_Angeles"), "2026-10-03");
+  assertEquals(ymdInTimezone(d, "Pacific/Auckland"), "2026-10-04");
+  assertEquals(ymdInTimezone(d, null), "2026-10-03");
+  assertEquals(ymdInTimezone(d, "Gecersiz/Zaman"), "2026-10-03");
 });

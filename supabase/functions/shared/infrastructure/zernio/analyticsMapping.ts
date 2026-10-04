@@ -41,7 +41,15 @@ export function mapFollowerStats(res: any, zernioAccountId: string): Pick<Mapped
   return { followers: num(acc.currentFollowers), posts_count: num(s.videoCount ?? s.mediaCount) };
 }
 
-/** İşletme gününü (Europe/Istanbul) YYYY-MM-DD verir; toISOString kayması yok. */
-export function ymdInTimezone(now: Date, tz = 'Europe/Istanbul'): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+/**
+ * Kuruluşun yerel gününü (YYYY-MM-DD) verir. tz = organizations.timezone (IANA). Eksik/geçersizse UTC
+ * (platform uluslararası: sabit bir ülke saatine varsayılmaz). toISOString().split('T') kayması yok.
+ */
+export function ymdInTimezone(now: Date, tz?: string | null): string {
+  const fmt = (zone: string) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  try {
+    return fmt(tz && tz.trim() ? tz : 'UTC');
+  } catch {
+    return fmt('UTC');
+  }
 }
