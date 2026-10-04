@@ -9,6 +9,9 @@ import { SupabasePendingActionStore } from "../shared/ai/flow/SupabasePendingAct
 import { createFlowTools } from "../shared/ai/flow/tools/FlowTools.ts";
 import { createZernioAnalyticsCaller } from "../shared/ai/flow/tools/SocialAnalyticsTools.ts";
 import { createZernioPublishCaller } from "../shared/ai/flow/tools/PublishTools.ts";
+import { buildSuggestions } from "../shared/ai/flow/SuggestionService.ts";
+import { addDaysYmd, todayInTimezone } from "../shared/ai/flow/tools/FlowTools.ts";
+import { compactBestTimes, summarizeAccounts } from "../shared/ai/flow/tools/SocialAnalyticsTools.ts";
 import { CaptionService, DEFAULT_DAILY_CAPTION_LIMIT } from "../shared/ai/flow/CaptionService.ts";
 import { PersonaRepository } from "../shared/ai/persona/PersonaRepository.ts";
 import { PersonaService } from "../shared/ai/persona/PersonaService.ts";
@@ -39,9 +42,10 @@ const captionService = new CaptionService({
   dailyLimit: Number(Deno.env.get("FLOW_CAPTION_DAILY_LIMIT")) || DEFAULT_DAILY_CAPTION_LIMIT,
   resolvePersona: (orgId) => personaService.resolveForMerchant(orgId, "production"),
 });
+const zernioAnalyticsCaller = createZernioAnalyticsCaller(SUPABASE_URL, SERVICE_KEY);
 // READ/PREPARE araçlar + onay kapısından geçen publish_post (EXTERNAL_ACTION)
 const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService,
-  zernioAnalytics: createZernioAnalyticsCaller(SUPABASE_URL, SERVICE_KEY),
+  zernioAnalytics: zernioAnalyticsCaller,
   zernioPublish: createZernioPublishCaller(SUPABASE_URL, SERVICE_KEY) }));
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
@@ -93,6 +97,27 @@ serve(async (req) => {
       if (typeof body.actionId !== "string") return json({ error: "INVALID_REQUEST" }, 400);
       const ok = await store.reject(body.actionId, org.id, userId);
       return json({ status: ok ? "REJECTED" : "NOT_APPROVABLE" });
+    }
+
+    // ---- Proaktif öneri kartları (FA6): salt okunur, LLM yok, günlük mesaj sınırına sayılmaz ----
+    if (body.action === "suggestions") {
+      const GROWTH_DAYS = 30;
+      const tomorrow = addDaysYmd(todayInTimezone(context.now, org.timezone), 1);
+      const [ov, analytics, bt] = await Promise.all([
+        registry.getTool("get_appointments_overview")!.execute(context, { date: tomorrow, days: 3 }).catch(() => null),
+        admin.rpc("get_social_analytics_for_ai", { p_org: org.id, p_days: GROWTH_DAYS }).then((r: any) => r.data ?? null).catch(() => null),
+        // Yavaş/erişilemeyen Zernio kartları geciktirmesin: 6 sn sonra bu kart yok sayılır.
+        Promise.race([zernioAnalyticsCaller("get-best-times", org.id, {}), new Promise((r) => setTimeout(() => r(null), 6000))]).catch(() => null),
+      ]);
+      const accounts = summarizeAccounts((analytics?.accounts ?? []) as any);
+      const cards = buildSuggestions({
+        days: ov?.status === "SUCCESS" ? ((ov.data as any).days as any[]).map((d) => ({ date: d.date, calendars: d.calendars })) : [],
+        connectedAccounts: accounts.length,
+        bestTimes: compactBestTimes(bt),
+        growth: accounts,
+        growthDays: GROWTH_DAYS,
+      });
+      return json({ cards });
     }
 
     // ---- Sohbet ----
