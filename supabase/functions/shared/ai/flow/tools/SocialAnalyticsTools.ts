@@ -39,6 +39,7 @@ export function compactBestTimes(d: any) {
     .slice(0, 5)
     .map((s) => ({
       day: DAY_NAMES_TR[Number(s.day_of_week)] ?? String(s.day_of_week),
+      dayIndex: Number(s.day_of_week), // 0 = Pazar (istemci kendi dilinde adlandırır)
       hour: `${String(Number(s.hour)).padStart(2, '0')}:00`,
       avgEngagement: Math.round(Number(s.avg_engagement ?? 0) * 10) / 10,
       postCount: Number(s.post_count ?? 0),

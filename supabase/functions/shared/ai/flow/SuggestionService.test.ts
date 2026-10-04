@@ -24,8 +24,8 @@ Deno.test("en boş gün seçilir; eşiğin altındaysa kart yok", () => {
 });
 
 Deno.test("en iyi saat: örnek az (1 gönderi) ise kart yok; yeterliyse var", () => {
-  assertEquals(buildSuggestions({ ...base, bestTimes: [{ day: "Çarşamba", hour: "20:00", avgEngagement: 9, postCount: 1 }] }), []);
-  const c = buildSuggestions({ ...base, bestTimes: [{ day: "Çarşamba", hour: "20:00", avgEngagement: 9, postCount: 2 }] });
+  assertEquals(buildSuggestions({ ...base, bestTimes: [{ dayIndex: 3, hour: "20:00", avgEngagement: 9, postCount: 1 }] }), []);
+  const c = buildSuggestions({ ...base, bestTimes: [{ dayIndex: 3, hour: "20:00", avgEngagement: 9, postCount: 2 }] });
   assertEquals(c[0].kind, "best_time");
   assertEquals(c[0].params.hour, "20:00");
 });
@@ -44,7 +44,7 @@ Deno.test("büyüme: sıfır/ölçümsüz yok sayılır, en büyük mutlak deği
 Deno.test("en fazla 3 kart, öncelik sırası: bağla → boş saat → en iyi saat → büyüme", () => {
   const c = buildSuggestions({
     days: [day("2026-10-06", 8)], connectedAccounts: 0,
-    bestTimes: [{ day: "Pazar", hour: "12:00", avgEngagement: 5, postCount: 3 }],
+    bestTimes: [{ dayIndex: 0, hour: "12:00", avgEngagement: 5, postCount: 3 }],
     growth: [{ platform: "facebook", hasData: true, followerChange: 5 }], growthDays: 30,
   });
   assertEquals(c.map((x) => x.kind), ["connect_account", "free_slots", "growth"]); // best_time bağlı hesap olmadığı için yok

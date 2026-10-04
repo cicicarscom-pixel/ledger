@@ -57,7 +57,7 @@ Deno.test("compactBestTimes: en yüksek 5, gün adı ve örnek sayısı", () => 
     { hour: 12, post_count: 3, day_of_week: 0, avg_engagement: 920.33 },
     { hour: 20, post_count: 2, day_of_week: 3, avg_engagement: 3338 },
   ] });
-  assertEquals(r[0], { day: "Çarşamba", hour: "20:00", avgEngagement: 3338, postCount: 2 });
+  assertEquals(r[0], { day: "Çarşamba", dayIndex: 3, hour: "20:00", avgEngagement: 3338, postCount: 2 });
   assertEquals(r[1].day, "Pazar");
   assertEquals(compactBestTimes({}), []);
 });

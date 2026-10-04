@@ -20,7 +20,7 @@ export interface SuggestionInput {
   /** Bağlı (aktif) sosyal hesap sayısı. */
   connectedAccounts: number;
   /** Sıkıştırılmış en iyi saat dilimleri (compactBestTimes çıktısı), en iyisi önce. */
-  bestTimes: { day: string; hour: string; avgEngagement: number; postCount: number }[];
+  bestTimes: { dayIndex: number; hour: string; avgEngagement: number; postCount: number }[];
   /** Hesap büyümesi (summarizeAccounts çıktısı). */
   growth: { platform: string; hasData: boolean; followerChange: number | null }[];
   growthDays: number;
@@ -52,7 +52,7 @@ export function buildSuggestions(input: SuggestionInput): SuggestionCard[] {
   // En iyi paylaşım zamanı: örnek yeterliyse.
   const top = input.bestTimes[0];
   if (top && top.postCount >= MIN_BEST_TIME_POSTS && input.connectedAccounts > 0) {
-    cards.push({ id: `best_time:${top.day}:${top.hour}`, kind: 'best_time', params: { day: top.day, hour: top.hour, postCount: top.postCount }, cta: { type: 'prompt' } });
+    cards.push({ id: `best_time:${top.dayIndex}:${top.hour}`, kind: 'best_time', params: { dayIndex: top.dayIndex, hour: top.hour, postCount: top.postCount }, cta: { type: 'prompt' } });
   }
 
   // Büyüme: ölçüm olan ve değişimi sıfırdan farklı en büyük mutlak değişim.
