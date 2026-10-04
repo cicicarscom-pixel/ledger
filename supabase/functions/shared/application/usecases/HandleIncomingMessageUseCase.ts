@@ -10,6 +10,7 @@ import { acquireChatLock, releaseChatLock } from '../../infrastructure/locks/Cha
 
 type IncomingMessagePayload = {
   merchantId: string;
+  organizationId?: string; // sosyal kanalda webhook doğrudan verir; yoksa merchantId (sahip) üzerinden çözülür
   source: 'whatsapp' | 'social';
   senderId: string;
   userMessage: string;
@@ -52,6 +53,7 @@ export class HandleIncomingMessageUseCase {
     supabaseClient: any,
     payload: {
       merchantId: string;
+      organizationId?: string;
       source: 'whatsapp' | 'social';
       senderId: string;
       userMessage: string;
@@ -62,18 +64,18 @@ export class HandleIncomingMessageUseCase {
       zernioAccountId?: string;
     }
   ): Promise<void> {
-    const { merchantId, source, senderId, userMessage, platform, isComment, postId, zernioAccountId: initialZernioAccountId } = payload;
+    const { merchantId, organizationId, source, senderId, userMessage, platform, isComment, postId, zernioAccountId: initialZernioAccountId } = payload;
     let zernioAccountId = initialZernioAccountId;
 
     // 0. Tenant kimliği: kanal kimliği (merchantId = WAHA oturumu = sahibin auth id'si) burada
     // bir kez organizations.id'ye çözülür; bundan sonra bütün sorgular orgId ile yapılır.
     // Sosyal kanalda merchantId zaten organizations.id'dir; çözümleme boş dönerse aynen kullanılır.
-    const { data: orgData } = await supabaseClient
-      .from('organizations')
-      .select('id, multi_calendar_enabled')
-      .eq('owner_id', merchantId)
-      .maybeSingle();
-    const orgId: string = orgData?.id ?? merchantId;
+    const orgQuery = supabaseClient.from('organizations').select('id, multi_calendar_enabled');
+    const { data: orgData } = await (organizationId
+      ? orgQuery.eq('id', organizationId)
+      : orgQuery.eq('owner_id', merchantId)
+    ).maybeSingle();
+    const orgId: string = organizationId ?? orgData?.id ?? merchantId;
 
     // 1. Fetch Bot Settings
     const { data: botSettings, error: botError } = await BotSettingsRepository.resolveBotSettingsForOrg(supabaseClient, orgId);

@@ -37,6 +37,7 @@
 // ==============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
 import { createPersonaTestPipeline } from "../shared/container.ts";
 import { AIContext } from "../shared/ai/types.ts";
@@ -48,7 +49,8 @@ const corsHeaders = {
 };
 
 interface PersonaTestRequestBody {
-  merchantId: string;
+  merchantId?: string; // artık yok sayılır: kimlik JWT'den çözülür (eski istemciler göndermeye devam edebilir)
+  appointmentModuleEnabled?: boolean;
   testMessage: string;
   personaId?: string | null;
   // Phase 5 addition: lets a caller that only knows the slug (e.g. today's
@@ -90,9 +92,9 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: "Invalid JSON body" }, 400);
   }
 
-  const { merchantId, testMessage } = body;
-  if (!merchantId || !testMessage) {
-    return jsonResponse({ success: false, error: "merchantId and testMessage are required" }, 400);
+  const { testMessage } = body;
+  if (!testMessage) {
+    return jsonResponse({ success: false, error: "testMessage is required" }, 400);
   }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -113,9 +115,8 @@ serve(async (req) => {
   if (authError || !userData?.user) {
     return jsonResponse({ success: false, error: "Unauthorized" }, 401);
   }
-  if (userData.user.id !== merchantId) {
-    return jsonResponse({ success: false, error: "Forbidden: merchantId does not match the authenticated user" }, 403);
-  }
+  // Tenant kimliği istemciden alınmaz: oturum sahibi = işletme sahibi.
+  const merchantId: string = userData.user.id;
 
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -132,6 +133,13 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "Organization not found for this user" }, 404);
     }
     const orgId: string = orgRow.id;
+
+    // Gün hesabı işletmenin kendi saat diliminde (sabit İstanbul yok).
+    const { data: aiSettings } = await supabaseAdmin
+      .from("organization_ai_settings")
+      .select("timezone")
+      .eq("org_id", orgId)
+      .maybeSingle();
 
     // Legacy fallback context — mirrors production's botSettings fetch, but
     // tolerant of "no row yet" (a brand-new merchant should still be able to
@@ -186,7 +194,7 @@ serve(async (req) => {
       customerId: `persona-test-${crypto.randomUUID()}`,
       merchantId,
       now: new Date(),
-      timezone: "Europe/Istanbul",
+      timezone: aiSettings?.timezone || "UTC",
       botSettings: botSettings ?? {},
       personaConfig,
       appointmentModuleEnabled: body.appointmentModuleEnabled ?? true,

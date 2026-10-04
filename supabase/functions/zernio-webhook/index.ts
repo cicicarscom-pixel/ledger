@@ -214,6 +214,7 @@ serve(async (req) => {
           
           await useCase.execute(supabase, {
             merchantId: profileId,
+            organizationId: profileId,
             source: 'social',
             senderId: conversationId,
             userMessage: textContent,
@@ -408,6 +409,7 @@ serve(async (req) => {
           
           const aiJobPayload = {
             merchantId: profileId,
+            organizationId: profileId,
             source: 'social',
             senderId: commentId,
             userMessage: commentText,
@@ -457,7 +459,7 @@ serve(async (req) => {
              platform: 'zernio_deleted_comment',
              sender_id: commentId,
              user_message: '[DELETED_ON_SOCIAL]',
-             merchant_id: profileId
+             org_id: profileId
           });
         }
         break;
