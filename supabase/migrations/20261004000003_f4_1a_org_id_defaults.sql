@@ -11,3 +11,7 @@ alter table public.organization_ai_settings alter column org_id set default publ
 -- upsert için org_id benzersiz (şimdiye dek organization_ai_settings'te merchant_id PK idi)
 create unique index if not exists organization_ai_settings_org_id_key on public.organization_ai_settings (org_id);
 create unique index if not exists bot_settings_org_id_key on public.bot_settings (org_id);
+
+-- F4-1b: istemcinin doğrudan yazdığı günlük tabloları
+alter table public.ai_communication_logs alter column org_id set default public.current_org_id();
+alter table public.waha_sessions alter column org_id set default public.current_org_id();
