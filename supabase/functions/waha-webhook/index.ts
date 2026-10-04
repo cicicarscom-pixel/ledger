@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
 import { createMessageUseCase } from "../shared/container.ts";
+import { isAccountBlocked } from "../shared/admin/wahaSession.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,6 +37,13 @@ serve(async (req) => {
       // Sadece dışarıdan gelen (müşteri), grup/durum olmayan, kişisel mesajlara yanıt ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
         console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
+
+        // Askıya alınmış / banlanmış hesabın botu cevap vermez (admin panelindeki durum zorlanır).
+        const { data: owner } = await supabaseAdmin.from('profiles').select('account_status').eq('id', merchantId).maybeSingle();
+        if (isAccountBlocked(owner?.account_status)) {
+          console.log(`[WAHA WEBHOOK] Hesap ${owner?.account_status}: bot cevabı atlandı (${merchantId})`);
+          return new Response(JSON.stringify({ success: true, skipped: 'account_blocked' }), { headers: { 'Content-Type': 'application/json' }, status: 200 });
+        }
 
         // Use Omnichannel Router
         await useCase.execute(supabaseAdmin, {

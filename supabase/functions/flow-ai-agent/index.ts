@@ -9,6 +9,7 @@ import { SupabasePendingActionStore } from "../shared/ai/flow/SupabasePendingAct
 import { createFlowTools } from "../shared/ai/flow/tools/FlowTools.ts";
 import { createZernioAnalyticsCaller } from "../shared/ai/flow/tools/SocialAnalyticsTools.ts";
 import { createZernioPublishCaller } from "../shared/ai/flow/tools/PublishTools.ts";
+import { isAccountBlocked } from "../shared/admin/wahaSession.ts";
 import { buildSuggestions } from "../shared/ai/flow/SuggestionService.ts";
 import { addDaysYmd, todayInTimezone } from "../shared/ai/flow/tools/FlowTools.ts";
 import { compactBestTimes, summarizeAccounts } from "../shared/ai/flow/tools/SocialAnalyticsTools.ts";
@@ -82,6 +83,10 @@ serve(async (req) => {
 
     const org = await resolveOrg(userId);
     if (!org) return json({ error: "ORGANIZATION_NOT_FOUND" }, 404);
+
+    // Askıya alınmış / banlanmış hesap Flow AI'ı (sohbet, öneri, onay ve yayın dahil) kullanamaz.
+    const { data: me } = await admin.from("profiles").select("account_status").eq("id", userId).maybeSingle();
+    if (isAccountBlocked(me?.account_status)) return json({ error: "ACCOUNT_BLOCKED" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const store = new SupabasePendingActionStore(admin);
