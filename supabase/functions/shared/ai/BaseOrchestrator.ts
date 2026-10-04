@@ -81,6 +81,7 @@ export abstract class BaseOrchestrator {
     const actions: ExecutedAction[] = [];
     const usage: TurnUsage = { rounds: 0, toolCalls: 0 };
     const done = (text: string): OrchestratorResult => ({ text, actions, usage });
+    let nudged = false;
 
     const messages: any[] = [
       ...history,
@@ -90,7 +91,22 @@ export abstract class BaseOrchestrator {
     for (let round = 0; round < this.MAX_TOOL_ROUNDS; round++) {
       usage.rounds = round + 1;
       console.log(`[${this.logPrefix}] Round ${round} - Gemini isteği gönderiliyor. Tool sayısı: ${tools.length}`);
-      const turnResult = await this.deps.geminiClient.generateResponse(systemPrompt, messages, tools);
+      let turnResult;
+      try {
+        turnResult = await this.deps.geminiClient.generateResponse(systemPrompt, messages, tools);
+      } catch (error) {
+        // Araçlar çalıştıktan sonra model bazen metinsiz boş yanıt döner (ör. yalnız ekran açıldığında). Bir kez, araç
+        // sonuçlarının olduğu son kullanıcı turuna kısa bir not ekleyip metin istenir; yine boşsa hata olduğu gibi yükselir.
+        const isEmpty = error instanceof Error && error.message.includes('boş yanıt');
+        const last = messages[messages.length - 1];
+        if (isEmpty && !nudged && actions.length > 0 && last?.role === 'user') {
+          nudged = true;
+          console.warn(`[${this.logPrefix}] Araçlardan sonra boş yanıt; metin istenerek yeniden denenecek.`);
+          last.parts.push({ text: '(Sistem notu) Araç sonuçları yukarıda. Kullanıcıya yapılanı bir iki cümleyle yaz.' });
+          continue;
+        }
+        throw error;
+      }
       console.log(`[${this.logPrefix}] Round ${round} - Gemini yanıtı alındı. Yanıt tipi: ${turnResult.type}`);
 
       if (turnResult.type === 'text') {
