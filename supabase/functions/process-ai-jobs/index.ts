@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { HandleIncomingMessageUseCase } from "../shared/application/usecases/HandleIncomingMessageUseCase.ts";
+import { createMessageUseCase } from "../shared/container.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,7 +39,7 @@ serve(async (req) => {
 
     console.log(`Processing ${jobs.length} AI jobs...`);
 
-    const useCase = new HandleIncomingMessageUseCase();
+    const useCase = createMessageUseCase(supabase);
 
     // 2. İşleri sırayla veya paralel işle
     // Rate limit yememek için for...of ile sırayla işlemek daha güvenlidir.
