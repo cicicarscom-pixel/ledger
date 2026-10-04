@@ -254,14 +254,15 @@ export class GetHelpTopicTool implements ITool {
  * includeHighlight: mobilde vurgu (FlowHighlight, FA2-2) yayında olduğu için flow-ai-agent açar; testler ve eski
  * istemciler için varsayılan KAPALI kalır.
  */
-export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean; captionService?: Pick<CaptionService, 'generate'>; zernioAnalytics?: ZernioAnalyticsCaller; zernioPublish?: ZernioPublishCaller } = {}): ITool[] {
+export function createFlowTools(admin: any, opts: { includeGuide?: boolean; includeHighlight?: boolean; includeDrafts?: boolean; captionService?: Pick<CaptionService, 'generate'>; zernioAnalytics?: ZernioAnalyticsCaller; zernioPublish?: ZernioPublishCaller } = {}): ITool[] {
   const tools: ITool[] = [
     new GetAppointmentsOverviewTool(admin),
     new GetConnectedSocialAccountsTool(admin),
     new OpenScreenTool(),
     new GetHelpTopicTool(),
-    new StartGuideTool(),
   ];
+  // Rehber modu (ekranda adım adım vurgu) yalnız mobilde vardır; web istemcisi includeGuide:false verir.
+  if (opts.includeGuide !== false) tools.push(new StartGuideTool());
   if (opts.includeHighlight) tools.push(new HighlightTool());
   // includeDrafts: mobil AI Üretim ekranı draftId ile açmayı (FA3-3) destekleyene kadar KAPALI.
   if (opts.includeDrafts) tools.push(new PreparePostDraftTool(admin));

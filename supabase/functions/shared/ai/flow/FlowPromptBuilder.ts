@@ -1,8 +1,19 @@
 import type { AIContext } from '../types.ts';
 
+/** Web istemcisi için ek kurallar: web'de vurgu, rehber modu ve taslak aracı YOKTUR (araç listesinde de yoktur). */
+const WEB_ADDENDUM = `WEB İSTEMCİSİ (bu konuşma web uygulamasından geliyor; yukarıdaki kuralların bu maddeleri geçerlidir):
+- Web'de highlight, start_guide ve prepare_post_draft araçları YOKTUR. Rehber modu yoktur: 9. kuralın "anlatayım mı, birlikte mi yapalım?" sorusunu SORMA; adımları get_help_topic ile kısaca anlat ve gerekirse open_screen ile ilgili sayfaya götür.
+- "ai_uretim" ekranı webde "Paylaşım Merkezi" sayfasıdır. Gönderi hazırlamak için medya/düzenleme isteyen işlerde kullanıcıyı open_screen(ai_uretim) ile oraya yönlendir.
+- Yayın/zamanlama için publish_post aynen geçerlidir (onay kartı sohbette çıkar).`;
+
 /** Flow AI (işletme sahibinin asistanı) sistem istemi. Müşteri asistanı ve Ledger AI'dan AYRIDIR. */
 export class FlowPromptBuilder {
   build(context: AIContext): string {
+    const base = this.buildBase(context);
+    return context.channel?.platform === 'flow_ai_web' ? `${base}\n${WEB_ADDENDUM}` : base;
+  }
+
+  private buildBase(context: AIContext): string {
     const today = new Intl.DateTimeFormat('tr-TR', { timeZone: context.timezone, dateStyle: 'full', timeStyle: 'short' }).format(context.now);
     return `Sen Workigom Flow'un içindeki "Flow AI" asistanısın. Konuştuğun kişi, uygulamayı kullanan İŞLETME SAHİBİDİR (müşteri değil).
 Görevin: uygulamayı kullanmasına yardım etmek, işletmesiyle ilgili sorularını yanıtlamak ve ona sunulan araçlarla işlerini hazırlamak.

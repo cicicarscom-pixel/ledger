@@ -44,10 +44,15 @@ const captionService = new CaptionService({
   resolvePersona: (orgId) => personaService.resolveForMerchant(orgId, "production"),
 });
 const zernioAnalyticsCaller = createZernioAnalyticsCaller(SUPABASE_URL, SERVICE_KEY);
-// READ/PREPARE araçlar + onay kapısından geçen publish_post (EXTERNAL_ACTION)
-const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService,
-  zernioAnalytics: zernioAnalyticsCaller,
-  zernioPublish: createZernioPublishCaller(SUPABASE_URL, SERVICE_KEY) }));
+// READ/PREPARE araçlar + onay kapısından geçen publish_post (EXTERNAL_ACTION).
+// İstemciye göre iki kayıt defteri: mobilde vurgu/rehber/taslak var, webde yok (web istemcisi `client: "web"` gönderir).
+const zernioPublishCaller = createZernioPublishCaller(SUPABASE_URL, SERVICE_KEY);
+const registries = {
+  mobile: new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService,
+    zernioAnalytics: zernioAnalyticsCaller, zernioPublish: zernioPublishCaller })),
+  web: new ToolRegistry(createFlowTools(admin, { includeGuide: false, includeHighlight: false, includeDrafts: false, captionService,
+    zernioAnalytics: zernioAnalyticsCaller, zernioPublish: zernioPublishCaller })),
+};
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
   const { data: owned } = await admin.from("organizations").select("id, timezone").eq("owner_id", userId).order("created_at").limit(1).maybeSingle();
@@ -58,14 +63,14 @@ async function resolveOrg(userId: string): Promise<{ id: string; timezone: strin
   return org ? { id: org.id, timezone: org.timezone ?? "Europe/Istanbul" } : null;
 }
 
-function buildContext(orgId: string, userId: string, timezone: string): AIContext {
+function buildContext(orgId: string, userId: string, timezone: string, client: "mobile" | "web"): AIContext {
   return {
     organizationId: orgId,
     customerId: userId, // Flow AI'da konuşan kişi işletme kullanıcısıdır
     now: new Date(),
     timezone,
     executionMode: "production",
-    channel: { source: "flow_ai", platform: "flow_ai", supportsInteractiveButtons: false },
+    channel: { source: "flow_ai", platform: client === "web" ? "flow_ai_web" : "flow_ai", supportsInteractiveButtons: false },
   };
 }
 
@@ -89,8 +94,10 @@ serve(async (req) => {
     if (isAccountBlocked(me?.account_status)) return json({ error: "ACCOUNT_BLOCKED" }, 403);
 
     const body = await req.json().catch(() => ({}));
+    const client: "mobile" | "web" = body.client === "web" ? "web" : "mobile";
+    const registry = registries[client];
     const store = new SupabasePendingActionStore(admin);
-    const context = buildContext(org.id, userId, org.timezone);
+    const context = buildContext(org.id, userId, org.timezone, client);
 
     // ---- Onay / ret ----
     if (body.action === "approve") {
@@ -143,7 +150,7 @@ serve(async (req) => {
       conversationId = conv.id;
     } else {
       const { data: created, error: cErr } = await admin.from("flow_ai_conversations")
-        .insert({ org_id: org.id, user_id: userId, title: message.slice(0, 60), channel: "mobile" }).select("id").single();
+        .insert({ org_id: org.id, user_id: userId, title: message.slice(0, 60), channel: client }).select("id").single();
       if (cErr) throw cErr;
       conversationId = created.id;
     }
