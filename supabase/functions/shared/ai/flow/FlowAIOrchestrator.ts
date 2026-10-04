@@ -12,7 +12,7 @@ const MAX_CLAIM_CORRECTIONS = 2;
 
 // Türkçe geçmiş zaman iddiaları ("başlattım", "açtım", "yönlendirdim", "vurguladım", "hazırladım", "götürdüm").
 export const claimsUiAction = (text: string): boolean =>
-  /\b(başlattım|başlatıldı|açtım|açıldı|yönlendirdim|yönlendirildi|götürdüm|vurguladım|vurgulandı|hazırladım|hazırlandı|oluşturdum)\b/i.test(text);
+  /\b(başlattım|başlatıldı|açtım|açıldı|yönlendirdim|yönlendirildi|götürdüm|vurguladım|vurgulandı|hazırladım|hazırlandı|oluşturdum|yayınladım|yayınlandı|paylaştım|paylaşıldı|zamanladım|zamanlandı)\b/i.test(text);
 
 export class FlowAITurnGuard implements TurnGuard {
   readonly lastRoundFallback = 'Şu an isteğini tamamlayamadım. Biraz sonra tekrar dener misin?';
@@ -35,7 +35,7 @@ export class FlowAITurnGuard implements TurnGuard {
       kind: 'correct',
       tag: 'blocked_false_ui_claim',
       correction:
-        'SİSTEM: Bu turda ilgili araç SUCCESS dönmedi; "başlattım/açtım/yönlendirdim/hazırladım" DİYEMEZSİN. ' +
+        'SİSTEM: Bu turda ilgili araç SUCCESS dönmedi; "başlattım/açtım/yönlendirdim/hazırladım/yayınladım/paylaştım/zamanladım" DİYEMEZSİN. ' +
         'İsteği şimdi uygun aracı çağırarak yap (start_guide, open_screen, highlight, prepare_post_draft veya generate_caption); ' +
         'araç SUCCESS dönünce kısa bir cümleyle bildir. Araç gerekmiyorsa yaptığını söyleme, sadece bilgi ver.',
     };

@@ -79,10 +79,17 @@ export class FlowToolExecutor implements ToolExecutorLike {
   async executeCall(context: AIContext, call: ToolCall): Promise<ToolResult> {
     const tool = this.registry.getTool(call.name);
     if (!tool) return { status: 'NOT_FOUND', message: `Tool '${call.name}' is not recognized.` };
-    const args = call.args ?? {};
+    let args = call.args ?? {};
     const risk = effectiveRisk(tool);
     try {
       if (risk === 'EXTERNAL_ACTION') {
+        let preview: unknown = { tool: tool.name, description: tool.description, args };
+        if (tool.prepareApproval) {
+          const prepared = await tool.prepareApproval(context, args);
+          if (!prepared.ok) return prepared.result;
+          args = prepared.args;
+          preview = prepared.preview;
+        }
         const row = await this.store.insert({
           org_id: this.who.orgId,
           user_id: this.who.userId,
@@ -90,7 +97,7 @@ export class FlowToolExecutor implements ToolExecutorLike {
           tool_name: tool.name,
           risk_level: risk,
           args,
-          preview: { tool: tool.name, description: tool.description, args },
+          preview,
           payload_hash: await hashPayload(tool.name, args),
         });
         return {

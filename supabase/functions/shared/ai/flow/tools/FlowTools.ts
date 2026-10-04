@@ -3,6 +3,7 @@ import type { ITool, ToolResult } from '../../tools/types.ts';
 import { FLOW_GUIDES, FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCatalog.ts';
 import { HELP_TOPICS, findHelpTopic } from '../helpTopics.ts';
 import type { CaptionService } from '../CaptionService.ts';
+import { PublishPostTool, type ZernioPublishCaller } from './PublishTools.ts';
 import { createSocialAnalyticsTools, type ZernioAnalyticsCaller } from './SocialAnalyticsTools.ts';
 
 /**
@@ -253,7 +254,7 @@ export class GetHelpTopicTool implements ITool {
  * includeHighlight: mobilde vurgu (FlowHighlight, FA2-2) yayında olduğu için flow-ai-agent açar; testler ve eski
  * istemciler için varsayılan KAPALI kalır.
  */
-export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean; captionService?: Pick<CaptionService, 'generate'>; zernioAnalytics?: ZernioAnalyticsCaller } = {}): ITool[] {
+export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; includeDrafts?: boolean; captionService?: Pick<CaptionService, 'generate'>; zernioAnalytics?: ZernioAnalyticsCaller; zernioPublish?: ZernioPublishCaller } = {}): ITool[] {
   const tools: ITool[] = [
     new GetAppointmentsOverviewTool(admin),
     new GetConnectedSocialAccountsTool(admin),
@@ -267,5 +268,7 @@ export function createFlowTools(admin: any, opts: { includeHighlight?: boolean; 
   if (opts.captionService) tools.push(new GenerateCaptionTool(opts.captionService));
   // FA4: sosyal analitik (salt-okunur). zernioAnalytics verilmezse yalnız DB tabanlı iki araç.
   if (opts.zernioAnalytics) tools.push(...createSocialAnalyticsTools(admin, opts.zernioAnalytics));
+  // FA5: onaylı yayınlama (EXTERNAL_ACTION; yalnız FlowAIGate onay kapısından çalışır).
+  if (opts.zernioPublish) tools.push(new PublishPostTool(admin, opts.zernioPublish));
   return tools;
 }
