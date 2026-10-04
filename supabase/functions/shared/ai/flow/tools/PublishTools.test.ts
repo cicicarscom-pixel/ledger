@@ -11,19 +11,22 @@ const ctx: any = { organizationId: ORG, customerId: USER, timezone: "Europe/Ista
 function fakeAdmin(init: { drafts: any[]; accounts: any[] }) {
   const tables: Record<string, any[]> = { flow_ai_post_drafts: init.drafts, social_accounts: init.accounts };
   const make = (name: string) => {
-    let rows = tables[name]; let patch: any = null; const filters: ((r: any) => boolean)[] = [];
+    let rows = tables[name]; let patch: any = null; let inserted: any = null; let head = false; const filters: ((r: any) => boolean)[] = [];
     const run = () => {
       const hit = rows.filter((r) => filters.every((f) => f(r)));
       if (patch) hit.forEach((r) => Object.assign(r, patch));
       return hit;
     };
     const b: any = {
-      select: () => b,
+      select: (_c?: string, o?: any) => { if (o?.head) { head = true; } return b; },
       update: (p: any) => { patch = p; return b; },
       eq: (c: string, v: unknown) => { filters.push((r) => r[c] === v); return b; },
       gt: (c: string, v: string) => { filters.push((r) => r[c] > v); return b; },
+      limit: () => b,
+      insert: (row: any) => { const r = { id: `44444444-4444-4444-4444-${String(rows.length).padStart(12, "0")}`, status: "draft", expires_at: "2099-01-01T00:00:00Z", ...row }; rows.push(r); inserted = r; return b; },
+      single: () => Promise.resolve({ data: inserted, error: null }),
       maybeSingle: () => Promise.resolve({ data: run()[0] ?? null, error: null }),
-      then: (res: any) => Promise.resolve({ data: run(), error: null }).then(res),
+      then: (res: any) => { const d = run(); return Promise.resolve(head ? { count: d.length, error: null } : { data: d, error: null }).then(res); },
     };
     return b;
   };
@@ -116,4 +119,18 @@ Deno.test("Zernio hatasında taslak yeniden açılır", async () => {
   const r = await tool.execute(ctx, prep.args);
   assertEquals(r.status, "PUBLISH_FAILED");
   assertEquals(d.status, "draft");
+});
+
+Deno.test("text ile doğrudan: taslak oluşturulur, aynı metinle tekrar çağrı çoğaltmaz; ekran açma yok", async () => {
+  const drafts: any[] = [];
+  const tool = new PublishPostTool(fakeAdmin({ drafts, accounts: fbConnected }), async () => ({}));
+  const a: any = await tool.prepareApproval(ctx, { text: "Merhaba kahve", platforms: ["facebook"] });
+  assertEquals(a.ok, true);
+  assertEquals(drafts.length, 1);
+  assertEquals(drafts[0].caption, "Merhaba kahve");
+  assertEquals(a.args.draftId, drafts[0].id);
+  const b: any = await tool.prepareApproval(ctx, { text: "Merhaba kahve", platforms: ["facebook"] });
+  assertEquals(drafts.length, 1); // çoğaltma yok
+  assertEquals(b.args.draftId, a.args.draftId);
+  assertEquals(((await tool.prepareApproval(ctx, { platforms: ["facebook"] })) as any).result.status, "INVALID_TEXT");
 });

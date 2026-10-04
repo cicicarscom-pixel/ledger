@@ -79,16 +79,16 @@ interface DraftRow { id: string; caption: string; platforms: string[]; status: s
 
 export class PublishPostTool implements ITool {
   readonly name = 'publish_post';
-  readonly description = 'Hazırlanmış bir taslağı (draftId) sosyal medyada yayınlar veya zamanlar. Kullanıcı onayı olmadan YAYINLAMAZ: onay kartı çıkar. Yalnız metinle yayınlanabilen platformlar (facebook, linkedin, twitter/x, threads, bluesky); Instagram/YouTube/TikTok medya gerektirir.';
+  readonly description = 'Bir gönderi metnini sosyal medyada yayınlar veya zamanlar. Metni doğrudan ver (text) ya da mevcut bir taslağı (draftId) kullan; AYRICA prepare_post_draft çağırmana gerek YOK. Kullanıcı onayı olmadan YAYINLAMAZ: sohbette onay kartı çıkar. Yalnız metinle yayınlanabilen platformlar (facebook, linkedin, twitter/x, threads, bluesky); Instagram/YouTube/TikTok medya gerektirir.';
   readonly riskLevel = 'EXTERNAL_ACTION' as const;
   readonly schema = {
     type: 'object',
     properties: {
-      draftId: { type: 'string', description: 'prepare_post_draft ile hazırlanan taslağın kimliği.' },
+      text: { type: 'string', description: 'Yayınlanacak gönderi metni (1-5000 karakter). draftId yoksa zorunlu.' },
+      draftId: { type: 'string', description: 'İsteğe bağlı: daha önce hazırlanmış taslağın kimliği (text yerine).' },
       platforms: { type: 'array', items: { type: 'string' }, description: 'Yayın platformları. Boşsa taslaktaki platformlar kullanılır.' },
       scheduledLocal: { type: 'string', description: 'Zamanlamak için kullanıcının YEREL saati: "YYYY-MM-DD HH:mm". Verilmezse hemen yayınlanır.' },
     },
-    required: ['draftId'],
   };
 
   constructor(private readonly admin: any, private readonly zernio: ZernioPublishCaller) {}
@@ -101,6 +101,25 @@ export class PublishPostTool implements ITool {
     return (data as DraftRow) ?? null;
   }
 
+  /** Aynı metinle açık bir taslak varsa onu kullanır (çoğaltmaz); yoksa oluşturur. Üst sınır: prepare_post_draft ile aynı (20 açık taslak). */
+  private async findOrCreateDraft(context: AIContext, text: string, platforms: string[]): Promise<DraftRow | null> {
+    const nowIso = new Date().toISOString();
+    const { data: existing, error: eErr } = await this.admin.from('flow_ai_post_drafts')
+      .select('id, caption, platforms, status, expires_at')
+      .eq('org_id', context.organizationId).eq('user_id', context.customerId).eq('status', 'draft').eq('caption', text).gt('expires_at', nowIso).limit(1);
+    if (eErr) { console.error('[publish_post] taslak arama hatası:', eErr.message); return null; }
+    if (existing && existing.length > 0) return existing[0] as DraftRow;
+
+    const { count } = await this.admin.from('flow_ai_post_drafts').select('id', { count: 'exact', head: true })
+      .eq('org_id', context.organizationId).eq('user_id', context.customerId).eq('status', 'draft').gt('expires_at', nowIso);
+    if ((count ?? 0) >= 20) return null;
+    const { data, error } = await this.admin.from('flow_ai_post_drafts')
+      .insert({ org_id: context.organizationId, user_id: context.customerId, caption: text, platforms })
+      .select('id, caption, platforms, status, expires_at').single();
+    if (error || !data) { console.error('[publish_post] taslak yazma hatası:', error?.message); return null; }
+    return data as DraftRow;
+  }
+
   private async connectedPlatforms(orgId: string): Promise<Set<string>> {
     const { data, error } = await this.admin.schema('integration').from('social_accounts')
       .select('platform, is_active, needs_reconnection').eq('organization_id', orgId);
@@ -111,11 +130,21 @@ export class PublishPostTool implements ITool {
   /** Onay kaydından ÖNCE: doğrular, çözülmüş argümanları ve kullanıcıya gösterilecek özeti üretir. */
   async prepareApproval(context: AIContext, args: Record<string, unknown>) {
     const fail = (status: string, message: string) => ({ ok: false as const, result: { status, message } });
-    const draftId = typeof args.draftId === 'string' ? args.draftId : '';
-    if (!/^[0-9a-f-]{36}$/i.test(draftId)) return fail('INVALID_DRAFT', 'Geçerli bir taslak kimliği gerekli; önce prepare_post_draft ile taslak hazırla.');
-
-    const draft = await this.loadDraft(context, draftId);
+    const requestedRaw = Array.isArray(args.platforms) ? args.platforms.map(normalizePlatform).filter(Boolean) : [];
+    let draft: DraftRow | null = null;
+    const givenId = typeof args.draftId === 'string' ? args.draftId : '';
+    if (givenId) {
+      if (!/^[0-9a-f-]{36}$/i.test(givenId)) return fail('INVALID_DRAFT', 'Geçersiz taslak kimliği; metni text olarak ver.');
+      draft = await this.loadDraft(context, givenId);
+    } else {
+      // Metin doğrudan verildi: taslağı burada oluştur (prepare_post_draft çağırmaya ve ekran açmaya gerek yok).
+      const text = typeof args.text === 'string' ? args.text.trim() : '';
+      if (!text || text.length > 5000) return fail('INVALID_TEXT', 'Yayınlanacak metin (text) 1-5000 karakter olmalı.');
+      draft = await this.findOrCreateDraft(context, text, [...new Set(requestedRaw)].slice(0, 10));
+      if (!draft) return fail('ERROR', 'Taslak şu an hazırlanamadı.');
+    }
     if (!draft) return fail('DRAFT_NOT_FOUND', 'Taslak bulunamadı.');
+    const draftId = draft.id;
     if (draft.status !== 'draft') return fail('DRAFT_ALREADY_USED', 'Bu taslak zaten kullanılmış veya iptal edilmiş.');
     if (new Date(draft.expires_at).getTime() <= Date.now()) return fail('DRAFT_EXPIRED', 'Taslağın süresi dolmuş; yeniden hazırla.');
 
