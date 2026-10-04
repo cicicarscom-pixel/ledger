@@ -7,6 +7,7 @@ import { FlowPromptBuilder } from "../shared/ai/flow/FlowPromptBuilder.ts";
 import { DEFAULT_DAILY_MESSAGE_LIMIT, FlowToolExecutor, approveAction, startOfLocalDayIso } from "../shared/ai/flow/FlowAIGate.ts";
 import { SupabasePendingActionStore } from "../shared/ai/flow/SupabasePendingActionStore.ts";
 import { createFlowTools } from "../shared/ai/flow/tools/FlowTools.ts";
+import { createZernioAnalyticsCaller } from "../shared/ai/flow/tools/SocialAnalyticsTools.ts";
 import { CaptionService, DEFAULT_DAILY_CAPTION_LIMIT } from "../shared/ai/flow/CaptionService.ts";
 import { PersonaRepository } from "../shared/ai/persona/PersonaRepository.ts";
 import { PersonaService } from "../shared/ai/persona/PersonaService.ts";
@@ -38,7 +39,8 @@ const captionService = new CaptionService({
   resolvePersona: (orgId) => personaService.resolveForMerchant(orgId, "production"),
 });
 // READ/PREPARE araçlar; dış etkili araçlar FA5'te, onay kapısıyla
-const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService }));
+const registry = new ToolRegistry(createFlowTools(admin, { includeHighlight: true, includeDrafts: true, captionService,
+  zernioAnalytics: createZernioAnalyticsCaller(SUPABASE_URL, SERVICE_KEY) }));
 
 async function resolveOrg(userId: string): Promise<{ id: string; timezone: string } | null> {
   const { data: owned } = await admin.from("organizations").select("id, timezone").eq("owner_id", userId).order("created_at").limit(1).maybeSingle();
