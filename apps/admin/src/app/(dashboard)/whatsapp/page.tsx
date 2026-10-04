@@ -27,13 +27,18 @@ export default async function WhatsappPage() {
   const supabase = createClient()
   const { data, error } = await supabase.functions.invoke('admin-waha', { body: { action: 'list' } })
   const rows: Row[] = data?.rows ?? []
+  // "non-2xx" yerine fonksiyonun döndüğü gerçek hata mesajını göster
+  let errorMessage: string | null = data?.error ?? null
+  if (error) {
+    try { errorMessage = (await (error as any).context?.json?.())?.error ?? error.message } catch { errorMessage = error.message }
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
-      {(error || data?.error) && (
+      {errorMessage && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm">
           <strong className="block mb-1">WhatsApp oturumları alınamadı</strong>
-          {error?.message || data?.error}
+          {errorMessage}
         </div>
       )}
 
@@ -93,7 +98,7 @@ export default async function WhatsappPage() {
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && !error && !data?.error && (
+              {rows.length === 0 && !errorMessage && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-text-muted">WAHA üzerinde oturum yok.</td>
                 </tr>

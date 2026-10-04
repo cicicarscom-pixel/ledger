@@ -30,12 +30,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    // Verify if caller is super_admin
+    // Yönetici yetkisinin tek kaynağı public.is_admin() (admin_users tablosu) — admin paneli ve RLS ile aynı.
+    // (Eski profiles.is_super_admin sütunu kimsede açık değildi; bu yüzden işlemler 403 alıyordu.)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: profile } = await supabaseAdmin.from('profiles').select('is_super_admin').eq('id', user.id).single();
-    
-    if (!profile || !profile.is_super_admin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Requires Super Admin privileges' }), { status: 403, headers: corsHeaders });
+    const { data: isAdmin } = await supabaseUserClient.rpc('is_admin');
+    if (isAdmin !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Requires admin privileges' }), { status: 403, headers: corsHeaders });
     }
 
     const { action, targetUserId, payload } = await req.json();

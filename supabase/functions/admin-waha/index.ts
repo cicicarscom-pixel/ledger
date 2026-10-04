@@ -35,8 +35,10 @@ serve(async (req) => {
     if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: caller } = await admin.from("profiles").select("is_super_admin").eq("id", user.id).single();
-    if (!caller?.is_super_admin) return json({ error: "Forbidden: Requires Super Admin privileges" }, 403);
+    // Yönetici yetkisinin tek kaynağı public.is_admin() (admin_users tablosu) — admin paneli ve RLS ile aynı.
+    // Kullanıcının kendi JWT'siyle çağrılır (auth.uid() çözülür).
+    const { data: isAdmin } = await userClient.rpc("is_admin");
+    if (isAdmin !== true) return json({ error: "Forbidden: Requires admin privileges" }, 403);
 
     const { action, session } = await req.json().catch(() => ({}));
 

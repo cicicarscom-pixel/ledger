@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { toggleUserStatus, deleteUser } from './actions';
 import Link from 'next/link';
 import DraggableTableContainer from './DraggableTableContainer';
+import ConfirmButton from './ConfirmButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -154,15 +155,23 @@ export default async function UsersPage({ searchParams }: { searchParams: { grou
                             <CheckCircle2 className="h-4 w-4" />
                           </button>
                         ) : (
-                          <button type="submit" className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors" title="Askıya Al">
+                          <ConfirmButton
+                            message={`${user.business_name || user.email || 'Bu kullanıcı'} askıya alınacak: WhatsApp botu susar, yeni WhatsApp bağlantısı ve Flow AI kullanamaz. Devam edilsin mi?`}
+                            className="p-2 hover:bg-warning/10 rounded-lg text-text-muted hover:text-warning transition-colors"
+                            title="Askıya Al"
+                          >
                             <Ban className="h-4 w-4" />
-                          </button>
+                          </ConfirmButton>
                         )}
                       </form>
                       <form action={deleteUser.bind(null, user.id)}>
-                        <button type="submit" className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors" title="Kalıcı Sil">
+                        <ConfirmButton
+                          message={`${user.business_name || user.email || 'Bu kullanıcı'} KALICI OLARAK silinecek (hesap ve bağlı veriler). Bu işlem geri alınamaz. Devam edilsin mi?`}
+                          className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors"
+                          title="Kalıcı Sil"
+                        >
                           <UserX className="h-4 w-4" />
-                        </button>
+                        </ConfirmButton>
                       </form>
                     </div>
                   </td>
