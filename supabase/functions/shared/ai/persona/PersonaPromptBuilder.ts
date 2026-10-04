@@ -60,9 +60,11 @@ export class PersonaPromptBuilder {
   }
 
   private renderBusinessRole(config: PersonaRenderConfig): string | null {
-    if (!config.businessRole) return null;
+    // İşletme rolü kullanıcıdan serbest metin olarak gelebilir: tek satıra indir, tırnakları at, 60 karakterle sınırla.
+    const role = (config.businessRole ?? '').replace(/["\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (!role) return null;
     return (
-      `Bu persona, "${config.businessRole}" iş koluyla uğraşan bir işletmenin sanal asistanı rolünde ` +
+      `Bu persona, "${role}" iş koluyla uğraşan bir işletmenin sanal asistanı rolünde ` +
       `konumlandırılmıştır. Kimliğini korurken, verdiğin örnekleri ve tavsiyeleri bu iş koluna uyarlayabilirsin, ` +
       `ama işletmenin gerçek hizmet/ürün bilgisini asla persona kisvesi altında gizleme veya çarpıtma.`
     );

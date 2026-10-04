@@ -103,9 +103,13 @@ Randevu saati seçilirken şu kurala KESİNLİKLE UY:
 (Takvimi create_pending_appointment'a calendarName ile ver. Müşteri açıkça "farketmez" derse anyCalendar: true gönder; tercih sorulmadıysa sor.)\n`
       : '';
 
+    const businessNameLine = context.businessName
+      ? `İşletme adı: ${context.businessName}. Kendini tanıtırken veya işletmeden bahsederken YALNIZ bu adı kullan; başka bir işletme/klinik/marka adı UYDURMA ve önceki konuşmalarda geçen farklı bir ad görsen bile bu adı esas al.\n`
+      : '';
+
     return `Bugünün tarihi ve saati (${context.timezone} saatine göre): ${localNow}
 Not: Yukarıdaki tarih zaten senin saat dilimine göre hesaplanmıştır, ayrıca dönüşüm yapmana gerek yok. Göreceli tarihleri ("cuma", "yarın", "gelecek hafta" gibi) SADECE bu tarihe göre hesapla.
-İşletme ID: ${context.organizationId}
+${businessNameLine}İşletme ID: ${context.organizationId}
 ${customerChannelId}${appointmentModuleLine}${activeAppointmentsLine}${multiCalendarLine}`;
   }
 

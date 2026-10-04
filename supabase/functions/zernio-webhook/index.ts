@@ -189,6 +189,24 @@ serve(async (req) => {
           if (newConv) internalConvId = newConv.id;
         }
 
+        // B0. Giden mesaj, AI yanıtı olarak use case tarafından zaten (Zernio'nun kendi kimliğiyle) kaydedilmiş
+        // olabilir; Meta kimliği farklı olduğundan kimlikle eşleşmez. Aynı içerik son 2 dakikada varsa tekrar ekleme.
+        if (internalConvId && direction !== 'incoming' && direction !== 'inbound') {
+          const since = new Date(Date.now() - 2 * 60_000).toISOString();
+          const { data: dupOut } = await supabase
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', internalConvId)
+            .eq('direction', direction)
+            .eq('content', textContent)
+            .gte('created_at', since)
+            .limit(1);
+          if (dupOut && dupOut.length > 0) {
+            console.log(`[webhook] Duplicate outgoing message ignored (same content, zernio_message_id: ${messageId})`);
+            break;
+          }
+        }
+
         // B. Insert Message
         const { error: msgError } = await supabase
           .from('messages')

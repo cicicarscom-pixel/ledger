@@ -70,7 +70,7 @@ export class HandleIncomingMessageUseCase {
     // 0. Tenant kimliği: kanal kimliği (merchantId = WAHA oturumu = sahibin auth id'si) burada
     // bir kez organizations.id'ye çözülür; bundan sonra bütün sorgular orgId ile yapılır.
     // Sosyal kanalda merchantId zaten organizations.id'dir; çözümleme boş dönerse aynen kullanılır.
-    const orgQuery = supabaseClient.from('organizations').select('id, multi_calendar_enabled');
+    const orgQuery = supabaseClient.from('organizations').select('id, name, multi_calendar_enabled');
     const { data: orgData } = await (organizationId
       ? orgQuery.eq('id', organizationId)
       : orgQuery.eq('owner_id', merchantId)
@@ -167,6 +167,7 @@ export class HandleIncomingMessageUseCase {
       organizationId: orgId,
       customerId: senderId, // For Waha, this is phone number. For Zernio, conversation/user ID.
       merchantId: merchantId, // yalnız WAHA oturumu (gönderim) için
+      businessName: orgData?.name ?? undefined,
       now: new Date(),
       timezone: resolvedTimezone,
       botSettings: botSettings,
@@ -247,7 +248,13 @@ export class HandleIncomingMessageUseCase {
             const { data: localConv } = sentId
               ? await supabaseClient.from('conversations').select('id').eq('zernio_conversation_id', senderId).single()
               : { data: null };
-            if (localConv) {
+            // zernio-webhook (message.sent) aynı mesajı Meta kimliğiyle kaydedebilir; kimlikler farklı olduğundan
+            // içerik+zaman penceresiyle çift kaydı önle.
+            const since = new Date(Date.now() - 2 * 60_000).toISOString();
+            const { data: dup } = localConv
+              ? await supabaseClient.from('messages').select('id').eq('conversation_id', localConv.id).eq('direction', 'outgoing').eq('content', aiResponse).gte('created_at', since).limit(1)
+              : { data: null };
+            if (localConv && !(dup && dup.length > 0)) {
               await supabaseClient.from('messages').insert({
                 conversation_id: localConv.id,
                 profile_id: orgId,

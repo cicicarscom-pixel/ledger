@@ -126,7 +126,7 @@ serve(async (req) => {
     // Tenant kimliği JWT ile doğrulanmış sahipten çözülür (organizations.id).
     const { data: orgRow } = await supabaseAdmin
       .from("organizations")
-      .select("id")
+      .select("id, name")
       .eq("owner_id", merchantId)
       .maybeSingle();
     if (!orgRow?.id) {
@@ -191,6 +191,7 @@ serve(async (req) => {
 
     const aiContext: AIContext = {
       organizationId: orgId,
+      businessName: orgRow.name ?? undefined,
       customerId: `persona-test-${crypto.randomUUID()}`,
       merchantId,
       now: new Date(),

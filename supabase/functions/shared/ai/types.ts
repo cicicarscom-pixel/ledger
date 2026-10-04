@@ -27,6 +27,8 @@ export interface AIContext {
   organizationId: string;
   /** İşletme sahibinin auth.users.id'si = WAHA oturum adı. Yalnız kanal (WhatsApp gönderimi) için; sorgularda kullanılmaz. */
   merchantId?: string;
+  /** İşletmenin adı (organizations.name). Asistan kendini tanıtırken YALNIZ bunu kullanır; uydurmaz. */
+  businessName?: string;
   customerId: string;
   now: Date;
   timezone: string;
