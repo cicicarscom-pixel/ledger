@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.177.0/testing/asserts.ts";
-import { GetAccountGrowthTool, GetBestPostingTimesTool, GetContentPerformanceTool, GetSocialOverviewTool, summarizeAccounts } from "./SocialAnalyticsTools.ts";
+import { compactBestTimes, compactPostPerformance, GetAccountGrowthTool, GetBestPostingTimesTool, GetContentPerformanceTool, GetSocialOverviewTool, summarizeAccounts } from "./SocialAnalyticsTools.ts";
 
 const ctx: any = { organizationId: "org-1", timezone: "Europe/Istanbul" };
 const rpcAdmin = (data: any, error: any = null) => {
@@ -50,4 +50,24 @@ Deno.test("performans: veri var → hasData=true; çağrı hatası → ERROR", a
   assertEquals(ok.data.hasData, true);
   const bad: any = await new GetContentPerformanceTool(async () => { throw new Error("boom"); }).execute(ctx, {});
   assertEquals(bad.status, "ERROR");
+});
+
+Deno.test("compactBestTimes: en yüksek 5, gün adı ve örnek sayısı", () => {
+  const r = compactBestTimes({ slots: [
+    { hour: 12, post_count: 3, day_of_week: 0, avg_engagement: 920.33 },
+    { hour: 20, post_count: 2, day_of_week: 3, avg_engagement: 3338 },
+  ] });
+  assertEquals(r[0], { day: "Çarşamba", hour: "20:00", avgEngagement: 3338, postCount: 2 });
+  assertEquals(r[1].day, "Pazar");
+  assertEquals(compactBestTimes({}), []);
+});
+
+Deno.test("compactPostPerformance: toplam ve görüntülenmeye göre sıralama", () => {
+  const r = compactPostPerformance({ posts: [
+    { platform: "youtube", content: "a", analytics: { views: 5, likes: 1 } },
+    { platform: "youtube", content: "b", analytics: { views: 61, likes: 2, comments: 2 } },
+  ] });
+  assertEquals(r.postCount, 2);
+  assertEquals(r.totals.views, 66);
+  assertEquals(r.topByViews[0].text, "b");
 });

@@ -26,6 +26,44 @@ function trimData(data: unknown): unknown {
   return { truncated: true, preview: s.slice(0, MAX_JSON_CHARS) };
 }
 
+
+const DAY_NAMES_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+
+/** Zernio best-times yanıtı → en yüksek 5 dilim (gün adı, saat, ortalama etkileşim, örnek sayısı). */
+export function compactBestTimes(d: any) {
+  const slots: any[] = Array.isArray(d?.slots) ? d.slots : Array.isArray(d) ? d : [];
+  return slots
+    .filter((s) => Number.isFinite(Number(s?.day_of_week)) && Number.isFinite(Number(s?.hour)))
+    .sort((a, b) => Number(b.avg_engagement ?? 0) - Number(a.avg_engagement ?? 0))
+    .slice(0, 5)
+    .map((s) => ({
+      day: DAY_NAMES_TR[Number(s.day_of_week)] ?? String(s.day_of_week),
+      hour: `${String(Number(s.hour)).padStart(2, '0')}:00`,
+      avgEngagement: Math.round(Number(s.avg_engagement ?? 0) * 10) / 10,
+      postCount: Number(s.post_count ?? 0),
+    }));
+}
+
+/** Zernio gönderi analitiği → toplamlar + görüntülenmeye göre ilk 8 gönderi (kısa metin). */
+export function compactPostPerformance(d: any) {
+  const posts: any[] = Array.isArray(d?.posts) ? d.posts : Array.isArray(d) ? d : [];
+  const rows = posts.map((p) => {
+    const a = p?.analytics ?? {};
+    return {
+      platform: String(p?.platform ?? ''),
+      text: String(p?.content ?? '').replace(/\s+/g, ' ').slice(0, 60),
+      views: Number(a.views ?? 0), likes: Number(a.likes ?? 0), comments: Number(a.comments ?? 0),
+      shares: Number(a.shares ?? 0), engagementRate: Number(a.engagementRate ?? 0),
+    };
+  });
+  const sum = (k: 'views' | 'likes' | 'comments' | 'shares') => rows.reduce((s, r) => s + r[k], 0);
+  return {
+    postCount: rows.length,
+    totals: { views: sum('views'), likes: sum('likes'), comments: sum('comments'), shares: sum('shares') },
+    topByViews: [...rows].sort((a, b) => b.views - a.views).slice(0, 8),
+  };
+}
+
 interface AccountRow {
   platform: string; username?: string | null;
   followers_now: number | null; followers_start: number | null;
@@ -73,7 +111,7 @@ export class GetSocialOverviewTool implements ITool {
       status: 'SUCCESS',
       data: {
         days, hasData, accounts, posts: o.posts,
-        note: accounts.length === 0 ? 'Bağlı sosyal medya hesabı yok.' : hasData ? undefined : 'Hesaplar bağlı ama henüz ölçüm verisi toplanmadı; uydurma sayı verme.',
+        note: accounts.length === 0 ? 'Bağlı sosyal medya hesabı yok.' : hasData ? undefined : 'Hesaplar BAĞLI; günlük ölçümler her 4 saatte bir toplanıyor ve henüz ilk ölçüm gelmedi. "Hesap bağlı değil" DEME; kısa süre sonra tekrar sormasını öner. Sayı uydurma.',
       },
     };
   }
@@ -100,7 +138,8 @@ export class GetAccountGrowthTool implements ITool {
     let accounts = summarizeAccounts(o.accounts ?? []);
     if (platform) accounts = accounts.filter((a) => a.platform.toLowerCase() === platform);
     const growth = accounts.map((a) => ({ platform: a.platform, username: a.username, hasData: a.hasData, followers: a.followers, followerChange: a.followerChange, daysWithData: a.daysWithData }));
-    return { status: 'SUCCESS', data: { days, hasData: growth.some((g) => g.hasData), accounts: growth } };
+    const anyData = growth.some((g) => g.hasData);
+    return { status: 'SUCCESS', data: { days, hasData: anyData, accounts: growth, note: !anyData && growth.length > 0 ? 'Hesaplar BAĞLI; günlük ölçümler her 4 saatte bir toplanıyor ve henüz yeterli gün birikmedi. "Hesap bağlı değil" DEME; sayı uydurma.' : undefined } };
   }
 }
 
@@ -139,7 +178,9 @@ export class GetBestPostingTimesTool implements ITool {
     try {
       const d = await this.call('get-best-times', context.organizationId, platform ? { platform } : {});
       if (isEmptyResult(d)) return { status: 'SUCCESS', data: { hasData: false, note: 'En iyi saat için yeterli veri yok; saat uydurma.' } };
-      return { status: 'SUCCESS', data: { hasData: true, bestTimes: trimData(d) } };
+      const best = compactBestTimes(d);
+      if (best.length === 0) return { status: 'SUCCESS', data: { hasData: false, note: 'En iyi saat için yeterli veri yok; saat uydurma.' } };
+      return { status: 'SUCCESS', data: { hasData: true, bestTimes: best, note: 'postCount küçükse (1-3) bunu belirt: örnek az, kesin kural değil.' } };
     } catch (e: any) {
       console.error('[get_best_posting_times] hata:', e?.message);
       return { status: 'ERROR', message: 'En iyi paylaşım saatleri şu an alınamadı.' };
@@ -171,7 +212,9 @@ export class GetContentPerformanceTool implements ITool {
     try {
       const d = await this.call('get-post-analytics', context.organizationId, query);
       if (isEmptyResult(d)) return { status: 'SUCCESS', data: { hasData: false, days, note: 'Gönderi performans verisi henüz yok; sayı uydurma.' } };
-      return { status: 'SUCCESS', data: { hasData: true, days, performance: trimData(d) } };
+      const perf = compactPostPerformance(d);
+      if (perf.postCount === 0) return { status: 'SUCCESS', data: { hasData: false, days, note: 'Gönderi performans verisi henüz yok; sayı uydurma.' } };
+      return { status: 'SUCCESS', data: { hasData: true, days, ...perf, note: 'Platformların henüz ölçmediği değerler 0 görünebilir; 0 = ölçülmedi olabilir, "etkileşim düşük" diye yorumlama.' } };
     } catch (e: any) {
       console.error('[get_content_performance] hata:', e?.message);
       return { status: 'ERROR', message: 'Gönderi performansı şu an alınamadı.' };
