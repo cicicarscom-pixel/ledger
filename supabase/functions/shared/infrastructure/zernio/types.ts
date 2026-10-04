@@ -25,6 +25,8 @@ export interface AnalyticsPayload {
   startDate?: string;
   endDate?: string;
   period?: string;
+  /** @zernio/node (hey-api) sorgu parametreleri: { query: { accountId, fromDate, ... } } */
+  query?: Record<string, unknown>;
 }
 
 export interface ZernioApiContext {

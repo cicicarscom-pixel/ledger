@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
+import { mapFollowerStats, mapInsights, ymdInTimezone, type MappedMetrics } from "../shared/infrastructure/zernio/analyticsMapping.ts";
 
 serve(async (req) => {
   try {
@@ -32,80 +33,66 @@ serve(async (req) => {
     
     let successCount = 0;
     let failCount = 0;
-    const metricDate = new Date().toISOString().split('T')[0];
+    const failures: { platform: string; error: string }[] = [];
+    const metricDate = ymdInTimezone(new Date());
 
-    // 2. Sync loop
+    // SDK hey-api biçimi: { query: {...} } ve { data, error } döner (atmaz).
+    const unwrap = (res: any) => {
+      if (res?.error) throw new Error(typeof res.error === 'string' ? res.error : (res.error?.message ?? JSON.stringify(res.error)).slice(0, 300));
+      return res?.data ?? res;
+    };
+
     for (const account of accounts) {
       try {
-        const payload = { accountId: account.zernio_account_id };
-        let metrics: any = {
-           followers: 0,
-           impressions: 0,
-           reach: 0,
-           engagements: 0,
-           posts_count: 0
-        };
-        let rawData: any = {};
+        const accountId: string = account.zernio_account_id;
+        const platform = String(account.platform ?? '').toLowerCase();
+        const errors: string[] = [];
 
-        // Platform specific logic
-        switch (account.platform.toLowerCase()) {
-          case 'instagram':
-            const igRes: any = await zernio.analytics.getInstagramAccountInsights(payload);
-            rawData = igRes.data || igRes;
-            metrics.followers = rawData.followers || 0;
-            metrics.impressions = rawData.impressions || 0;
-            metrics.reach = rawData.reach || 0;
-            metrics.engagements = (rawData.likes || 0) + (rawData.comments || 0);
-            break;
-            
-          case 'facebook':
-            const fbRes: any = await zernio.analytics.getFacebookPageInsights(payload);
-            rawData = fbRes.data || fbRes;
-            metrics.followers = rawData.page_fans || 0;
-            metrics.impressions = rawData.page_impressions || 0;
-            break;
-            
-          case 'youtube':
-            const ytRes: any = await zernio.analytics.getYouTubeChannelInsights(payload);
-            rawData = ytRes.data || ytRes;
-            metrics.followers = rawData.subscriberCount || 0;
-            metrics.impressions = rawData.viewCount || 0;
-            metrics.posts_count = rawData.videoCount || 0;
-            break;
-            
-          case 'linkedin':
-            const liRes: any = await zernio.analytics.getLinkedInOrgAggregateAnalytics(payload);
-            rawData = liRes.data || liRes;
-            metrics.followers = rawData.followerCount || 0;
-            metrics.impressions = rawData.impressions || 0;
-            metrics.engagements = rawData.engagements || 0;
-            break;
-            
-          default:
-             // Global fallback
-             const statRes: any = await zernio.accounts.getFollowerStats(payload);
-             rawData = statRes.data || statRes;
-             metrics.followers = rawData.totalFollowers || rawData.followers || 0;
-             break;
+        let followers: Partial<MappedMetrics> = {};
+        let insights: Partial<MappedMetrics> = {};
+        let raw: Record<string, unknown> = {};
+
+        try {
+          const fs = unwrap(await zernio.accounts.getFollowerStats({ query: { accountIds: accountId } }));
+          followers = mapFollowerStats(fs, accountId);
+          raw.followerStats = fs;
+        } catch (e: any) { errors.push(`followerStats: ${e.message}`); }
+
+        const insightCall: Record<string, (p: any) => Promise<any>> = {
+          instagram: (p) => zernio.analytics.getInstagramAccountInsights(p),
+          facebook: (p) => zernio.analytics.getFacebookPageInsights(p),
+          youtube: (p) => zernio.analytics.getYouTubeChannelInsights(p),
+        };
+        if (insightCall[platform]) {
+          try {
+            const ins = unwrap(await insightCall[platform]({ query: { accountId } }));
+            insights = mapInsights(platform, ins);
+            raw.insights = ins;
+          } catch (e: any) { errors.push(`insights: ${e.message}`); }
         }
 
-        // 3. Upsert into flow.social_account_metrics
+        const m = { ...followers, ...insights } as Partial<MappedMetrics>;
+        const gotAny = Object.values(m).some((v) => v !== null && v !== undefined);
+        if (!gotAny) throw new Error(errors.join(' | ') || 'no metrics returned');
+        if (errors.length) console.warn(`Partial analytics for ${platform}:`, errors.join(' | '));
+
         // flow şeması service_role'e PostgREST'ten açık değil → SECURITY DEFINER RPC.
         const { error: upsertErr } = await supabase.rpc('upsert_social_account_metrics', {
           p_social_account_id: account.id,
           p_metric_date: metricDate,
-          p_followers: Math.round(Number(metrics.followers) || 0),
-          p_impressions: Math.round(Number(metrics.impressions) || 0),
-          p_reach: Math.round(Number(metrics.reach) || 0),
-          p_engagements: Math.round(Number(metrics.engagements) || 0),
-          p_posts_count: Math.round(Number(metrics.posts_count) || 0),
-          p_raw_metrics: rawData ?? {},
+          p_followers: m.followers ?? null,
+          p_impressions: m.impressions ?? null,
+          p_reach: m.reach ?? null,
+          p_engagements: m.engagements ?? null,
+          p_posts_count: m.posts_count ?? null,
+          p_raw_metrics: raw,
         });
         if (upsertErr) throw new Error(`metrics upsert failed: ${upsertErr.message}`);
 
         successCount++;
       } catch (err: any) {
         console.error(`Failed to sync analytics for account ${account.zernio_account_id}:`, err.message);
+        failures.push({ platform: String(account.platform ?? ''), error: String(err.message).slice(0, 300) });
         failCount++;
       }
     }
@@ -113,7 +100,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
         success: true, 
         synced: successCount, 
-        failed: failCount 
+        failed: failCount,
+        failures 
     }), { status: 200, headers: { 'Content-Type': 'application/json' }});
     
   } catch (error: any) {
