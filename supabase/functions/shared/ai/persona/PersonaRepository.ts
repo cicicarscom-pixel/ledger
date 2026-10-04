@@ -78,14 +78,14 @@ export class PersonaRepository {
   /**
    * Phase 5's settings-save refactor writes here. Included now (Phase 2) so
    * the repository's write surface is defined and reviewable up front, even
-   * though nothing calls it until Phase 5. Upserts by merchant_id.
+   * though nothing calls it until Phase 5. Upserts by org_id (organizations.id).
    */
   async upsertOrganizationSettings(
     row: OrganizationAiSettingsRow,
   ): Promise<{ ok: boolean; error?: string }> {
     const { error } = await this.supabase
       .from("organization_ai_settings")
-      .upsert(row, { onConflict: "merchant_id" });
+      .upsert(row, { onConflict: "org_id" });
 
     if (error) {
       console.error("[PersonaRepository] upsertOrganizationSettings failed:", error.message);

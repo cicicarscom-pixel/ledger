@@ -40,17 +40,15 @@ serve(async (req) => {
     // veya global bir .delete() ASLA çalıştırılmaz — bu, TÜM merchantların
     // verisini silebilir.
     await supabaseAdmin.from('notifications').delete().eq('profile_id', scopeId);
-    // appointments / customers.organization_id = işletme sahibinin auth user id'si (merchantId),
-    // organizations.id DEĞİL. 27.09.2026'da organization_members doldurulunca scopeId
-    // organizations.id'ye döndü ve bu iki tablo sessizce silinmez oldu (28.09.2026 tespit).
-    await supabaseAdmin.from('appointments').delete().eq('organization_id', merchantId);
-    await supabaseAdmin.from('customers').delete().eq('organization_id', merchantId);
+    // F5-A: bu tablolar artık işletme kimliğiyle (org_id = organizations.id = scopeId) silinir; eski sahip-kimliği
+    // sütunları (organization_id/merchant_id) kullanılmaz.
+    await supabaseAdmin.from('appointments').delete().eq('org_id', scopeId);
+    await supabaseAdmin.from('customers').delete().eq('org_id', scopeId);
     await supabaseAdmin.from('messages').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('conversations').delete().eq('profile_id', scopeId);
     await supabaseAdmin.from('comments').delete().eq('profile_id', scopeId);
 
-    // merchant_id tabanlı (SADECE ham kullanıcı ID'si, organizasyon fallback'i YOK — RLS de auth.uid()=merchant_id) → merchantId
-    await supabaseAdmin.from('ai_communication_logs').delete().eq('merchant_id', merchantId);
+    await supabaseAdmin.from('ai_communication_logs').delete().eq('org_id', scopeId);
 
     // 17.09.2026: Analiz sayfası (Web & Mobil) verilerinin sıfırlama sonrası
     // kaybolmaması hatası (bkz. README) — analytics_cache tablosunun kendisinde
@@ -73,8 +71,8 @@ serve(async (req) => {
     }
 
     if (mode === 'hard') {
-      await supabaseAdmin.from('organization_ai_settings').delete().eq('merchant_id', merchantId);
-      await supabaseAdmin.from('business_services').delete().eq('merchant_id', merchantId);
+      await supabaseAdmin.from('organization_ai_settings').delete().eq('org_id', scopeId);
+      await supabaseAdmin.from('business_services').delete().eq('org_id', scopeId);
       await supabaseAdmin.from('finance_documents').delete().eq('organization_id', scopeId);
       // KASITLI OLARAK SİLİNMEYENLER: bot_settings (WhatsApp/WAHA bağlantı
       // durumu), social_accounts (Zernio bağlantıları). Kullanıcı QR'ı
