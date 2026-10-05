@@ -73,30 +73,25 @@ export async function getClientsAction(): Promise<{ advisorCode: string | null; 
     let firmData = Array.isArray(firmDataRaw) ? firmDataRaw[0] : firmDataRaw;
     let advisorCode = firmData?.connection_code || null;
     
-    // Auto-create for seamless UX if missing
+    // Auto-create for seamless UX if missing via safe RPC
     if (!firmData) {
-      const connectionCode = `WG-${Math.floor(10000 + Math.random() * 90000)}`;
-      const { data: newFirm, error: insertError } = await adminSupabase
-        .from('accounting_firms')
-        .insert({
-          firm_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Yeni Firma',
-          connection_code: connectionCode
-        })
-        .select('id, connection_code, firm_name')
-        .maybeSingle();
-        
-      if (insertError) {
-        advisorCode = `Hata (Insert Firm): ${insertError.message}`;
-        console.error('Auto-generate firm error:', insertError);
-      } else if (newFirm) {
-        // Also insert membership
-        await adminSupabase.from('accounting_firm_members').insert({
-            accounting_firm_id: newFirm.id,
-            user_id: accountantId,
-            role: 'admin'
-        });
-        firmData = newFirm;
-        advisorCode = newFirm.connection_code;
+      const { data: newFirmId, error: rpcError } = await supabaseUserClient.rpc('ensure_my_accounting_firm');
+      
+      if (rpcError) {
+        advisorCode = `Hata (RPC Firm): ${rpcError.message}`;
+        console.error('Auto-generate firm error:', rpcError);
+      } else if (newFirmId) {
+        // Fetch the newly created firm
+        const { data: newlyCreated } = await adminSupabase
+          .from('accounting_firms')
+          .select('id, connection_code, firm_name')
+          .eq('id', newFirmId)
+          .single();
+
+        if (newlyCreated) {
+          firmData = newlyCreated;
+          advisorCode = newlyCreated.connection_code;
+        }
       }
     } else if (!advisorCode) {
       // Firm exists but connection_code is missing

@@ -15,12 +15,19 @@ export default async function Page() {
     return <div className="p-8 text-center"><h2 className="text-xl font-bold">Lütfen Giriş Yapın</h2></div>;
   }
 
-  // Get firm ID
-  const { data: firmMember } = await supabase
+  // Get firm ID safely
+  let { data: firmMember } = await supabase
     .from('accounting_firm_members')
     .select('accounting_firm_id')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
+
+  if (!firmMember) {
+    const { data: newFirmId } = await supabase.rpc('ensure_my_accounting_firm');
+    if (newFirmId) {
+      firmMember = { accounting_firm_id: newFirmId };
+    }
+  }
 
   let documents: any[] = [];
   if (firmMember) {
