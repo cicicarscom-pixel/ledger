@@ -117,12 +117,31 @@ export async function getDocumentDetailsAction(documentId: string) {
       .eq('document_id', documentId)
       .order('created_at', { ascending: true });
 
+    let finalImageUrl = document.image_url || null;
+    if (finalImageUrl && finalImageUrl.includes('/storage/v1/object/public/')) {
+      // Extract bucket and path: .../public/bucket_name/file_path.jpg
+      const parts = finalImageUrl.split('/storage/v1/object/public/')[1].split('/');
+      const bucketName = parts[0];
+      const filePath = parts.slice(1).join('/');
+      
+      // Known private buckets
+      if (['finance_receipts', 'invoices', 'documents'].includes(bucketName)) {
+        const { data: signedData } = await adminSupabase.storage
+          .from(bucketName)
+          .createSignedUrl(filePath, 60 * 60); // 1 hour validity
+        
+        if (signedData?.signedUrl) {
+          finalImageUrl = signedData.signedUrl;
+        }
+      }
+    }
+
     return {
       success: true,
       document,
       draft,
       lines: lines || [],
-      imageUrl: document.image_url || null
+      imageUrl: finalImageUrl
     };
   } catch (error: any) {
     console.error('getDocumentDetailsAction error:', error);
