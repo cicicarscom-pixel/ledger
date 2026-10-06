@@ -328,6 +328,9 @@ WhatsApp üzerinden alınan randevularda modelin hayali işlem yapmasını engel
 4. **Heatmap & UI (flowweb & flow):** Web ve Mobil'deki gün içi yoğunluk haritası (isSlotBusy), yeni slotBusy.ts modülü kullanılarak string (date LIKE) aramasından aralık bazlı çakışma arayışına dönüştürüldü. Yeni Randevu Modalı (mobildeki) saatleri filtrelemek için güncellendi.
 5. **Ledger Güncellemeleri:** waha-webhook v92 canlı ortamdan senkronize edildi. AI Core (ResponseGuards, claimsAction, vs.) testleri ile sisteme dahil edildi. Faz 2 temizliği doğrulandı.
 
+### [06.10.2026] WAHA-4: sunucu CPU/RAM ölçümü
+- sunucu CPU/RAM ölçümü için `waha-metrics-ingest` fonksiyonu ve sunucu betiği eklendi.
+
 ### [06.10.2026] Admin paneline 'WhatsApp Sunucuları' sayfası eklendi
 - Admin paneline 'WhatsApp Sunucuları' sayfası eklendi (kapasite, durum, uyarılar, ölçüm grafiği, sunucu ekleme, webhook değiştirme)
 - `admin-waha` fonksiyonuna `test-connection` eylemi eklendi.
