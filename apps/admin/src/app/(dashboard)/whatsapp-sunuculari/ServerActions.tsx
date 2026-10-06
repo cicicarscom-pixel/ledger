@@ -5,17 +5,17 @@ import { setAcceptingNew, setMaxSessions, refreshWebhooks } from './actions';
 
 export function ServerActions({ server }: { server: any }) {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [msg, setMsg] = useState<{ text: string, type: 'success' | 'danger' | 'warning' } | null>(null);
   
   const [showCapModal, setShowCapModal] = useState(false);
-  const [capInput, setCapInput] = useState(server.max_sessions.toString());
+  const [capInput, setCapInput] = useState(server.max_sessions?.toString() || '300');
   const [capConfirm, setCapConfirm] = useState(false);
 
   const handleToggleAccepting = async () => {
     setLoading(true);
-    setMessage('');
+    setMsg(null);
     const res = await setAcceptingNew(server.id, !server.accepting_new);
-    setMessage(res.message);
+    setMsg({ text: res.message, type: res.ok ? 'success' : 'danger' });
     setLoading(false);
   };
 
@@ -23,9 +23,10 @@ export function ServerActions({ server }: { server: any }) {
     if (!confirm(`Bu sunucudaki ${server.assigned} atamanın webhook ayarı güncellenecek. WhatsApp bağlantıları kopmaz, QR gerekmez. Devam edilsin mi?`)) return;
     
     setLoading(true);
-    setMessage('');
+    setMsg(null);
     const res = await refreshWebhooks(server.id);
-    setMessage(res.message);
+    const type = !res.ok ? 'danger' : res.data?.failCount > 0 ? 'warning' : 'success';
+    setMsg({ text: res.message, type });
     setLoading(false);
   };
 
@@ -36,15 +37,15 @@ export function ServerActions({ server }: { server: any }) {
       return;
     }
 
-    if (val < server.assigned && !capConfirm) {
+    if (val < (server.assigned || 0) && !capConfirm) {
       setCapConfirm(true);
       return;
     }
 
     setLoading(true);
-    setMessage('');
+    setMsg(null);
     const res = await setMaxSessions(server.id, val);
-    setMessage(res.message);
+    setMsg({ text: res.message, type: res.ok ? 'success' : 'danger' });
     setLoading(false);
     setShowCapModal(false);
     setCapConfirm(false);
@@ -76,7 +77,15 @@ export function ServerActions({ server }: { server: any }) {
         </button>
       </div>
 
-      {message && <div className={message.includes('başarısız') ? 'text-danger' : 'text-success'}>{message}</div>}
+      {msg && (
+        <div className={
+          msg.type === 'danger' ? 'text-danger' : 
+          msg.type === 'warning' ? 'text-warning' : 
+          'text-success'
+        }>
+          {msg.text}
+        </div>
+      )}
 
       {showCapModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
