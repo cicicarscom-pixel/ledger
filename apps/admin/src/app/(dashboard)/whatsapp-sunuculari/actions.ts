@@ -28,7 +28,7 @@ export async function addServer(input: any) {
   if (error) {
     if (error.code === '42501') return { ok: false, message: "Yetkiniz yok." };
     if (error.message?.includes('HTTPS_REQUIRED')) return { ok: false, message: "Adres https:// ile başlamalı." };
-    if (error.message?.includes('INVALID_SECRET_NAME')) return { ok: false, message: "Gizli adı BÜYÜK_HARF_VE_ALT_ÇİZGİ olmalı." };
+    if (error.message?.includes('INVALID_SECRET_NAME')) return { ok: false, message: "API anahtarı adı WAHA_API_KEY[_...], webhook adı WAHA_WEBHOOK_SECRET[_...] formatında olmalı." };
     if (error.code === '23505') return { ok: false, message: "Bu sıra numarası başka bir sunucuda kullanımda." };
     return { ok: false, message: `Sunucu kaydedilemedi (${error.code || error.message})` };
   }

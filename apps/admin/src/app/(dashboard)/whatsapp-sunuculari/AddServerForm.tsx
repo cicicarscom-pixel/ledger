@@ -78,11 +78,11 @@ export function AddServerForm({ highestOrder }: { highestOrder: number }) {
         </div>
         <div>
           <label className="block text-sm mb-1 text-text-muted">API Gizli Adı</label>
-          <input required pattern="^[A-Z][A-Z0-9_]{2,63}$" placeholder="Örn: WAHA_API_KEY_2" value={apiKeyName} onChange={e => setApiKeyName(e.target.value)} className="w-full bg-background border border-border rounded p-2" />
+          <input required pattern="^WAHA_API_KEY(_[A-Z0-9]+)*$" placeholder="Örn: WAHA_API_KEY_2" value={apiKeyName} onChange={e => setApiKeyName(e.target.value)} className="w-full bg-background border border-border rounded p-2" />
         </div>
         <div>
           <label className="block text-sm mb-1 text-text-muted">Webhook Gizli Adı</label>
-          <input required pattern="^[A-Z][A-Z0-9_]{2,63}$" placeholder="Örn: WAHA_WEBHOOK_SECRET_2" value={webhookSecretName} onChange={e => setWebhookSecretName(e.target.value)} className="w-full bg-background border border-border rounded p-2" />
+          <input required pattern="^WAHA_WEBHOOK_SECRET(_[A-Z0-9]+)*$" placeholder="Örn: WAHA_WEBHOOK_SECRET_2" value={webhookSecretName} onChange={e => setWebhookSecretName(e.target.value)} className="w-full bg-background border border-border rounded p-2" />
         </div>
         <div>
           <label className="block text-sm mb-1 text-text-muted">Sıra (fill_order)</label>
