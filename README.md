@@ -333,6 +333,7 @@ WhatsApp üzerinden alınan randevularda modelin hayali işlem yapmasını engel
 - "WAHA'da oturumu olmayan" satırda (MISSING) "bağlantıyı kes" işleminin sunucu atamasını silmesi sağlandı.
 
 ### [06.10.2026] Admin paneline 'WhatsApp Sunucuları' sayfası eklendi
+- Sunucu ekleme yönergelerini içeren "Yeni sunucu nasıl eklenir?" rehberi eklendi.
 - Admin paneline 'WhatsApp Sunucuları' sayfası eklendi (kapasite, durum, uyarılar, ölçüm grafiği, sunucu ekleme, webhook değiştirme)
 - `admin-waha` fonksiyonuna `test-connection` eylemi eklendi.
 
