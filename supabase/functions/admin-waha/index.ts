@@ -172,7 +172,7 @@ serve(async (req) => {
     }
 
     if (action === "test-connection") {
-      if (!baseUrl || !baseUrl.startsWith("https://")) {
+      if (typeof baseUrl !== "string" || !baseUrl.startsWith("https://")) {
         return json({ ok: false, error: "HTTPS_REQUIRED" });
       }
 
@@ -183,13 +183,13 @@ serve(async (req) => {
         return json({ ok: false, error: "INVALID_URL" });
       }
 
-      const host = parsedUrl.hostname;
+      const host = parsedUrl.hostname.replace(/[\[\]]/g, '');
       const ssrfRegex = /^(localhost|.*\.local|.*\.internal|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+|0\.\d+\.\d+\.\d+|::1|fc[0-9a-f]{2}:.*|fd[0-9a-f]{2}:.*|fe80:.*)$/i;
       if (ssrfRegex.test(host)) {
         return json({ ok: false, error: "HOST_NOT_ALLOWED" });
       }
 
-      if (!/^[A-Z][A-Z0-9_]{2,63}$/.test(apiKeySecretName)) {
+      if (typeof apiKeySecretName !== "string" || !/^WAHA_API_KEY(_[A-Z0-9]+)*$/.test(apiKeySecretName)) {
         return json({ ok: false, error: "INVALID_SECRET_NAME" });
       }
 
@@ -205,7 +205,8 @@ serve(async (req) => {
         const res = await fetch(`${finalUrl}/sessions?all=true`, {
           method: "GET",
           headers: { "X-Api-Key": apiKey, "Accept": "application/json" },
-          signal: AbortSignal.timeout(10000)
+          signal: AbortSignal.timeout(10000),
+          redirect: "manual"
         });
         const latencyMs = Math.round(performance.now() - start);
 
