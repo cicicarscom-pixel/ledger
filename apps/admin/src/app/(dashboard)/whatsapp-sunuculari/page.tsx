@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ServerActions } from './ServerActions';
 import { AddServerForm } from './AddServerForm';
-import { HowToAddServerGuide } from './HowToAddServerGuide';
+import { YeniSunucuKilavuzu } from './YeniSunucuKilavuzu';
 import { AlertActions } from './AlertActions';
 import { MetricsChart } from './MetricsChart';
 
@@ -234,7 +234,7 @@ export default async function WhatsappServersPage({ searchParams }: { searchPara
       </div>
 
       {/* 1.5 Add Server Guide & Form */}
-      <HowToAddServerGuide />
+      <YeniSunucuKilavuzu />
       <AddServerForm highestOrder={highestOrder} />
       
     </div>
