@@ -75,8 +75,8 @@ export default async function WhatsappPage() {
                   <td className="px-6 py-4">
                     <div className="font-medium text-white">{r.businessName || (r.orphan ? 'Sahibi bulunamadı' : 'İsimsiz işletme')}</div>
                     <div className="text-xs text-text-muted font-mono">{r.session}</div>
-                    {r.orphan && <div className="text-[10px] text-warning bg-warning/10 px-1 py-0.5 mt-1 inline-block rounded">WAHA'da var, atanmamış</div>}
-                    {r.missing_in_waha && <div className="text-[10px] text-danger bg-danger/10 px-1 py-0.5 mt-1 inline-block rounded">Atanmış, WAHA'da yok</div>}
+                    {r.orphan && <div className="text-[10px] text-warning bg-warning/10 px-1 py-0.5 mt-1 inline-block rounded">WAHA&apos;da var, atanmamış</div>}
+                    {r.missing_in_waha && <div className="text-[10px] text-danger bg-danger/10 px-1 py-0.5 mt-1 inline-block rounded">Atanmış, WAHA&apos;da yok</div>}
                     {r.mismatch && <div className="text-[10px] text-warning bg-warning/10 px-1 py-0.5 mt-1 inline-block rounded">Farklı sunucuda atanmış</div>}
                   </td>
                   <td className="px-6 py-4">
