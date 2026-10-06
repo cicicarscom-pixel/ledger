@@ -332,4 +332,7 @@ WhatsApp üzerinden alınan randevularda modelin hayali işlem yapmasını engel
 - Admin paneline 'WhatsApp Sunucuları' sayfası eklendi (kapasite, durum, uyarılar, ölçüm grafiği, sunucu ekleme, webhook değiştirme)
 - `admin-waha` fonksiyonuna `test-connection` eylemi eklendi.
 
+### [06.10.2026] Ledger İşleyici API Müşteri Rehberi Güncellemesi
+- `ledger-isleyici-api` fonksiyonundaki müşteri rehberi okuma mantığı `shared_accountant_taxpayer_links` tablosundan yeni çoklu kiracı (multi-tenant) modeline (`accounting_firm_members` → `accountant_taxpayer_links`) geçirildi. Yalnızca durumu `active` olan mükellefler rehbere dâhil edildi.
+
 

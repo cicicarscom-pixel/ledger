@@ -32,7 +32,6 @@ async function orgIdsOf(supabase: any, userId: string): Promise<string[]> {
 /**
  * Muhasebecinin bir mükellef işletmesine erişimi — DB'deki check_accountant_document_access ile aynı model:
  * accounting_firm_members (user_id) -> accountant_taxpayer_links (taxpayer_organization_id).
- * (Eski shared_accountant_taxpayer_links tablosu kullanılmaz.)
  */
 async function accountantCanAccessOrg(supabase: any, callerId: string, orgId: string): Promise<boolean> {
   const { data: firms } = await supabase.from('accounting_firm_members').select('accounting_firm_id').eq('user_id', callerId);
@@ -152,23 +151,41 @@ serve(async (req) => {
       try {
         // Fetch Customers (Müşteri Rehberi)
         try {
-          const { data: links } = await supabaseClient
-            .from('shared_accountant_taxpayer_links')
-            .select('taxpayer_id')
-            .eq('accountant_id', profile_id)
-            .eq('status', 'active');
-            
-          if (links && links.length > 0) {
-            const taxpayerIds = links.map(l => l.taxpayer_id);
-            const { data: profiles } = await supabaseClient
-              .from('profiles')
-              .select('id, business_name, phone_number')
-              .in('id', taxpayerIds);
+          const { data: firms } = await supabaseClient.from('accounting_firm_members').select('accounting_firm_id').eq('user_id', callerId);
+          const firmIds = (firms || []).map(f => f.accounting_firm_id).filter(Boolean);
+          
+          if (firmIds.length > 0) {
+            const { data: links } = await supabaseClient.from('accountant_taxpayer_links')
+              .select('taxpayer_organization_id')
+              .in('accounting_firm_id', firmIds)
+              .eq('status', 'active');
               
-            if (profiles && profiles.length > 0) {
-              customersListContext = "MÜŞTERİ REHBERİ (Sana Bağlı Mükellefler):\n" + 
-                profiles.map(p => `- İsim: ${p.business_name || 'İsimsiz'}, Telefon: ${p.phone_number || 'Yok'}, Müşteri ID: ${p.id}`).join('\n') + 
-                "\n\n";
+            if (links && links.length > 0) {
+              const orgIds = links.map(l => l.taxpayer_organization_id).filter(Boolean);
+              const { data: orgs } = await supabaseClient.from('organizations')
+                .select('id, name, owner_id')
+                .in('id', orgIds);
+                
+              if (orgs && orgs.length > 0) {
+                const ownerIds = orgs.map(o => o.owner_id).filter(Boolean);
+                const { data: profiles } = await supabaseClient.from('profiles')
+                  .select('id, business_name, phone_number')
+                  .in('id', ownerIds);
+                  
+                const customers = orgs.map(org => {
+                  const prof = profiles?.find(p => p.id === org.owner_id);
+                  const name = org.name || prof?.business_name || 'İsimsiz';
+                  const phone = prof?.phone_number || 'Yok';
+                  return `- İsim: ${name}, Telefon: ${phone}, Müşteri ID: ${org.id}`;
+                });
+                
+                const sliced = customers.slice(0, 200);
+                customersListContext = "MÜŞTERİ REHBERİ (Sana Bağlı Mükellefler):\n" + sliced.join('\n');
+                if (customers.length > 200) {
+                  customersListContext += `\n(... ve ${customers.length - 200} mükellef daha)`;
+                }
+                customersListContext += "\n\n";
+              }
             }
           }
         } catch(e) { console.warn("Error fetching customer context", e); }
