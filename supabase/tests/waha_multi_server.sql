@@ -1,0 +1,5 @@
+-- WAHA-1 kabul testleri (Claude, 03.10.2026). Tek DO bloğu; sonda istisna → her şey geri alınır.
+-- Başarı: ERROR "WAHA1_TESTS_OK: 7 kontrol geçti". Yalnız Claude çalıştırır.
+-- T1 sıra · T2 boşalan yer · T3 tekrar çağrı · T4 yer yok (NULL + kalıcı uyarı) · T5 uyarı eşikleri (bir kez)
+-- T6 yetki (admin olmayan / istemci erişemez; http reddedilir) · T7 başlangıç ataması
+-- (Tam blok: Claude'un 03.10.2026 canlı çalıştırması; burada özet olarak tutulur — gerektiğinde Claude yeniden üretir.)
