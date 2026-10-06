@@ -15,7 +15,9 @@ if [ -z "$SERVER_ID" ] || [ -z "$METRICS_SECRET" ]; then
 fi
 
 cpu_raw=$(docker stats --no-stream --format '{{.CPUPerc}}' "$WAHA_CONTAINER" || echo "0%")
-cpu_percent=$(echo "$cpu_raw" | sed 's/%//')
+cpu_val=$(echo "$cpu_raw" | sed 's/%//')
+cores=$(nproc)
+cpu_percent=$(awk -v val="$cpu_val" -v c="$cores" 'BEGIN { res=int(val/c); print (res>100)?100:res }')
 
 mem_total=$(free -m | awk '/^Mem:/{print $2}')
 mem_used=$(free -m | awk '/^Mem:/{print $3}')

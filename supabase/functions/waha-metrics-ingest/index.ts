@@ -85,8 +85,7 @@ serve(async (req) => {
       await supabaseClient.from("waha_alerts").insert({
         server_id: serverId,
         kind: "webhook_auth_failed",
-        message: "Metrik imzası doğrulanamadı",
-        severity: "warning"
+        message: "Metrik imzası doğrulanamadı"
       });
     }
 
