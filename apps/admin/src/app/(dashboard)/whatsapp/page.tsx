@@ -106,7 +106,7 @@ export default async function WhatsappPage() {
                   </td>
                   <td className="px-6 py-4 text-text-muted">{r.email || '-'}</td>
                   <td className="px-6 py-4">
-                    <DisconnectButton session={r.session} label={r.businessName || r.session} />
+                    <DisconnectButton session={r.session} label={r.businessName || r.session} missing={r.missing_in_waha} />
                   </td>
                 </tr>
               ))}

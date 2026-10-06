@@ -229,16 +229,34 @@ serve(async (req) => {
     if (action === "disconnect") {
       if (!isValidSessionName(session)) return json({ error: "Geçersiz oturum adı" }, 400);
       
-      // Fallback loop through servers
       let targetServer: any = null;
+      let hasOfflineServer = false;
+
       for (const s of servers) {
-         const wahaSessions = await listSessions(s) as any[];
-         if (wahaSessions && wahaSessions.some(ws => ws.name === session)) {
+         const wahaSessions = await listSessions(s);
+         if (wahaSessions === null) {
+            hasOfflineServer = true;
+         } else if ((wahaSessions as any[]).some(ws => ws.name === session)) {
             targetServer = s; break;
          }
       }
 
-      if (!targetServer) return json({ error: "Oturum bulunamadı" }, 404);
+      if (!targetServer) {
+        if (hasOfflineServer) {
+          return json({ error: "Sunucuya ulaşılamadı; oturum durumu doğrulanamadı", code: "SERVER_UNREACHABLE" }, 503);
+        }
+        
+        const { data: org } = await admin.from("organizations").select("id").eq("owner_id", session).maybeSingle();
+        if (org?.id) {
+          await admin.rpc('release_waha_assignment', { p_org: org.id });
+          await admin.from("organization_audit_events").insert({
+            organization_id: org.id, event_type: "waha_assignment_released_by_admin", actor_user_id: user.id,
+            new_data: { session, reason: "no_waha_session" }, source: "admin-waha",
+          });
+          return json({ success: true, removedAssignment: true, steps: { assignment: "ok" } });
+        }
+        return json({ success: true, removedAssignment: false });
+      }
 
       const baseUrl = targetServer.base_url ?? Deno.env.get('WAHA_BASE_URL') ?? '';
       const finalUrl = baseUrl.endsWith('/api') ? baseUrl : baseUrl.endsWith('/') ? `${baseUrl}api` : `${baseUrl}/api`;
