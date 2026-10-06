@@ -1,5 +1,3 @@
-import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
-
 export async function verifyWahaHmac(rawBody: string, signatureHex: string | null, secret: string): Promise<boolean> {
   if (!signatureHex) return false;
 
@@ -16,7 +14,9 @@ export async function verifyWahaHmac(rawBody: string, signatureHex: string | nul
   );
 
   const expectedSignatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, dataBuf);
-  const expectedSignatureHex = encodeHex(expectedSignatureBuffer);
+  const expectedSignatureHex = Array.from(new Uint8Array(expectedSignatureBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 
   // Constant-time comparison
   if (expectedSignatureHex.length !== signatureHex.length) return false;

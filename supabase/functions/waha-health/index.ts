@@ -14,7 +14,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     
     // Yalnız servis rolü ile (JWT doğrulama cron tarafından sağlanır)
-    if (!authHeader || !authHeader.includes(serviceKey)) {
+    if (!authHeader || authHeader !== `Bearer ${serviceKey}` || !serviceKey) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -50,10 +50,10 @@ serve(async (req) => {
 
           // resolve alerts
           await admin.from('waha_alerts')
-            .update({ resolved: true, resolved_at: new Date().toISOString() })
+            .update({ resolved_at: new Date().toISOString() })
             .eq('server_id', server.id)
             .eq('kind', 'server_down')
-            .eq('resolved', false);
+            .is('resolved_at', null);
         }
       } catch (e) {
         // failed to reach server
@@ -67,7 +67,7 @@ serve(async (req) => {
            .select('id')
            .eq('server_id', server.id)
            .eq('kind', 'server_down')
-           .eq('resolved', false)
+           .is('resolved_at', null)
            .limit(1);
          if (!openAlerts || openAlerts.length === 0) {
             await admin.from('waha_alerts').insert({
@@ -89,7 +89,7 @@ serve(async (req) => {
 
     // Cleanup 30 days old metrics
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    await admin.from('waha_server_metrics').delete().lt('created_at', thirtyDaysAgo);
+    await admin.from('waha_server_metrics').delete().lt('measured_at', thirtyDaysAgo);
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {

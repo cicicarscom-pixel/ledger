@@ -34,18 +34,27 @@ serve(async (req) => {
       const baseUrl = server.base_url ?? Deno.env.get('WAHA_BASE_URL') ?? '';
       const finalUrl = baseUrl.endsWith('/api') ? baseUrl : baseUrl.endsWith('/') ? `${baseUrl}api` : `${baseUrl}/api`;
       const apiKey = Deno.env.get(server.api_key_secret_name) ?? '';
-      const res = await fetch(`${finalUrl}/sessions?all=true`, { headers: { "X-Api-Key": apiKey, Accept: "application/json" } });
-      if (!res.ok) return [];
-      return await res.json();
+      try {
+        const res = await fetch(`${finalUrl}/sessions?all=true`, { headers: { "X-Api-Key": apiKey, Accept: "application/json" } });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     };
 
     if (action === "list") {
       let allSessions: any[] = [];
       const wahaSessionMap = new Set<string>();
+      const offlineServers = new Set<string>();
 
       for (const server of servers) {
-        const sessions = await listSessions(server) as any[];
-        sessions.forEach(s => {
+        const sessions = await listSessions(server);
+        if (sessions === null) {
+           offlineServers.add(server.id);
+           continue;
+        }
+        (sessions as any[]).forEach(s => {
           if (isValidSessionName(s.name)) {
             s.server_id = server.id;
             s.server_name = server.name;
@@ -76,7 +85,7 @@ serve(async (req) => {
 
       // Find assigned but missing in WAHA
       dbAssignedNames.forEach((assignedServerId, ownerId) => {
-        if (!wahaSessionMap.has(ownerId)) {
+        if (!wahaSessionMap.has(ownerId) && !offlineServers.has(assignedServerId)) {
           allSessions.push({
             name: ownerId,
             status: "MISSING",
@@ -121,6 +130,10 @@ serve(async (req) => {
       const apiKey = Deno.env.get(server.api_key_secret_name) ?? '';
       const webhookSecret = Deno.env.get(server.webhook_secret_name) ?? '';
 
+      if (!apiKey || !webhookSecret) {
+         return json({ error: "Server secrets missing" }, 500);
+      }
+
       const { data: assignments } = await admin.from('waha_session_assignments').select('org_id, organizations(owner_id)').eq('server_id', serverId);
       if (!assignments) return json({ error: "No assignments found" }, 404);
 
@@ -161,12 +174,11 @@ serve(async (req) => {
     if (action === "disconnect") {
       if (!isValidSessionName(session)) return json({ error: "Geçersiz oturum adı" }, 400);
       
-      const { data: assignments } = await admin.from('waha_session_assignments').select('server_id, organizations(owner_id)').eq('organizations.owner_id', session);
       // Fallback loop through servers
       let targetServer: any = null;
       for (const s of servers) {
          const wahaSessions = await listSessions(s) as any[];
-         if (wahaSessions.some(ws => ws.name === session)) {
+         if (wahaSessions && wahaSessions.some(ws => ws.name === session)) {
             targetServer = s; break;
          }
       }

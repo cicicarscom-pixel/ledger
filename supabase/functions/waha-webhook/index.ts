@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
 import { createMessageUseCase } from "../shared/container.ts";
 import { isAccountBlocked } from "../shared/admin/wahaSession.ts";
-import { resolveServer, resolveForSession } from "../shared/infrastructure/waha/WahaServerResolver.ts";
+import { resolveServer, resolveForSession, WahaServer } from "../shared/infrastructure/waha/WahaServerResolver.ts";
 import { verifyWahaHmac, isLegacyWindowOpen } from "../shared/infrastructure/waha/webhookAuth.ts";
 
 const supabaseAdmin = createClient(
@@ -36,7 +36,13 @@ serve(async (req) => {
     }
 
     if (serverParam) {
-      const server = await resolveServer(serverParam);
+      let server: WahaServer | null = null;
+      try {
+        server = await resolveServer(serverParam);
+      } catch (err) {
+        return new Response('Unauthorized Server', { status: 401 });
+      }
+
       if (!server) {
         return new Response('Unauthorized Server', { status: 401 });
       }
@@ -49,7 +55,7 @@ serve(async (req) => {
           .select('id')
           .eq('server_id', server.serverId)
           .eq('kind', 'webhook_auth_failed')
-          .eq('resolved', false)
+          .is('resolved_at', null)
           .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
           .limit(1);
 
@@ -63,7 +69,13 @@ serve(async (req) => {
         return new Response('Unauthorized HMAC', { status: 401 });
       }
 
-      const sessionServer = await resolveForSession(sessionName);
+      let sessionServer: WahaServer | null = null;
+      try {
+        sessionServer = await resolveForSession(sessionName);
+      } catch (err) {
+        return new Response('Forbidden Session Mapping', { status: 403 });
+      }
+
       if (!sessionServer || sessionServer.serverId !== server.serverId) {
         return new Response('Forbidden Session Mapping', { status: 403 });
       }
@@ -72,13 +84,19 @@ serve(async (req) => {
       if (!isLegacyWindowOpen()) {
         return new Response('Legacy webhook window closed', { status: 401 });
       }
-      const sessionServer = await resolveForSession(sessionName);
+      let sessionServer: WahaServer | null = null;
+      try {
+        sessionServer = await resolveForSession(sessionName);
+      } catch (err) {
+        return new Response('Unauthorized legacy session', { status: 401 });
+      }
+
       if (!sessionServer || sessionServer.fillOrder !== 1) {
         return new Response('Unauthorized legacy session', { status: 401 });
       }
     }
 
-    console.log('[WAHA WEBHOOK RAW PAYLOAD]', rawBody);
+    console.log('[WAHA WEBHOOK RAW PAYLOAD]', JSON.stringify(payload));
 
     if (payload.event === 'message') {
       const merchantId = payload.session;
@@ -91,18 +109,22 @@ serve(async (req) => {
 
       const pushName: string | null = rawFromPayload?._data?.pushName?.trim() || null;
 
+      // GRUP ve DURUM (Status) Koruması:
       const isGroup = from && from.includes('@g.us');
       const isBroadcast = from && from.includes('@broadcast');
 
+      // Sadece dışarıdan gelen (müşteri), grup/durum olmayan, kişisel mesajlara yanıt ver (@c.us)
       if (!isFromMe && !isGroup && !isBroadcast && merchantId && from && body) {
         console.log(`[WAHA WEBHOOK] Gelen Mesaj: ${from} -> "${body}"`);
 
+        // Askıya alınmış / banlanmış hesabın botu cevap vermez (admin panelindeki durum zorlanır).
         const { data: owner } = await supabaseAdmin.from('profiles').select('account_status').eq('id', merchantId).maybeSingle();
         if (isAccountBlocked(owner?.account_status)) {
           console.log(`[WAHA WEBHOOK] Hesap ${owner?.account_status}: bot cevabı atlandı (${merchantId})`);
           return new Response(JSON.stringify({ success: true, skipped: 'account_blocked' }), { headers: { 'Content-Type': 'application/json' }, status: 200 });
         }
 
+        // Use Omnichannel Router
         await useCase.execute(supabaseAdmin, {
           merchantId: merchantId,
           source: 'whatsapp',
@@ -113,6 +135,7 @@ serve(async (req) => {
       }
     }
 
+    // WAHA isteklerini hiçbir zaman timeout'a düşürmemek için hemen 200 dönüyoruz
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,

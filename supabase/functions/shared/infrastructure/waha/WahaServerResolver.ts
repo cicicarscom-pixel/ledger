@@ -12,7 +12,21 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const supabase = createClient(supabaseUrl, serviceRole);
 
-const cache = new Map<string, WahaServer>();
+const cache = new Map<string, { data: WahaServer; expiresAt: number }>();
+
+function getFromCache(key: string): WahaServer | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setToCache(key: string, data: WahaServer) {
+  cache.set(key, { data, expiresAt: Date.now() + 30000 });
+}
 
 async function buildServer(row: any): Promise<WahaServer> {
   const baseUrl = row.base_url ?? Deno.env.get('WAHA_BASE_URL') ?? '';
@@ -45,7 +59,8 @@ async function buildServer(row: any): Promise<WahaServer> {
 
 export async function resolveForOrg(orgId: string): Promise<WahaServer | null> {
   const cacheKey = `org:${orgId}`;
-  if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
 
   const { data: assignment, error } = await supabase
     .from('waha_session_assignments')
@@ -58,13 +73,14 @@ export async function resolveForOrg(orgId: string): Promise<WahaServer | null> {
   if (!server.is_active) throw new Error('WAHA server is inactive');
 
   const result = await buildServer(server);
-  cache.set(cacheKey, result);
+  setToCache(cacheKey, result);
   return result;
 }
 
 export async function resolveForSession(sessionName: string): Promise<WahaServer | null> {
   const cacheKey = `session:${sessionName}`;
-  if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
 
   const { data: org } = await supabase
     .from('organizations')
@@ -74,13 +90,14 @@ export async function resolveForSession(sessionName: string): Promise<WahaServer
 
   if (!org) return null;
   const server = await resolveForOrg(org.id);
-  if (server) cache.set(cacheKey, server);
+  if (server) setToCache(cacheKey, server);
   return server;
 }
 
 export async function resolveServer(serverId: string): Promise<WahaServer | null> {
   const cacheKey = `server:${serverId}`;
-  if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
 
   const { data: server, error } = await supabase
     .from('waha_servers')
@@ -92,6 +109,6 @@ export async function resolveServer(serverId: string): Promise<WahaServer | null
   if (!server.is_active) throw new Error('WAHA server is inactive');
 
   const result = await buildServer(server);
-  cache.set(cacheKey, result);
+  setToCache(cacheKey, result);
   return result;
 }

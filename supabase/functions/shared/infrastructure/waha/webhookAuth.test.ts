@@ -1,12 +1,13 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { verifyWahaHmac, isLegacyWindowOpen } from "./webhookAuth.ts";
-import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 async function generateSignature(body: string, secret: string) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
   const buf = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-  return encodeHex(buf);
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 Deno.test("verifyWahaHmac - doğru imza geçer", async () => {
