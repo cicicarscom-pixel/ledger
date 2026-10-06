@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Building2, Activity, ShieldAlert, LogOut, Bell, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Activity, ShieldAlert, LogOut, Bell, MessageCircle, Server } from 'lucide-react';
 import { logout } from '@/app/login/actions';
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Kullanıcılar', href: '/users', icon: Users },
   { name: 'Organizasyonlar', href: '/organizations', icon: Building2 },
   { name: 'WhatsApp Bağlantıları', href: '/whatsapp', icon: MessageCircle },
+  { name: 'WhatsApp Sunucuları', href: '/whatsapp-sunuculari', icon: Server },
   { name: 'Bildirim Yönetimi', href: '/notifications', icon: Bell },
   { name: 'Sistem İzleme', href: '/activity', icon: Activity },
 ];

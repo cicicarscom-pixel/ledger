@@ -24,7 +24,7 @@ serve(async (req) => {
     const { data: isAdmin } = await userClient.rpc("is_admin");
     if (isAdmin !== true) return json({ error: "Forbidden: Requires admin privileges" }, 403);
 
-    const { action, session, serverId } = await req.json().catch(() => ({}));
+    const { action, session, serverId, baseUrl, apiKeySecretName } = await req.json().catch(() => ({}));
 
     // Fetch all active servers
     const { data: servers } = await admin.from('waha_servers').select('*').eq('is_active', true);
@@ -169,6 +169,60 @@ serve(async (req) => {
       }
 
       return json({ success: true, successCount, failCount });
+    }
+
+    if (action === "test-connection") {
+      if (!baseUrl || !baseUrl.startsWith("https://")) {
+        return json({ ok: false, error: "HTTPS_REQUIRED" });
+      }
+
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(baseUrl);
+      } catch (e) {
+        return json({ ok: false, error: "INVALID_URL" });
+      }
+
+      const host = parsedUrl.hostname;
+      const ssrfRegex = /^(localhost|.*\.local|.*\.internal|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+|0\.\d+\.\d+\.\d+|::1|fc[0-9a-f]{2}:.*|fd[0-9a-f]{2}:.*|fe80:.*)$/i;
+      if (ssrfRegex.test(host)) {
+        return json({ ok: false, error: "HOST_NOT_ALLOWED" });
+      }
+
+      if (!/^[A-Z][A-Z0-9_]{2,63}$/.test(apiKeySecretName)) {
+        return json({ ok: false, error: "INVALID_SECRET_NAME" });
+      }
+
+      const apiKey = Deno.env.get(apiKeySecretName);
+      if (!apiKey) {
+        return json({ ok: false, error: "SECRET_MISSING", secretName: apiKeySecretName });
+      }
+
+      const finalUrl = baseUrl.endsWith("/api") ? baseUrl : baseUrl.endsWith("/") ? `${baseUrl}api` : `${baseUrl}/api`;
+
+      const start = performance.now();
+      try {
+        const res = await fetch(`${finalUrl}/sessions?all=true`, {
+          method: "GET",
+          headers: { "X-Api-Key": apiKey, "Accept": "application/json" },
+          signal: AbortSignal.timeout(10000)
+        });
+        const latencyMs = Math.round(performance.now() - start);
+
+        if (res.ok) {
+          const sessions = await res.json();
+          return json({ ok: true, latencyMs, sessionCount: sessions.length });
+        } else if (res.status === 401 || res.status === 403) {
+          return json({ ok: false, error: "WAHA_AUTH_FAILED", status: res.status });
+        } else {
+          return json({ ok: false, error: "WAHA_HTTP_ERROR", status: res.status });
+        }
+      } catch (e: any) {
+        if (e.name === "TimeoutError") {
+          return json({ ok: false, error: "TIMEOUT" });
+        }
+        return json({ ok: false, error: "UNREACHABLE" });
+      }
     }
 
     if (action === "disconnect") {
