@@ -13,6 +13,10 @@ type Row = {
   email: string | null
   accountStatus: string | null
   orphan: boolean
+  server_name: string | null
+  server_id: string | null
+  missing_in_waha?: boolean
+  mismatch?: boolean
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -21,6 +25,7 @@ const STATUS_STYLE: Record<string, string> = {
   SCAN_QR_CODE: 'bg-warning/10 text-warning border-warning/20',
   STARTING: 'bg-warning/10 text-warning border-warning/20',
   FAILED: 'bg-danger/10 text-danger border-danger/20',
+  MISSING: 'bg-danger/10 text-danger border-danger/20',
 }
 
 export default async function WhatsappPage() {
@@ -59,6 +64,7 @@ export default async function WhatsappPage() {
                 <th className="px-6 py-4 font-medium">Bağlı Numara</th>
                 <th className="px-6 py-4 font-medium">Durum</th>
                 <th className="px-6 py-4 font-medium">Hesap</th>
+                <th className="px-6 py-4 font-medium">Sunucu</th>
                 <th className="px-6 py-4 font-medium">E-posta</th>
                 <th className="px-6 py-4 font-medium text-right">İşlemler</th>
               </tr>
@@ -69,6 +75,9 @@ export default async function WhatsappPage() {
                   <td className="px-6 py-4">
                     <div className="font-medium text-white">{r.businessName || (r.orphan ? 'Sahibi bulunamadı' : 'İsimsiz işletme')}</div>
                     <div className="text-xs text-text-muted font-mono">{r.session}</div>
+                    {r.orphan && <div className="text-[10px] text-warning bg-warning/10 px-1 py-0.5 mt-1 inline-block rounded">WAHA&apos;da var, atanmamış</div>}
+                    {r.missing_in_waha && <div className="text-[10px] text-danger bg-danger/10 px-1 py-0.5 mt-1 inline-block rounded">Atanmış, WAHA&apos;da yok</div>}
+                    {r.mismatch && <div className="text-[10px] text-warning bg-warning/10 px-1 py-0.5 mt-1 inline-block rounded">Farklı sunucuda atanmış</div>}
                   </td>
                   <td className="px-6 py-4">
                     {r.phoneDisplay ? (
@@ -92,6 +101,9 @@ export default async function WhatsappPage() {
                       </span>
                     )}
                   </td>
+                  <td className="px-6 py-4">
+                    <div className="text-white">{r.server_name || '-'}</div>
+                  </td>
                   <td className="px-6 py-4 text-text-muted">{r.email || '-'}</td>
                   <td className="px-6 py-4">
                     <DisconnectButton session={r.session} label={r.businessName || r.session} />
@@ -100,7 +112,7 @@ export default async function WhatsappPage() {
               ))}
               {rows.length === 0 && !errorMessage && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-text-muted">WAHA üzerinde oturum yok.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-text-muted">Oturum yok.</td>
                 </tr>
               )}
             </tbody>
