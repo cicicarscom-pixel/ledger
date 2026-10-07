@@ -24,6 +24,9 @@ export class PrepareVideoShareTool implements ITool {
       return { status: "NO_ATTACHMENT", message: "Önce panelden bir video ekleyin." };
     }
 
+    const att = context.attachment;
+    const facts = { durationSec: att.durationSec, aspect: att.width / att.height, sizeBytes: att.sizeBytes };
+
     const connected = await getConnectedPlatforms(this.admin, context.organizationId);
     if (connected.size === 0) return { status: "NO_ACCOUNTS" };
 
@@ -47,13 +50,13 @@ export class PrepareVideoShareTool implements ITool {
         skipped.push({ platform: p, reason: "Hesap bağlı değil" });
         continue;
       }
-      const format = pickFormat(p, context.attachment);
+      const format = pickFormat(p, facts);
       const rule = rulesMap.get(`${p}-${format}`);
       if (!rule) {
         skipped.push({ platform: p, reason: "Bu platform için biçim kuralı tanımlı değil" });
         continue;
       }
-      const check = checkEligibility(rule, context.attachment);
+      const check = checkEligibility(rule, facts);
       if (!check.ok) {
         skipped.push({ platform: p, reason: check.reason });
       } else {
@@ -81,7 +84,7 @@ export class PrepareVideoShareTool implements ITool {
     if (captionText) {
       for (let i = validPlatforms.length - 1; i >= 0; i--) {
         const p = validPlatforms[i];
-        const format = pickFormat(p, context.attachment);
+        const format = pickFormat(p, facts);
         const rule = rulesMap.get(`${p}-${format}`);
         if (rule && captionText.length > rule.max_caption_chars) {
           skipped.push({ platform: p, reason: "Metin bu platformun sınırını aşıyor" });

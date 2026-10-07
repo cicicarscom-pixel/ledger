@@ -9,6 +9,7 @@ Deno.test("pickFormat - youtube", () => {
   assertEquals(pickFormat("youtube", { durationSec: 100, aspect: 0.5, sizeBytes: 100 }), "short");
   assertEquals(pickFormat("youtube", { durationSec: 200, aspect: 0.5, sizeBytes: 100 }), "video");
   assertEquals(pickFormat("youtube", { durationSec: 100, aspect: 1.5, sizeBytes: 100 }), "video");
+  assertEquals(pickFormat("youtube", { durationSec: 30, aspect: 0.5625, sizeBytes: 1 }), "short");
 });
 
 Deno.test("pickFormat - facebook", () => {
