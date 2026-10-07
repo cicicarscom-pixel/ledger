@@ -7,7 +7,7 @@ import { BaseOrchestrator, TextVerdict, TurnGuard } from '../BaseOrchestrator.ts
  * ilgili araç GERÇEKTEN SUCCESS dönmüş olmalı; dönmediyse model araca yönlendirilir (cihaz testi 03.10.2026: model
  * start_guide'ı çağırmadan "başlattım" dedi, hiçbir şey olmadı).
  */
-const UI_TOOLS = new Set(['start_guide', 'open_screen', 'highlight', 'prepare_post_draft', 'generate_caption']);
+const UI_TOOLS = new Set(['start_guide', 'open_screen', 'highlight', 'prepare_post_draft', 'generate_caption', 'prepare_video_share']);
 const MAX_CLAIM_CORRECTIONS = 2;
 
 // Türkçe geçmiş zaman iddiaları ("başlattım", "açtım", "yönlendirdim", "vurguladım", "hazırladım", "götürdüm").
@@ -36,7 +36,7 @@ export class FlowAITurnGuard implements TurnGuard {
       tag: 'blocked_false_ui_claim',
       correction:
         'SİSTEM: Bu turda ilgili araç SUCCESS dönmedi; "başlattım/açtım/yönlendirdim/hazırladım/yayınladım/paylaştım/zamanladım" DİYEMEZSİN. ' +
-        'İsteği şimdi uygun aracı çağırarak yap (start_guide, open_screen, highlight, prepare_post_draft veya generate_caption); ' +
+        'İsteği şimdi uygun aracı çağırarak yap (start_guide, open_screen, highlight, prepare_post_draft, generate_caption veya prepare_video_share); ' +
         'araç SUCCESS dönünce kısa bir cümleyle bildir. Araç gerekmiyorsa yaptığını söyleme, sadece bilgi ver.',
     };
   }

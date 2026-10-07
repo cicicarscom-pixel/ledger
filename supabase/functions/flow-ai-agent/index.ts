@@ -99,6 +99,28 @@ serve(async (req) => {
     const store = new SupabasePendingActionStore(admin);
     const context = buildContext(org.id, userId, org.timezone, client);
 
+    if (body.attachment && body.attachment.kind === "video") {
+      const a = body.attachment;
+      if (
+        typeof a.mimeType === "string" && ["video/mp4", "video/quicktime", "video/webm", "video/3gpp"].includes(a.mimeType) &&
+        typeof a.durationSec === "number" && a.durationSec > 0 && a.durationSec <= 43200 &&
+        typeof a.width === "number" && a.width >= 1 && a.width <= 16384 && Number.isInteger(a.width) &&
+        typeof a.height === "number" && a.height >= 1 && a.height <= 16384 && Number.isInteger(a.height) &&
+        typeof a.sizeBytes === "number" && a.sizeBytes >= 1 && a.sizeBytes <= 5368709120 && Number.isInteger(a.sizeBytes) &&
+        (a.fileName === undefined || (typeof a.fileName === "string" && a.fileName.length <= 120 && !a.fileName.includes("/") && !a.fileName.includes("\\")))
+      ) {
+        context.attachment = {
+          kind: "video",
+          mimeType: a.mimeType,
+          durationSec: a.durationSec,
+          width: a.width,
+          height: a.height,
+          sizeBytes: a.sizeBytes,
+          fileName: a.fileName
+        };
+      }
+    }
+
     // ---- Onay / ret ----
     if (body.action === "approve") {
       if (typeof body.actionId !== "string" || typeof body.payloadHash !== "string") return json({ error: "INVALID_REQUEST" }, 400);
@@ -162,6 +184,12 @@ serve(async (req) => {
 
     await admin.from("flow_ai_messages").insert({ conversation_id: conversationId, org_id: org.id, role: "user", content: message });
 
+    let llmMessage = message;
+    if (context.attachment) {
+      const mb = (context.attachment.sizeBytes / (1024 * 1024)).toFixed(1);
+      llmMessage += `\n[Ekli video: ${context.attachment.durationSec} sn, ${context.attachment.width}x${context.attachment.height}, ${mb} MB]`;
+    }
+
     const orchestrator = new FlowAIOrchestrator({
       geminiClient: new GeminiClient(),
       toolExecutor: new FlowToolExecutor(registry, store, { orgId: org.id, userId, conversationId }),
@@ -171,7 +199,7 @@ serve(async (req) => {
 
     let result;
     try {
-      result = await orchestrator.run(context, message, history);
+      result = await orchestrator.run(context, llmMessage, history);
     } catch (error) {
       console.error("[flow-ai-agent] orkestratör hatası:", error);
       return json({ error: "AI_UNAVAILABLE", conversationId }, 502);

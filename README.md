@@ -341,3 +341,8 @@ WhatsApp üzerinden alınan randevularda modelin hayali işlem yapmasını engel
 - `ledger-isleyici-api` fonksiyonundaki müşteri rehberi okuma mantığı `shared_accountant_taxpayer_links` tablosundan yeni çoklu kiracı (multi-tenant) modeline (`accounting_firm_members` → `accountant_taxpayer_links`) geçirildi. Yalnızca durumu `active` olan mükellefler rehbere dâhil edildi.
 
 
+
+### [07.10.2026] Flow AI Video Paylaşım Aracı (FA7)
+- Flow AI'a \prepare_video_share\ aracı eklendi (kullanıcının eklediği videoyu kullanarak paylaşım için ön hazırlık yapar, doğrudan yayınlamaz).
+- Format uygunluğu (süre, boyut, oran vb.) platform kurallarına göre dinamik olarak hesaplanması sağlandı (\FormatEligibility.ts\).
+

@@ -14,8 +14,8 @@ export const TEXT_ONLY_LIMITS: Record<string, number> = {
 };
 const PLATFORM_ALIASES: Record<string, string> = { x: 'twitter', 'x.com': 'twitter' };
 const MEDIA_PLATFORMS = new Set(['instagram', 'youtube', 'tiktok', 'pinterest', 'snapchat']);
-const MIN_LEAD_MS = 5 * 60 * 1000;
-const MAX_LEAD_MS = 365 * 24 * 60 * 60 * 1000;
+export const MIN_LEAD_MS = 5 * 60 * 1000;
+export const MAX_LEAD_MS = 365 * 24 * 60 * 60 * 1000;
 const LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/;
 
 export const normalizePlatform = (p: unknown): string => {
@@ -120,12 +120,8 @@ export class PublishPostTool implements ITool {
     return data as DraftRow;
   }
 
-  private async connectedPlatforms(orgId: string): Promise<Set<string>> {
-    const { data, error } = await this.admin.schema('integration').from('social_accounts')
-      .select('platform, is_active, needs_reconnection').eq('organization_id', orgId);
-    if (error) { console.error('[publish_post] hesap okuma hatası:', error.message); return new Set(); }
-    return new Set((data ?? []).filter((a: any) => a.is_active && !a.needs_reconnection).map((a: any) => normalizePlatform(a.platform)));
-  }
+  // connectedPlatforms is now exported below
+
 
   /** Onay kaydından ÖNCE: doğrular, çözülmüş argümanları ve kullanıcıya gösterilecek özeti üretir. */
   async prepareApproval(context: AIContext, args: Record<string, unknown>) {
@@ -160,7 +156,7 @@ export class PublishPostTool implements ITool {
     const tooLong = platforms.filter((p) => draft.caption.length > TEXT_ONLY_LIMITS[p]);
     if (tooLong.length > 0) return fail('TEXT_TOO_LONG', `Metin ${tooLong.map((p) => `${p} (${TEXT_ONLY_LIMITS[p]})`).join(', ')} karakter sınırını aşıyor; kısalt.`);
 
-    const connected = await this.connectedPlatforms(context.organizationId);
+    const connected = await getConnectedPlatforms(this.admin, context.organizationId);
     const notConnected = platforms.filter((p) => !connected.has(p));
     if (notConnected.length > 0) return fail('ACCOUNT_NOT_CONNECTED', `${notConnected.join(', ')} hesabı bağlı değil ya da yeniden bağlanmalı. Kullanıcıyı Sosyal Medya ekranına yönlendir.`);
 
@@ -220,3 +216,11 @@ export class PublishPostTool implements ITool {
     return { status: 'SUCCESS', data: { published: !scheduledFor, scheduled: !!scheduledFor, scheduledFor, platforms } };
   }
 }
+
+export async function getConnectedPlatforms(admin: any, orgId: string): Promise<Set<string>> {
+  const { data, error } = await admin.schema('integration').from('social_accounts')
+    .select('platform, is_active, needs_reconnection').eq('organization_id', orgId);
+  if (error) { console.error('[connectedPlatforms] hesap okuma hatası:', error.message); return new Set(); }
+  return new Set((data ?? []).filter((a: any) => a.is_active && !a.needs_reconnection).map((a: any) => normalizePlatform(a.platform)));
+}
+

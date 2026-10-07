@@ -35,6 +35,15 @@ export interface AIContext {
   botSettings?: Record<string, unknown> & {
     system_prompt?: string | null;
   };
+  attachment?: {
+    kind: 'video';
+    mimeType: string;
+    durationSec: number;
+    width: number;
+    height: number;
+    sizeBytes: number;
+    fileName?: string;
+  };
   personaConfig?: PersonaRenderConfig | null;
   customerProfile?: AICustomerProfile | null;
   appointmentModuleEnabled?: boolean;

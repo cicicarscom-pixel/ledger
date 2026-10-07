@@ -4,6 +4,7 @@ import { FLOW_GUIDES, FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCata
 import { HELP_TOPICS, findHelpTopic } from '../helpTopics.ts';
 import type { CaptionService } from '../CaptionService.ts';
 import { PublishPostTool, type ZernioPublishCaller } from './PublishTools.ts';
+import { PrepareVideoShareTool } from './VideoShareTools.ts';
 import { createSocialAnalyticsTools, type ZernioAnalyticsCaller } from './SocialAnalyticsTools.ts';
 
 /**
@@ -266,7 +267,10 @@ export function createFlowTools(admin: any, opts: { includeGuide?: boolean; incl
   if (opts.includeHighlight) tools.push(new HighlightTool());
   // includeDrafts: mobil AI Üretim ekranı draftId ile açmayı (FA3-3) destekleyene kadar KAPALI.
   if (opts.includeDrafts) tools.push(new PreparePostDraftTool(admin));
-  if (opts.captionService) tools.push(new GenerateCaptionTool(opts.captionService));
+  if (opts.captionService) {
+    tools.push(new GenerateCaptionTool(opts.captionService));
+    tools.push(new PrepareVideoShareTool(admin, opts.captionService));
+  }
   // FA4: sosyal analitik (salt-okunur). zernioAnalytics verilmezse yalnız DB tabanlı iki araç.
   if (opts.zernioAnalytics) tools.push(...createSocialAnalyticsTools(admin, opts.zernioAnalytics));
   // FA5: onaylı yayınlama (EXTERNAL_ACTION; yalnız FlowAIGate onay kapısından çalışır).
