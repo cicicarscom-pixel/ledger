@@ -17,6 +17,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 12 | `TALIMAT_12_fa7_platform_secici_sunucu.md` | ledger | `flow-ai-agent` | GEREKLİ |
 | 13 | `TALIMAT_13_fa7_platform_secici_web.md` | flowweb | yok (Vercel) | GEREKLİ |
 | 14 | `TALIMAT_14_fa7_mobil_secici_ve_hesap_yenileme.md` | flow + flowweb | yok (EAS derlemesi) | GEREKLİ (cihaz testi kullanıcıda) |
+| 15 | `TALIMAT_15_fa7_mobil_platform_kaynagi.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
