@@ -19,6 +19,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 14 | `TALIMAT_14_fa7_mobil_secici_ve_hesap_yenileme.md` | flow + flowweb | yok (EAS derlemesi) | GEREKLİ (cihaz testi kullanıcıda) |
 | 15 | `TALIMAT_15_fa7_mobil_platform_kaynagi.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 16 | `TALIMAT_16_sesli_flow_ai_mobil_v1.md` | flow | yok (yeni EAS derlemesi) | GEREKLİ (cihaz testi kullanıcıda) |
+| 18 | `TALIMAT_18_ses_tanima_hata_tanisi.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
