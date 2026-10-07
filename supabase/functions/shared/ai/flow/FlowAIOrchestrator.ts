@@ -43,8 +43,8 @@ export class FlowAITurnGuard implements TurnGuard {
 }
 
 export class FlowAIOrchestrator extends BaseOrchestrator {
-  protected readonly logPrefix = 'FlowAIOrchestrator';
-  protected createGuard(_context: AIContext): TurnGuard {
+  protected override readonly logPrefix = 'FlowAIOrchestrator';
+  protected override createGuard(_context: AIContext): TurnGuard {
     return new FlowAITurnGuard();
   }
 }

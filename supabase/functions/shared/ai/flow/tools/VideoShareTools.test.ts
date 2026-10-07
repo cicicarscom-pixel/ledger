@@ -104,3 +104,30 @@ Deno.test("PrepareVideoShareTool - vertical video success", async () => {
   assertEquals(data.clientAction.platforms, ["instagram"]);
   assertEquals(data.clientAction.caption, "Merhaba");
 });
+
+Deno.test('PrepareVideoShareTool - caption required (no args)', async () => {
+  let generateCalled = 0;
+  const mockAdmin = {
+    schema: () => ({ from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: [{ platform: 'instagram', is_active: true, needs_reconnection: false }], error: null }) }) }) }),
+    from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: [{ platform: 'instagram', format: 'reel', is_active: true, min_duration_sec: 10, max_duration_sec: 90, max_caption_chars: 100, min_aspect: 0.5, max_aspect: 0.8, max_file_mb: 1024 }], error: null }) }) })
+  };
+  const mockCaptions = { generate: () => { generateCalled++; return Promise.resolve({ status: 'SUCCESS', text: 'Test' }); } };
+  const tool = new PrepareVideoShareTool(mockAdmin as any, mockCaptions as any);
+  const context = { organizationId: 'org-1', customerId: 'user-1', timezone: 'Europe/Istanbul', attachment: { kind: 'video', mimeType: 'video/mp4', durationSec: 30, width: 1080, height: 1920, sizeBytes: 1000 } };
+  const res = await tool.execute(context as any, {});
+  assertEquals(res.status, 'CAPTION_REQUIRED');
+  assertEquals((res.data as any).platforms, ['instagram']);
+  assertEquals(generateCalled, 0);
+});
+
+Deno.test('PrepareVideoShareTool - caption required (empty string)', async () => {
+  const mockAdmin = {
+    schema: () => ({ from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: [{ platform: 'instagram', is_active: true, needs_reconnection: false }], error: null }) }) }) }),
+    from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: [{ platform: 'instagram', format: 'reel', is_active: true, min_duration_sec: 10, max_duration_sec: 90, max_caption_chars: 100, min_aspect: 0.5, max_aspect: 0.8, max_file_mb: 1024 }], error: null }) }) })
+  };
+  const mockCaptions = { generate: () => Promise.resolve({ status: 'SUCCESS', text: 'Test' }) };
+  const tool = new PrepareVideoShareTool(mockAdmin as any, mockCaptions as any);
+  const context = { organizationId: 'org-1', customerId: 'user-1', timezone: 'Europe/Istanbul', attachment: { kind: 'video', mimeType: 'video/mp4', durationSec: 30, width: 1080, height: 1920, sizeBytes: 1000 } };
+  const res = await tool.execute(context as any, { caption: '   ' });
+  assertEquals(res.status, 'CAPTION_REQUIRED');
+});

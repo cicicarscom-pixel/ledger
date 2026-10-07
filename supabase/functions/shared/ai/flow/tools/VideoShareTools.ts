@@ -68,28 +68,22 @@ export class PrepareVideoShareTool implements ITool {
       return { status: "NOTHING_ELIGIBLE", data: { skipped } };
     }
 
-    let captionText = typeof args.caption === "string" ? args.caption : undefined;
+    const captionText = typeof args.caption === "string" ? args.caption.trim() : "";
     if (!captionText) {
-      const r = await this.captions.generate({
-        orgId: context.organizationId,
-        userId: context.customerId,
-        brief: typeof args.captionHint === "string" ? args.captionHint : "",
-        platforms: validPlatforms
-      });
-      if (r.status === "SUCCESS") {
-        captionText = r.text;
-      }
+      return {
+        status: "CAPTION_REQUIRED",
+        data: { platforms: validPlatforms, skipped },
+        message: "Gönderi metni yok. Videolarda metni AI üretmez. Kullanıcıya bu video için gönderi metnini ne yazmak istediğini SOR (metni UYDURMA). Kullanıcı yazınca prepare_video_share'i caption argümanıyla tekrar çağır."
+      };
     }
 
-    if (captionText) {
-      for (let i = validPlatforms.length - 1; i >= 0; i--) {
-        const p = validPlatforms[i];
-        const format = pickFormat(p, facts);
-        const rule = rulesMap.get(`${p}-${format}`);
-        if (rule && captionText.length > rule.max_caption_chars) {
-          skipped.push({ platform: p, reason: "Metin bu platformun sınırını aşıyor" });
-          validPlatforms.splice(i, 1);
-        }
+    for (let i = validPlatforms.length - 1; i >= 0; i--) {
+      const p = validPlatforms[i];
+      const format = pickFormat(p, facts);
+      const rule = rulesMap.get(`${p}-${format}`);
+      if (rule && captionText.length > rule.max_caption_chars) {
+        skipped.push({ platform: p, reason: "Metin bu platformun sınırını aşıyor" });
+        validPlatforms.splice(i, 1);
       }
     }
 
