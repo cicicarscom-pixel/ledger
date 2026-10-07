@@ -14,6 +14,8 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 9 | `TALIMAT_9_fa7_web_video_paylasim.md` | flowweb | yok (Vercel) | GEREKLİ |
 | 10 | `TALIMAT_10_fa7_mobil_video_paylasim.md` | flow | yok | GEREKLİ (cihaz testi kullanıcıda) |
 | 11 | `TALIMAT_11_fa7_video_metin_sorma.md` | ledger | `flow-ai-agent` | GEREKLİ |
+| 12 | `TALIMAT_12_fa7_platform_secici_sunucu.md` | ledger | `flow-ai-agent` | GEREKLİ |
+| 13 | `TALIMAT_13_fa7_platform_secici_web.md` | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
