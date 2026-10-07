@@ -224,3 +224,18 @@ export async function getConnectedPlatforms(admin: any, orgId: string): Promise<
   return new Set((data ?? []).filter((a: any) => a.is_active && !a.needs_reconnection).map((a: any) => normalizePlatform(a.platform)));
 }
 
+export async function getConnectedAccounts(admin: any, orgId: string): Promise<Array<{ platform: string; handle: string }>> {
+  const { data, error } = await admin.schema('integration').from('social_accounts')
+    .select('platform, username, is_active, needs_reconnection').eq('organization_id', orgId);
+  if (error) { console.error('[connectedAccounts] hesap okuma hatası:', error.message); return []; }
+  const seen = new Set<string>();
+  const out: Array<{ platform: string; handle: string }> = [];
+  for (const a of (data ?? []).filter((x: any) => x.is_active && !x.needs_reconnection)) {
+    const platform = normalizePlatform(a.platform);
+    if (seen.has(platform)) continue;
+    seen.add(platform);
+    out.push({ platform, handle: typeof a.username === 'string' ? a.username.slice(0, 60) : '' });
+  }
+  return out;
+}
+

@@ -1,6 +1,6 @@
 import type { AIContext } from "../../types.ts";
 import type { ITool, ToolResult } from "../../tools/types.ts";
-import { localToUtcIso, normalizePlatform, MIN_LEAD_MS, MAX_LEAD_MS, getConnectedPlatforms } from "./PublishTools.ts";
+import { localToUtcIso, normalizePlatform, MIN_LEAD_MS, MAX_LEAD_MS, getConnectedPlatforms, getConnectedAccounts } from "./PublishTools.ts";
 import { pickFormat, checkEligibility, FormatRule } from "./FormatEligibility.ts";
 
 export class PrepareVideoShareTool implements ITool {
@@ -30,20 +30,35 @@ export class PrepareVideoShareTool implements ITool {
     const connected = await getConnectedPlatforms(this.admin, context.organizationId);
     if (connected.size === 0) return { status: "NO_ACCOUNTS" };
 
-    let targetPlatforms = Array.isArray(args.platforms)
-      ? args.platforms.map(p => normalizePlatform(p))
-      : Array.from(connected);
+    const rulesMap = new Map<string, FormatRule>();
+    const { data: rulesData } = await this.admin.from("social_format_rules").select("*").eq("is_active", true);
+    if (rulesData) {
+      for (const r of rulesData) rulesMap.set(`${r.platform}-${r.format}`, r);
+    }
+
+    if (!Array.isArray(args.platforms) || args.platforms.length === 0) {
+      const accounts = await getConnectedAccounts(this.admin, context.organizationId);
+      const options = accounts.map((a) => {
+        const format = pickFormat(a.platform, facts);
+        const rule = rulesMap.get(`${a.platform}-${format}`);
+        if (!rule) return { platform: a.platform, handle: a.handle, eligible: false, reason: "Bu platform için biçim kuralı tanımlı değil" };
+        const check = checkEligibility(rule, facts);
+        return check.ok
+          ? { platform: a.platform, handle: a.handle, eligible: true }
+          : { platform: a.platform, handle: a.handle, eligible: false, reason: check.reason };
+      });
+      if (!options.some((o) => o.eligible)) return { status: "NOTHING_ELIGIBLE", data: { skipped: options.filter((o) => !o.eligible).map((o) => ({ platform: o.platform, reason: o.reason })) } };
+      return {
+        status: "PLATFORMS_REQUIRED",
+        data: { options, clientAction: { type: "pick_platforms", options } },
+        message: "Panelde hesap seçenekleri gösterildi. Kullanıcıya kısaca 'Aşağıdan paylaşmak istediğin hesapları seç' de ve gönderi metnini henüz vermediyse metni de iste. 'Hazırladım' DEME. Seçim 'Seçilen hesaplar: ...' mesajıyla gelince prepare_video_share'i platforms (ve metin varsa caption) ile çağır."
+      };
+    }
+
+    let targetPlatforms = args.platforms.map(p => normalizePlatform(p as string));
 
     const skipped: Array<{ platform: string; reason: string }> = [];
     const validPlatforms: string[] = [];
-    const rulesMap = new Map<string, FormatRule>();
-
-    if (targetPlatforms.length > 0) {
-      const { data: rulesData } = await this.admin.from("social_format_rules").select("*").eq("is_active", true);
-      if (rulesData) {
-        for (const r of rulesData) rulesMap.set(`${r.platform}-${r.format}`, r);
-      }
-    }
 
     for (const p of targetPlatforms) {
       if (!connected.has(p)) {
