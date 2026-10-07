@@ -8,6 +8,11 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 1 | `TALIMAT_1_isleyici_musteri_rehberi.md` | ledger | `ledger-isleyici-api` | GEREKLİ |
 | 2 | `TALIMAT_2_waha_bot_not_setup_istemci.md` | flow + flowweb | yok (istemci) | gerekmez (CI yeşilse) |
 | 3 | `TALIMAT_3_waha4_metrics_ingest.md` | ledger | `waha-metrics-ingest` (yeni) | GEREKLİ |
+| 6 | `TALIMAT_6_fa7_2_video_yayin_hazirlik.md` | — | **GERİ ÇEKİLDİ, uygulama** | — |
+| 7 | `TALIMAT_7_bekleyen_birlestirmeler.md` | flowweb + flow | yok | GEREKLİ |
+| 8 | `TALIMAT_8_fa7_video_paylasim_araci.md` | ledger | `flow-ai-agent` | GEREKLİ |
+| 9 | `TALIMAT_9_fa7_web_video_paylasim.md` | flowweb | yok (Vercel) | GEREKLİ |
+| 10 | `TALIMAT_10_fa7_mobil_video_paylasim.md` | flow | yok | GEREKLİ (cihaz testi kullanıcıda) |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
