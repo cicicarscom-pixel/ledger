@@ -201,9 +201,13 @@ serve(async (req) => {
     let result;
     try {
       result = await orchestrator.run(context, llmMessage, history);
-    } catch (error) {
+        } catch (error: any) {
       console.error("[flow-ai-agent] orkestratör hatası:", error);
-      return json({ error: "AI_UNAVAILABLE", conversationId }, 502);
+      if (String(error?.message || '').includes('boş yanıt')) {
+        result = { text: 'Tam anlayamadım, biraz daha açık söyler misiniz?', actions: [], usage: { rounds: 0, toolCalls: 0 } };
+      } else {
+        return json({ error: "AI_UNAVAILABLE", conversationId }, 502);
+      }
     }
 
     const rows: any[] = [{ conversation_id: conversationId, org_id: org.id, role: "assistant", content: result.text }];

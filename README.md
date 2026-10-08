@@ -1,3 +1,6 @@
+## 🆕 Son Güncellemeler (Ekim 2026)
+- 08.10.2026 — Flow AI: randevu ayrıntıları (doktor/hizmet) artık biliniyor; boş model yanıtında hata yerine nazik cevap; konuşmada duraklama toleransı artırıldı; tekrar paylaşımda anlaşılır Türkçe uyarı.
+
 ## 🔄 AKTARIM NOTU (HANDOVER) - 29 EYLÜL 2026 (Finans Özetleri, Tarih & Para Formatı Optimizasyonları Tamamlandı)
 
 **Şu Anki Durum:**

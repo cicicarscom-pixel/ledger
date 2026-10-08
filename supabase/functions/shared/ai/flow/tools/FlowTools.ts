@@ -64,10 +64,22 @@ export class GetAppointmentsOverviewTool implements ITool {
         console.error('[get_appointments_overview] randevu hatası:', aErr.message);
         return { status: 'ERROR', message: 'Randevular şu an alınamadı.' };
       }
+            const calIds = [...new Set((appts ?? []).map((a: any) => a.calendar_id).filter(Boolean))];
+      const svcIds = [...new Set((appts ?? []).map((a: any) => a.service_id).filter(Boolean))];
+      const calNames = new Map<string, string>();
+      const svcNames = new Map<string, string>();
+      if (calIds.length) {
+        const { data: cs } = await this.admin.from('calendars').select('id, name').eq('org_id', context.organizationId).in('id', calIds);
+        for (const c of (cs ?? []) as any[]) calNames.set(String(c.id), c.name);
+      }
+      if (svcIds.length) {
+        const { data: ss } = await this.admin.from('business_services').select('id, name').eq('org_id', context.organizationId).in('id', svcIds);
+        for (const s of (ss ?? []) as any[]) svcNames.set(String(s.id), s.name);
+      }
       out.push({
         date: day,
         calendars: [...perCalendar.entries()].map(([name, c]) => ({ name, ...c })),
-        appointments: (appts ?? []).map((a: any) => ({ time: String(a.date).slice(11, 16), customer: a.customer_name ?? null, status: a.status })),
+        appointments: (appts ?? []).map((a: any) => ({ time: String(a.date).slice(11, 16), customer: a.customer_name ?? null, calendar: calNames.get(String(a.calendar_id)) ?? null, service: svcNames.get(String(a.service_id)) ?? null, status: a.status })),
       });
     }
     return { status: 'SUCCESS', data: { days: out } };
