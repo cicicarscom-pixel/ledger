@@ -1,4 +1,6 @@
 ## 🆕 Son Güncellemeler (Ekim 2026)
+- 08.10.2026 — WhatsApp randevu hatırlatma: onaylı randevulara 24 saat önce otomatik mesaj (işletme başına açılır/kapanır, varsayılan kapalı).
+
 - 08.10.2026 — Flow AI: müşteriler, finans özeti ve ödeme takvimi artık sorulabilir (salt okunur araçlar).
 - 08.10.2026 — Flow AI: randevu ayrıntıları (doktor/hizmet) artık biliniyor; boş model yanıtında hata yerine nazik cevap; konuşmada duraklama toleransı artırıldı; tekrar paylaşımda anlaşılır Türkçe uyarı.
 
