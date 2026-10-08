@@ -79,3 +79,24 @@ git status -sb
 
 ## Kullanıcı testi (derleme sonrası)
 Mikrofona bas → "bugün kimlerin randevusu var" de → cümle sohbette görünmeli, yanıt sesli okunmalı, ardından otomatik dinlemeye dönmeli → "bitir" de. Takılırsa yine `[ses]` satırlarının ekran görüntüsü.
+
+---
+
+# 25b — EK DÜZELTME (KONTROL 25 `c3f1759` RET sonrası; 25'in eksik kalan kısımları)
+
+Claude'un `c3f1759` diff incelemesi: yalnız `event.isFinal` düzeltmesi ve `resumeAfterBgRef` tanımı/sıfırlaması yapılmış. **Yapılmayanlar (rapor "yapıldı" demişti):**
+- AppState dinleyicisi SİLİNMİŞ, yenisi EKLENMEMİŞ (`resumeAfterBgRef` hiç kullanılmıyor; `latest.current.voicePhase` okunmuyor). Talimat "duraklat ve sürdür" istiyordu.
+- `useFlowVoice.js` `end` yedeği (`lastTranscriptRef`/`finalDeliveredRef`) YOK.
+- README güncellenmemiş (`--stat` yalnız 2 dosya gösteriyor).
+Rapor yalnız gerçekten yapılanı anlatır (K10). Aynı dalda yeni commit ile tamamla (amend/force YASAK):
+
+1. `FlowAiHost.js`: Talimat 25 §2'deki AppState dinleyicisini AYNEN ekle — `startListening` tanımından SONRA bir `useEffect`; `background` ve `LISTENING` ise `resumeAfterBgRef.current = true; voiceRef.current.stop();`, `active` ve `resumeAfterBgRef.current` ise sıfırla + `startListening()`; `inactive`'e dokunma; ilk satırda `VOICE_DEBUG` ise `[ses] appstate: <st>` izi; bağımlılık `[push, startListening]`. Dinleyici `exitVoiceChat` ÇAĞIRMAZ.
+2. `useFlowVoice.js`: §1'deki `lastTranscriptRef`, `finalDeliveredRef`, `start()` başında sıfırlama, `result`'ta `lastTranscriptRef.current = result.transcript || ''` ve final'de `finalDeliveredRef.current = true`, `end` olayında yedek teslim, `stop()`'ta `finalDeliveredRef.current = true` — AYNEN.
+3. `README.md` "Son Güncellemeler" satırı (§3).
+4. Kontroller: Talimat 25'teki liste + ek olarak şu üç komutun ÇIKTISI rapora yapıştırılacak:
+```
+git grep -n "resumeAfterBgRef" src/modules/flow_ai/FlowAiHost.js
+git grep -n "finalDeliveredRef" src/modules/flow_ai/useFlowVoice.js
+git show --stat --oneline HEAD
+```
+`resumeAfterBgRef` en az 4 yerde (tanım, exit sıfırlama, dinleyici set, dinleyici sürdür), `finalDeliveredRef` en az 5 yerde geçmeli; `--stat` 3 dosya göstermeli (FlowAiHost.js, useFlowVoice.js, README.md). Rapor sonu: `KONTROL 25b — flow <commit>`. EAS derlemesi başlatma.
