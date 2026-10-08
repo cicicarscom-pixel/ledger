@@ -1,0 +1,456 @@
+From 8cfe0d00b2e469b022de46c3d16de522a4db50d2 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 08:38:57 +0000
+Subject: [PATCH] feat(flow-ai): musteri, finans ozeti ve odeme takvimi okuma
+ araclari
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ .../shared/ai/flow/FlowPromptBuilder.ts       |   3 +-
+ .../shared/ai/flow/tools/DataTools.test.ts    | 137 ++++++++++
+ .../shared/ai/flow/tools/DataTools.ts         | 239 ++++++++++++++++++
+ .../shared/ai/flow/tools/FlowTools.test.ts    |   2 +-
+ .../shared/ai/flow/tools/FlowTools.ts         |   3 +
+ 5 files changed, 382 insertions(+), 2 deletions(-)
+ create mode 100644 supabase/functions/shared/ai/flow/tools/DataTools.test.ts
+ create mode 100644 supabase/functions/shared/ai/flow/tools/DataTools.ts
+
+diff --git a/supabase/functions/shared/ai/flow/FlowPromptBuilder.ts b/supabase/functions/shared/ai/flow/FlowPromptBuilder.ts
+index f341c5f..870aae1 100644
+--- a/supabase/functions/shared/ai/flow/FlowPromptBuilder.ts
++++ b/supabase/functions/shared/ai/flow/FlowPromptBuilder.ts
+@@ -46,6 +46,7 @@ KURALLAR:
+ 11. Metni sen uydurma: gönderi metni istenirse generate_caption aracını çağır, dönen metni kullanıcıya göster. Kullanıcı beğenirse prepare_post_draft ile taslağa çevir.
+ 12. Sosyal medya performansı/büyümesi/en iyi saat sorularında get_social_overview, get_account_growth, get_best_posting_times, get_content_performance araçlarını çağır. Araç hasData:false veya boş dönerse "henüz yeterli veri yok" de (hesap bağlı değilse bağlamayı, bağlıysa verinin toplanmasını beklemeyi öner); sayı, yüzde veya saat UYDURMA.
+ 13. Kullanıcı bir metni yayınlamanı/paylaşmanı/zamanlamanı isterse (ör. "yayınla", "Facebook'a paylaş", "yarın 18:00'de paylaş") publish_post(text, platforms, scheduledLocal?) aracını DOĞRUDAN çağır; önce prepare_post_draft ÇAĞIRMA (o araç AI Üretim ekranını açar ve sohbeti kapatır). prepare_post_draft yalnız kullanıcı metni ekranda düzenlemek, medya eklemek ya da Instagram/YouTube/TikTok gibi medya gerektiren platforma paylaşmak isterse kullanılır. publish_post YAYINLAMAZ: kullanıcıya sohbette onay kartı çıkar; sen kısaca "onay kartını hazırladım, Onayla'ya basınca yayınlanacak" de, YAYINLADIM DEME. Zamanı kullanıcının yerel saatiyle "YYYY-MM-DD HH:mm" ver (bugünün tarihi ve saat dilimi bağlamda); yanıtında gün adı/tarih yazma, yalnız "bugün/yarın/saat" de, tam zamanı kart gösterir. Araç MEDIA_REQUIRED/PLATFORM_NOT_SUPPORTED/ACCOUNT_NOT_CONNECTED vb. dönerse nedenini kısaca anlat ve çözüm öner.
+-14. Kullanıcı bir video eklediyse ve paylaşmak istiyorsa prepare_video_share çağır. Kullanıcı platform söylemediyse prepare_video_share'i platforms OLMADAN çağır; PLATFORMS_REQUIRED dönerse panelde hesap seçenekleri çıkar, sen kısaca "Aşağıdan hesapları seç" de ve metni sor, "hazırladım" DEME. Kullanıcı "Seçilen hesaplar: x, y" yazarsa o hesaplarla tekrar çağır. Kullanıcı platformları kendisi saydıysa doğrudan platforms ile çağır. Saati belirsizse sor, uydurma. Sonucu kısaca özetle (hangi hesaplar, hangi saat, atlananlar sebebiyle). Videoyu ASLA 'paylaşıldı' diye sunma: yayın için kullanıcı panelde 'Onayla ve paylaş'a basmalı. Kullanıcı gönderi metnini vermediyse önce metni SOR (videolarda metni AI üretmez, generate_caption çağırma); kullanıcı yazınca prepare_video_share'i caption argümanıyla çağır. Araç CAPTION_REQUIRED dönerse "hazırladım" DEME, yalnız metni iste.`;
++14. Kullanıcı bir video eklediyse ve paylaşmak istiyorsa prepare_video_share çağır. Kullanıcı platform söylemediyse prepare_video_share'i platforms OLMADAN çağır; PLATFORMS_REQUIRED dönerse panelde hesap seçenekleri çıkar, sen kısaca "Aşağıdan hesapları seç" de ve metni sor, "hazırladım" DEME. Kullanıcı "Seçilen hesaplar: x, y" yazarsa o hesaplarla tekrar çağır. Kullanıcı platformları kendisi saydıysa doğrudan platforms ile çağır. Saati belirsizse sor, uydurma. Sonucu kısaca özetle (hangi hesaplar, hangi saat, atlananlar sebebiyle). Videoyu ASLA 'paylaşıldı' diye sunma: yayın için kullanıcı panelde 'Onayla ve paylaş'a basmalı. Kullanıcı gönderi metnini vermediyse önce metni SOR (videolarda metni AI üretmez, generate_caption çağırma); kullanıcı yazınca prepare_video_share'i caption argümanıyla çağır. Araç CAPTION_REQUIRED dönerse "hazırladım" DEME, yalnız metni iste.
++15. Müşteri, randevu geçmişi, gelir/gider ve ödeme sorularında get_customers, get_customer_history, get_finance_summary, get_payment_calendar araçlarını çağır. Tutarları ve tarihleri araçtan gelen HAZIR metinle söyle (ör. "1.739,99 ₺"); kendin toplama, çıkarma veya yuvarlama yapma. Araç boş dönerse "kayıt yok", hata dönerse "şu an alamadım" de; veri UYDURMA. Bu veriler yalnız bu işletme sahibine aittir.`;
+   }
+ }
+diff --git a/supabase/functions/shared/ai/flow/tools/DataTools.test.ts b/supabase/functions/shared/ai/flow/tools/DataTools.test.ts
+new file mode 100644
+index 0000000..26d0f22
+--- /dev/null
++++ b/supabase/functions/shared/ai/flow/tools/DataTools.test.ts
+@@ -0,0 +1,137 @@
++// Çalıştırma: deno test --no-check --allow-all supabase/functions/shared/ai/flow/tools/DataTools.test.ts
++// Müşteri/finans/ödeme takvimi araçları: işletme yalnız bağlamdan, hazır biçimli tutar, hata dayanıklılığı.
++import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
++import { GetCustomerHistoryTool, GetCustomersTool, GetFinanceSummaryTool, GetPaymentCalendarTool, createDataTools, formatTry } from "./DataTools.ts";
++import { createFlowTools } from "./FlowTools.ts";
++
++const ctx: any = { organizationId: "ORG-A", customerId: "u1", now: new Date("2026-10-08T09:00:00Z"), timezone: "Europe/Istanbul", channel: { source: "flow_ai", platform: "flow_ai", supportsInteractiveButtons: false } };
++
++function fakeRpcAdmin(handlers: Record<string, (args: any) => { data?: any; error?: any }>) {
++  const calls: { fn: string; args: any }[] = [];
++  const admin: any = {
++    rpc: (fn: string, args: any) => {
++      calls.push({ fn, args });
++      const h = handlers[fn];
++      const r = h ? h(args) : { data: [], error: null };
++      return Promise.resolve({ data: r.data ?? null, error: r.error ?? null });
++    },
++  };
++  return { admin, calls };
++}
++
++const CUSTOMERS = [
++  { id: "11111111-1111-4111-8111-111111111111", name: "Ahmet Yavuz", phone_display: "+90 532 111 22 33", notes: "Alerjisi var", total: 3, upcoming: 1, past: 2, cancelled: 0, next_starts_at: "2026-10-08T09:30:00Z", next_doctor: "Dr.Salih GÜNEY", next_request: "Kontrol", last_visit_at: "2026-09-01T10:00:00Z", last_request: "Dolgu" },
++  { id: "22222222-2222-4222-8222-222222222222", name: "Cengiz Ayvaz", phone_display: "+90 533 444 55 66", notes: null, total: 1, upcoming: 1, past: 0, cancelled: 0, next_starts_at: "2026-10-08T11:30:00Z", next_doctor: "Dr.Ediz HUN", next_request: null, last_visit_at: null, last_request: null },
++  { id: "33333333-3333-4333-8333-333333333333", name: "Ahmet Kaya", phone_display: "+90 534 777 88 99", notes: null, total: 0, upcoming: 0, past: 0, cancelled: 0, next_starts_at: null, next_doctor: null, next_request: null, last_visit_at: null, last_request: null },
++];
++
++Deno.test("formatTry: kuruş varsa 2 hane, yoksa hiç; yuvarlama yok", () => {
++  assertEquals(formatTry(173999).replace(/ /g, " "), "1.739,99 ₺");
++  assertEquals(formatTry(531000).replace(/ /g, " "), "5.310 ₺");
++  assertEquals(formatTry(5).replace(/ /g, " "), "0,05 ₺");
++  assertEquals(formatTry(0).replace(/ /g, " "), "0 ₺");
++});
++
++Deno.test("müşteriler: işletme yalnız bağlamdan; model argümanı yok sayılır; ada göre arama (Türkçe harf duyarsız)", async () => {
++  const { admin, calls } = fakeRpcAdmin({ _get_customers_org: () => ({ data: CUSTOMERS }) });
++  const r = await new GetCustomersTool(admin).execute(ctx, { search: "AHMET", orgId: "ORG-B", p_org: "ORG-B" });
++  assertEquals(r.status, "SUCCESS");
++  assertEquals(calls.length, 1);
++  assertEquals(calls[0].fn, "_get_customers_org");
++  assertEquals(calls[0].args, { p_org: "ORG-A" });
++  const d = r.data as any;
++  assertEquals(d.totalMatching, 2);
++  assertEquals(d.customers.map((c: any) => c.name), ["Ahmet Yavuz", "Ahmet Kaya"]);
++  assertEquals(d.customers[0].next.doctor, "Dr.Salih GÜNEY");
++  assertEquals(d.customers[0].phone, "+90 532 111 22 33");
++});
++
++Deno.test("müşteriler: ham WhatsApp telefon biçimi çıktıya sızmaz; limit uygulanır", async () => {
++  const rows = CUSTOMERS.map((c) => ({ ...c, phone: "905321112233@c.us" }));
++  const { admin } = fakeRpcAdmin({ _get_customers_org: () => ({ data: rows }) });
++  const r = await new GetCustomersTool(admin).execute(ctx, { limit: 1 });
++  const d = r.data as any;
++  assertEquals(d.customers.length, 1);
++  assertEquals(JSON.stringify(r).includes("@c.us"), false);
++});
++
++Deno.test("müşteriler: veritabanı hatasında ERROR döner, iç hata metni sızmaz", async () => {
++  const { admin } = fakeRpcAdmin({ _get_customers_org: () => ({ error: { message: "secret db detail" } }) });
++  const r = await new GetCustomersTool(admin).execute(ctx, {});
++  assertEquals(r.status, "ERROR");
++  assertEquals(JSON.stringify(r).includes("secret"), false);
++});
++
++Deno.test("müşteri geçmişi: tek eşleşmede randevular gelir; işletme ve müşteri kimliği doğru geçer", async () => {
++  const { admin, calls } = fakeRpcAdmin({
++    _get_customers_org: () => ({ data: CUSTOMERS }),
++    _get_customer_appointments_org: () => ({ data: [{ id: "a1", starts_at: "2026-10-08T09:30:00Z", doctor: "Dr.Salih GÜNEY", request: "Kontrol", status: "Approved", source: "whatsapp" }] }),
++  });
++  const r = await new GetCustomerHistoryTool(admin).execute(ctx, { customer_name: "cengiz" });
++  assertEquals(r.status, "SUCCESS");
++  assertEquals(calls[1].fn, "_get_customer_appointments_org");
++  assertEquals(calls[1].args, { p_org: "ORG-A", p_customer_id: "22222222-2222-4222-8222-222222222222" });
++  assertEquals((r.data as any).appointments[0].doctor, "Dr.Salih GÜNEY");
++});
++
++Deno.test("müşteri geçmişi: bulunamayan ve birden fazla eşleşen isim", async () => {
++  const { admin } = fakeRpcAdmin({ _get_customers_org: () => ({ data: CUSTOMERS }) });
++  const tool = new GetCustomerHistoryTool(admin);
++  assertEquals((await tool.execute(ctx, { customer_name: "Zeynep" })).status, "NOT_FOUND");
++  const amb = await tool.execute(ctx, { customer_name: "ahmet" });
++  assertEquals(amb.status, "AMBIGUOUS");
++  assertEquals((amb.data as any).candidates.length, 2);
++  assertEquals((await tool.execute(ctx, { customer_name: "" })).status, "INVALID_ARGS");
++});
++
++Deno.test("finans özeti: varsayılan dönem içinde bulunulan ay (işletme saat dilimi); tutarlar hazır biçimli; net hesaplanır", async () => {
++  const { admin, calls } = fakeRpcAdmin({
++    _get_finance_summary_org: () => ({ data: { status: "SUCCESS", income: 1000050, expense: 400000, receivable: 250000, payable: 120000, overdue_count: 2, overdue_amount: 90000 } }),
++  });
++  const r = await new GetFinanceSummaryTool(admin).execute(ctx, { orgId: "ORG-B" });
++  assertEquals(calls[0].args, { p_org: "ORG-A", p_from: "2026-10-01", p_to: "2026-10-31" });
++  const d = r.data as any;
++  const nb = (s: string) => s.replace(/ /g, " ");
++  assertEquals(nb(d.income), "10.000,50 ₺");
++  assertEquals(nb(d.net), "6.000,50 ₺");
++  assertEquals(d.overdue.count, 2);
++});
++
++Deno.test("finans özeti: geçersiz/aşırı geniş aralık reddedilir; UNAUTHORIZED hata sayılır", async () => {
++  const { admin } = fakeRpcAdmin({ _get_finance_summary_org: () => ({ data: { status: "UNAUTHORIZED" } }) });
++  const tool = new GetFinanceSummaryTool(admin);
++  assertEquals((await tool.execute(ctx, { from: "2026-12-01", to: "2026-01-01" })).status, "INVALID_ARGS");
++  assertEquals((await tool.execute(ctx, { from: "2020-01-01", to: "2026-01-01" })).status, "INVALID_ARGS");
++  assertEquals((await tool.execute(ctx, {})).status, "ERROR");
++});
++
++Deno.test("ödeme takvimi: varsayılan bugün+30 gün; yalnız ödenmemişler filtresi; toplamlar hazır biçimli", async () => {
++  const rows = [
++    { type: "expense", title: "Kira", amount_minor: 2500000, day: "2026-10-10", payment_status: "pending", is_overdue: false, category: "kira" },
++    { type: "income", title: "Tahsilat", amount_minor: 100000, day: "2026-10-12", payment_status: "paid", is_overdue: false, category: null },
++    { type: "expense", title: "Elektrik", amount_minor: 45050, day: "2026-10-01", payment_status: "pending", is_overdue: true, category: null },
++  ];
++  const { admin, calls } = fakeRpcAdmin({ _get_payment_calendar_org: () => ({ data: rows }) });
++  const all = await new GetPaymentCalendarTool(admin).execute(ctx, {});
++  assertEquals(calls[0].args, { p_org: "ORG-A", p_from: "2026-10-08", p_to: "2026-11-07" });
++  assertEquals((all.data as any).count, 3);
++  const unpaid = await new GetPaymentCalendarTool(admin).execute(ctx, { only_unpaid: true });
++  const d = unpaid.data as any;
++  assertEquals(d.count, 2);
++  assertEquals(d.entries.some((e: any) => e.overdue), true);
++  assertEquals(d.entries[0].kind, "gider");
++  assertEquals(d.totalExpense.replace(/ /g, " "), "25.450,50 ₺");
++});
++
++Deno.test("ödeme takvimi: 92 günden geniş aralık reddedilir", async () => {
++  const { admin } = fakeRpcAdmin({});
++  assertEquals((await new GetPaymentCalendarTool(admin).execute(ctx, { from: "2026-01-01", to: "2026-12-31" })).status, "INVALID_ARGS");
++});
++
++Deno.test("veri araçları: hepsi READ, createFlowTools'a kayıtlı, adlar çakışmaz", () => {
++  const data = createDataTools({});
++  assertEquals(data.map((t) => t.riskLevel), ["READ", "READ", "READ", "READ"]);
++  const all = createFlowTools({}).map((t) => t.name);
++  for (const t of data) assertEquals(all.includes(t.name), true);
++  assertEquals(new Set(all).size, all.length);
++});
+diff --git a/supabase/functions/shared/ai/flow/tools/DataTools.ts b/supabase/functions/shared/ai/flow/tools/DataTools.ts
+new file mode 100644
+index 0000000..492e541
+--- /dev/null
++++ b/supabase/functions/shared/ai/flow/tools/DataTools.ts
+@@ -0,0 +1,239 @@
++import type { AIContext } from '../../types.ts';
++import type { ITool, ToolResult } from '../../tools/types.ts';
++
++/**
++ * Flow AI veri okuma araçları (müşteriler, finans, ödeme takvimi). Hepsi READ.
++ * İşletme YALNIZ context.organizationId'den gelir (model argümanıyla seçilemez). Veri, ekranların kullandığı
++ * fonksiyonların işletme-parametreli kardeşlerinden okunur (_get_*_org; yalnız service_role çağırabilir).
++ * Para birimi veritabanında kuruştur; modele HAZIR biçimli metin verilir, model kendisi hesap/yuvarlama yapmaz.
++ */
++
++const YMD = /^\d{4}-\d{2}-\d{2}$/;
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++
++function todayYmd(now: Date, tz: string): string {
++  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
++}
++function addDays(ymd: string, days: number): string {
++  const [y, m, d] = ymd.split('-').map(Number);
++  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
++}
++function monthRange(ymd: string): { from: string; to: string } {
++  const [y, m] = ymd.split('-').map(Number);
++  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
++  const mm = String(m).padStart(2, '0');
++  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
++}
++function daysBetween(a: string, b: string): number {
++  return Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
++}
++
++/** Kuruş → "1.739,99 ₺" (kuruş varsa 2 hane, yoksa hiç; yuvarlama yok). */
++export function formatTry(minor: number): string {
++  const n = Number(minor) || 0;
++  const hasKurus = Math.abs(n) % 100 !== 0;
++  return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: hasKurus ? 2 : 0, maximumFractionDigits: 2 }).format(n / 100) + ' ₺';
++}
++
++function formatWhen(iso: string | null | undefined, tz: string): string | null {
++  if (!iso) return null;
++  try {
++    return new Intl.DateTimeFormat('tr-TR', { timeZone: tz, day: 'numeric', month: 'long', weekday: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
++  } catch (_e) {
++    return null;
++  }
++}
++
++function norm(s: unknown): string {
++  return String(s ?? '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i').trim();
++}
++
++function pickRange(args: Record<string, unknown>, def: { from: string; to: string }, maxDays: number): { from: string; to: string } | { error: string } {
++  const from = typeof args.from === 'string' && YMD.test(args.from) ? args.from : def.from;
++  const to = typeof args.to === 'string' && YMD.test(args.to) ? args.to : def.to;
++  if (from > to) return { error: 'Başlangıç tarihi bitişten sonra olamaz.' };
++  if (daysBetween(from, to) > maxDays) return { error: `En fazla ${maxDays} günlük aralık sorulabilir.` };
++  return { from, to };
++}
++
++export class GetCustomersTool implements ITool {
++  readonly name = 'get_customers';
++  readonly description = 'İşletmenin müşterilerini listeler/arar: ad, telefon, notlar, toplam/yaklaşan/geçmiş/iptal randevu sayısı, sıradaki randevu (tarih, doktor) ve son ziyaret. "Ahmet kim", "müşterim kaç kişi", "yaklaşan randevusu olan müşteriler" gibi sorular için kullan.';
++  readonly riskLevel = 'READ' as const;
++  readonly schema = {
++    type: 'object',
++    properties: {
++      search: { type: 'string', description: 'Ad veya telefon parçası (isteğe bağlı). Verilmezse en yakın randevusu olanlar önce gelir.' },
++      limit: { type: 'integer', description: 'En fazla kaç müşteri (1-25). Varsayılan 10.' },
++    },
++  };
++  constructor(private readonly admin: any) {}
++
++  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
++    const limit = Math.min(25, Math.max(1, Math.floor(Number(args.limit) || 10)));
++    const { data, error } = await this.admin.rpc('_get_customers_org', { p_org: context.organizationId });
++    if (error) {
++      console.error('[get_customers] hata:', error.message);
++      return { status: 'ERROR', message: 'Müşteriler şu an alınamadı.' };
++    }
++    let rows = (data ?? []) as any[];
++    const q = typeof args.search === 'string' ? norm(args.search) : '';
++    if (q) {
++      const digits = q.replace(/\D/g, '');
++      rows = rows.filter((r) => norm(r.name).includes(q) || (digits.length >= 3 && String(r.phone_display ?? '').replace(/\D/g, '').includes(digits)));
++    }
++    const tz = context.timezone;
++    return {
++      status: 'SUCCESS',
++      data: {
++        totalMatching: rows.length,
++        shown: Math.min(rows.length, limit),
++        customers: rows.slice(0, limit).map((r) => ({
++          name: r.name ?? null,
++          phone: r.phone_display ?? null,
++          notes: r.notes ?? null,
++          appointments: { total: r.total, upcoming: r.upcoming, past: r.past, cancelled: r.cancelled },
++          next: r.next_starts_at ? { when: formatWhen(r.next_starts_at, tz), doctor: r.next_doctor ?? null, request: r.next_request ?? null } : null,
++          lastVisit: formatWhen(r.last_visit_at, tz),
++          lastRequest: r.last_request ?? null,
++        })),
++      },
++    };
++  }
++}
++
++export class GetCustomerHistoryTool implements ITool {
++  readonly name = 'get_customer_history';
++  readonly description = 'Bir müşterinin tüm randevu geçmişini (tarih, doktor, talep, durum) getirir. Müşteriyi adıyla ver. "Ahmet ne zaman geldi", "Cengiz\'in randevuları" gibi sorular için kullan.';
++  readonly riskLevel = 'READ' as const;
++  readonly schema = {
++    type: 'object',
++    properties: { customer_name: { type: 'string', description: 'Müşterinin adı (veya adının bir parçası).' } },
++    required: ['customer_name'],
++  };
++  constructor(private readonly admin: any) {}
++
++  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
++    const q = norm(args.customer_name);
++    if (q.length < 2) return { status: 'INVALID_ARGS', message: 'Müşteri adını söyler misiniz?' };
++    const { data, error } = await this.admin.rpc('_get_customers_org', { p_org: context.organizationId });
++    if (error) {
++      console.error('[get_customer_history] müşteri hatası:', error.message);
++      return { status: 'ERROR', message: 'Müşteri bilgisi şu an alınamadı.' };
++    }
++    const matches = ((data ?? []) as any[]).filter((r) => norm(r.name).includes(q));
++    if (matches.length === 0) return { status: 'NOT_FOUND', message: 'Bu isimde müşteri bulunamadı.' };
++    if (matches.length > 1) {
++      return { status: 'AMBIGUOUS', message: 'Birden fazla müşteri eşleşti; hangisi olduğunu sor.', data: { candidates: matches.slice(0, 8).map((r) => ({ name: r.name, phone: r.phone_display })) } };
++    }
++    const c = matches[0];
++    if (!UUID.test(String(c.id))) return { status: 'ERROR', message: 'Müşteri kaydı okunamadı.' };
++    const { data: appts, error: aErr } = await this.admin.rpc('_get_customer_appointments_org', { p_org: context.organizationId, p_customer_id: c.id });
++    if (aErr) {
++      console.error('[get_customer_history] randevu hatası:', aErr.message);
++      return { status: 'ERROR', message: 'Randevu geçmişi şu an alınamadı.' };
++    }
++    const list = (appts ?? []) as any[];
++    const tz = context.timezone;
++    return {
++      status: 'SUCCESS',
++      data: {
++        customer: { name: c.name, phone: c.phone_display, notes: c.notes ?? null },
++        totalAppointments: list.length,
++        shown: Math.min(list.length, 20),
++        appointments: list.slice(0, 20).map((a) => ({ when: formatWhen(a.starts_at, tz), doctor: a.doctor ?? null, request: a.request ?? null, status: a.status, source: a.source ?? null })),
++      },
++    };
++  }
++}
++
++export class GetFinanceSummaryTool implements ITool {
++  readonly name = 'get_finance_summary';
++  readonly description = 'Belirli bir dönem için gelir, gider, net sonuç, alacak, borç ve vadesi geçmiş ödeme özeti verir (tutarlar hazır biçimli). Tarih verilmezse içinde bulunulan ay. "Bu ay ne kadar kazandım", "kaç lira borcum var" gibi sorular için kullan.';
++  readonly riskLevel = 'READ' as const;
++  readonly schema = {
++    type: 'object',
++    properties: {
++      from: { type: 'string', description: 'Başlangıç günü (YYYY-MM-DD). Verilmezse bu ayın ilk günü.' },
++      to: { type: 'string', description: 'Bitiş günü (YYYY-MM-DD). Verilmezse bu ayın son günü.' },
++    },
++  };
++  constructor(private readonly admin: any) {}
++
++  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
++    const range = pickRange(args, monthRange(todayYmd(context.now, context.timezone)), 366);
++    if ('error' in range) return { status: 'INVALID_ARGS', message: range.error };
++    const { data, error } = await this.admin.rpc('_get_finance_summary_org', { p_org: context.organizationId, p_from: range.from, p_to: range.to });
++    if (error || !data || data.status !== 'SUCCESS') {
++      console.error('[get_finance_summary] hata:', error?.message ?? data?.status);
++      return { status: 'ERROR', message: 'Finans özeti şu an alınamadı.' };
++    }
++    const income = Number(data.income) || 0;
++    const expense = Number(data.expense) || 0;
++    return {
++      status: 'SUCCESS',
++      data: {
++        period: range,
++        income: formatTry(income),
++        expense: formatTry(expense),
++        net: formatTry(income - expense),
++        receivable: formatTry(Number(data.receivable) || 0),
++        payable: formatTry(Number(data.payable) || 0),
++        overdue: { count: Number(data.overdue_count) || 0, amount: formatTry(Number(data.overdue_amount) || 0) },
++        note: 'Gelir/gider yalnız ödenmiş kayıtlardır; alacak/borç ve vadesi geçenler dönemden bağımsız tüm bekleyen kayıtlardır.',
++      },
++    };
++  }
++}
++
++export class GetPaymentCalendarTool implements ITool {
++  readonly name = 'get_payment_calendar';
++  readonly description = 'Belirli bir aralıktaki gelir/gider ödeme kayıtlarını (başlık, tutar, vade, ödendi/bekliyor, gecikmiş mi) listeler. Aralık verilmezse bugünden 30 gün sonrasına kadar. "Bu hafta ne ödeyeceğim", "geciken ödemem var mı" sorularında kullan.';
++  readonly riskLevel = 'READ' as const;
++  readonly schema = {
++    type: 'object',
++    properties: {
++      from: { type: 'string', description: 'Başlangıç günü (YYYY-MM-DD). Verilmezse bugün.' },
++      to: { type: 'string', description: 'Bitiş günü (YYYY-MM-DD). Verilmezse bugünden 30 gün sonrası.' },
++      only_unpaid: { type: 'boolean', description: 'true ise yalnız ödenmemiş (bekleyen/kısmi) kayıtlar.' },
++    },
++  };
++  constructor(private readonly admin: any) {}
++
++  async execute(context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
++    const today = todayYmd(context.now, context.timezone);
++    const range = pickRange(args, { from: today, to: addDays(today, 30) }, 92);
++    if ('error' in range) return { status: 'INVALID_ARGS', message: range.error };
++    const { data, error } = await this.admin.rpc('_get_payment_calendar_org', { p_org: context.organizationId, p_from: range.from, p_to: range.to });
++    if (error) {
++      console.error('[get_payment_calendar] hata:', error.message);
++      return { status: 'ERROR', message: 'Ödeme takvimi şu an alınamadı.' };
++    }
++    let rows = (data ?? []) as any[];
++    if (args.only_unpaid === true) rows = rows.filter((r) => r.payment_status === 'pending' || r.payment_status === 'partial');
++    const sumBy = (type: string) => rows.filter((r) => r.type === type).reduce((s, r) => s + (Number(r.amount_minor) || 0), 0);
++    return {
++      status: 'SUCCESS',
++      data: {
++        period: range,
++        count: rows.length,
++        shown: Math.min(rows.length, 40),
++        totalIncome: formatTry(sumBy('income')),
++        totalExpense: formatTry(sumBy('expense')),
++        entries: rows.slice(0, 40).map((r) => ({
++          kind: r.type === 'income' ? 'gelir' : 'gider',
++          title: r.title ?? null,
++          amount: formatTry(Number(r.amount_minor) || 0),
++          day: r.day,
++          paymentStatus: r.payment_status,
++          overdue: !!r.is_overdue,
++          category: r.category ?? null,
++        })),
++      },
++    };
++  }
++}
++
++export function createDataTools(admin: any): ITool[] {
++  return [new GetCustomersTool(admin), new GetCustomerHistoryTool(admin), new GetFinanceSummaryTool(admin), new GetPaymentCalendarTool(admin)];
++}
+diff --git a/supabase/functions/shared/ai/flow/tools/FlowTools.test.ts b/supabase/functions/shared/ai/flow/tools/FlowTools.test.ts
+index 64d223a..713a82b 100644
+--- a/supabase/functions/shared/ai/flow/tools/FlowTools.test.ts
++++ b/supabase/functions/shared/ai/flow/tools/FlowTools.test.ts
+@@ -121,7 +121,7 @@ Deno.test("yardım konusu: anahtar, kelime eşleşmesi, bulunamayan konuda uydur
+ 
+ Deno.test("her Flow aracı açık riskLevel taşır ve EXTERNAL_ACTION değildir; ekran anahtarları tutarlı", () => {
+   const tools = createFlowTools({});
+-  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
++  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_customer_history", "get_customers", "get_finance_summary", "get_help_topic", "get_payment_calendar", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
+   assertEquals(createFlowTools({}, { includeHighlight: true }).map((x) => x.name).includes("highlight"), true);
+   assertEquals(createFlowTools({}).some((x) => x.name === "prepare_post_draft"), false); // FA3-3'e kadar kapalı
+   assertEquals(createFlowTools({}, { includeDrafts: true }).some((x) => x.name === "prepare_post_draft"), true);
+diff --git a/supabase/functions/shared/ai/flow/tools/FlowTools.ts b/supabase/functions/shared/ai/flow/tools/FlowTools.ts
+index 1fdb0c8..b3d1f4b 100644
+--- a/supabase/functions/shared/ai/flow/tools/FlowTools.ts
++++ b/supabase/functions/shared/ai/flow/tools/FlowTools.ts
+@@ -6,6 +6,7 @@ import type { CaptionService } from '../CaptionService.ts';
+ import { PublishPostTool, type ZernioPublishCaller } from './PublishTools.ts';
+ import { PrepareVideoShareTool } from './VideoShareTools.ts';
+ import { createSocialAnalyticsTools, type ZernioAnalyticsCaller } from './SocialAnalyticsTools.ts';
++import { createDataTools } from './DataTools.ts';
+ 
+ /**
+  * Flow AI ilk araçları (FA1-3). Hepsi READ/PREPARE: dış dünyaya etkileri yoktur.
+@@ -273,6 +274,8 @@ export function createFlowTools(admin: any, opts: { includeGuide?: boolean; incl
+     new GetConnectedSocialAccountsTool(admin),
+     new OpenScreenTool(),
+     new GetHelpTopicTool(),
++    // Müşteriler, finans özeti, ödeme takvimi (salt okunur; _get_*_org fonksiyonlarından).
++    ...createDataTools(admin),
+   ];
+   // Rehber modu (ekranda adım adım vurgu) yalnız mobilde vardır; web istemcisi includeGuide:false verir.
+   if (opts.includeGuide !== false) tools.push(new StartGuideTool());
+-- 
+2.43.0
+
