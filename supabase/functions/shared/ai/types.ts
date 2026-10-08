@@ -32,6 +32,7 @@ export interface AIContext {
   customerId: string;
   now: Date;
   timezone: string;
+  voiceMode?: boolean;
   botSettings?: Record<string, unknown> & {
     system_prompt?: string | null;
   };

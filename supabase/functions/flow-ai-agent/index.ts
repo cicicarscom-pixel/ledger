@@ -98,6 +98,7 @@ serve(async (req) => {
     const registry = registries[client];
     const store = new SupabasePendingActionStore(admin);
     const context = buildContext(org.id, userId, org.timezone, client);
+    if (body.voice === true) context.voiceMode = true;
 
     if (body.attachment && body.attachment.kind === "video") {
       const a = body.attachment;

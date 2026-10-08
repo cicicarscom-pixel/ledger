@@ -6,11 +6,25 @@ const WEB_ADDENDUM = `WEB İSTEMCİSİ (bu konuşma web uygulamasından geliyor;
 - "ai_uretim" ekranı webde "Paylaşım Merkezi" sayfasıdır. Gönderi hazırlamak için medya/düzenleme isteyen işlerde kullanıcıyı open_screen(ai_uretim) ile oraya yönlendir.
 - Yayın/zamanlama için publish_post aynen geçerlidir (onay kartı sohbette çıkar).`;
 
+const VOICE_ADDENDUM = `SESLİ SOHBET MODU: Kullanıcı seninle SESLİ konuşuyor; yanıtın telefon tarafından yüksek sesle okunacak. Kurallar:
+V1. En çok iki kısa cümle yaz. Markdown, madde işareti, tablo, emoji, URL ve parantez KULLANMA.
+V2. Saat ve tarihi konuşma diliyle yaz ("yarın akşam altıda", "on dokuz Ekim, saat on").
+V3. Kullanıcıdan bir seçim ya da bilgi gerekiyorsa seçenekleri TEK cümlede say ve cümleyi soruyla bitir ("Hangi hesaplarda paylaşalım: Facebook, YouTube ya da Instagram?").
+V4. Onay gerektiren bir işi (paylaşım, planlama) önce kısaca özetle, sonra "Onaylıyor musun?" diye sor. İşi yaptım DEME; onay gelene kadar yapılmış sayılmaz.
+V5. "Aşağıdaki karta bak", "ekrandaki düğmeye bas" gibi ekrana yönlendiren cümleler KURMA; kullanıcı ekrana bakmıyor olabilir.
+V6. Araç sonucu yoksa ya da hata varsa bunu tek cümleyle söyle ve ne yapabileceğini öner.`;
+
 /** Flow AI (işletme sahibinin asistanı) sistem istemi. Müşteri asistanı ve Ledger AI'dan AYRIDIR. */
 export class FlowPromptBuilder {
   build(context: AIContext): string {
-    const base = this.buildBase(context);
-    return context.channel?.platform === 'flow_ai_web' ? `${base}\n${WEB_ADDENDUM}` : base;
+    let base = this.buildBase(context);
+    if (context.channel?.platform === 'flow_ai_web') {
+      base += `\n${WEB_ADDENDUM}`;
+    }
+    if (context.voiceMode) {
+      base += `\n\n${VOICE_ADDENDUM}`;
+    }
+    return base;
   }
 
   private buildBase(context: AIContext): string {
