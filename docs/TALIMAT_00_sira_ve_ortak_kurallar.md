@@ -26,6 +26,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 22 | `TALIMAT_22_sesli_sohbet_mobil.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 23 | `TALIMAT_23_sesli_sohbet_hepsi.md` (21+22 birleşik, bunu uygula) | ledger + flow | `flow-ai-agent` (ONAY sonrası) | GEREKLİ |
 | 24 | `TALIMAT_24_sesli_sohbet_tani.md` | flow | yok (EAS derlemesi) | GEREKLİ |
+| 25 | `TALIMAT_25_sesli_sohbet_isfinal_ve_appstate.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
