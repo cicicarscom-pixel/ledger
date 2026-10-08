@@ -30,6 +30,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 26 | `TALIMAT_26_sohbet_kaydirma.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 27 | `TALIMAT_27_appstate_dongusu.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 28 | `TALIMAT_28_ses_temizlik_ve_bitirme_sozu.md` | flow | yok (EAS derlemesi) | GEREKLİ |
+| 29 | `TALIMAT_29_ai_randevu_detay_bos_yanit_ses_susturma.md` | A: ledger, B: flow | A: `flow-ai-agent` (ONAY sonrası); B: yok | GEREKLİ (A→ONAY→deploy→B) |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
