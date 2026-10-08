@@ -1,6 +1,8 @@
 # TALİMAT 21 — Sesli sohbet modu: sunucu tarafı (ledger)
 
 Hazırlayan: Claude, 08.10.2026. Ortak kurallar: `TALIMAT_00` (ledger komutları). Betik YASAK; `--amend`/force-push YASAK; yalnız aşağıdaki dosyalar; "CI yeşil" demeden önce GitHub'da "completed successfully" gör. Deploy yalnız Claude ONAY'ından sonra (`flow-ai-agent`, tek komut).
+**ÖNEMLİ: Bu dosya `TALIMAT_23_sesli_sohbet_hepsi.md` içinde birleştirildi. YALNIZ 23 numaralı dosyayı uygula; bunu ayrıca uygulama.**
+
 **Önce** `git fetch origin` + `git merge origin/claude/new-session-hrbrhq`.
 
 ## Amaç

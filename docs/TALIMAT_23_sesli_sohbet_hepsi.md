@@ -1,9 +1,51 @@
-# TALİMAT 22 — Sesli sohbet modu (eller serbest): mobil istemci (flow)
+# TALİMAT 23 — Eller serbest sesli sohbet (TEK DOSYA: sunucu + mobil)
 
-Hazırlayan: Claude, 08.10.2026. Ortak kurallar: `TALIMAT_00` (flow komutları). Betik YASAK; `--amend`/force-push YASAK; yalnız aşağıdaki dosyalar (+ çeviriler, README); "CI yeşil" demeden önce GitHub'da "completed successfully" gör. Ön koşul: Talimat 21 (sunucu) yazıldı; deploy edilmemiş olsa da istemci çalışır (yanıtlar daha uzun olur).
-**ÖNEMLİ: Bu dosya `TALIMAT_23_sesli_sohbet_hepsi.md` içinde birleştirildi. YALNIZ 23 numaralı dosyayı uygula; bunu ayrıca uygulama.**
+Hazırlayan: Claude, 08.10.2026. **Bu dosya Talimat 21 ve 22'nin birleşimidir (22'nin "EK KORUMALAR" bölümü dahil). YALNIZ BU DOSYAYI uygula; `TALIMAT_21` ve `TALIMAT_22` dosyalarını ayrıca uygulama.**
+Ortak kurallar: `TALIMAT_00`. Betik, `--amend`, `rebase`, force-push YASAK. Dosyalar yalnız editörde düzenlenir; geçici/kopya dosya commit'lenmez. Yalnız talimatta adı geçen dosyalara dokun. "CI yeşil" demeden önce GitHub çalışma sayfasında "completed successfully" gör. **EAS derlemesi başlatma** (kullanıcı yapar). Veritabanına dokunma.
 
-**Önce** `git fetch origin` + `git merge origin/claude/new-session-hrbrhq`. Yeni paket YOK (mevcut `expo-speech`, `expo-speech-recognition`).
+## Sıra ve rapor
+1. **BÖLÜM A (ledger, sunucu)** → ayrı commit, push, CI. Deploy YAPMA, ONAY bekle.
+2. **BÖLÜM B (flow, mobil)** → ayrı commit, push, CI. (A'nın deploy'unu BEKLEMEDEN yapılabilir; istemci sunucudan bağımsız çalışır.)
+3. Tek rapor, iki başlık: `KONTROL 23A — ledger <commit>` ve `KONTROL 23B — flow <commit>`; her biri için K1 çıktısı (HEAD satırı dahil), kontrol çıktıları AYNEN, K4 push çıktısı AYNEN ve GitHub'da gördüğün "completed successfully".
+4. Claude ONAY verince yalnız şunu deploy et: `npx supabase@latest functions deploy flow-ai-agent --project-ref qybzidylewzsnmlofjul --use-api` (çıktı AYNEN rapora).
+
+Her iki depoda başlamadan önce: `git fetch origin` + `git merge origin/claude/new-session-hrbrhq` (ledger dalındaki talimat dosyalarını okumak için ledger'da; flow'da birleştirme gerekmez, `main`'de başla ve `## main...origin/main` temiz olsun).
+
+---
+
+# BÖLÜM A — SUNUCU (ledger)
+
+## Amaç
+Kullanıcı eller serbest (hands-free) sesli sohbet yapacak: yanıtlar sesle OKUNACAK. İstemci isteğe `voice: true` ekler; asistan kısa, okunabilir, soruyla biten cümleler üretir. Mobil istemci Talimat 22'de.
+
+## Yapılacaklar
+1. `supabase/functions/shared/ai/types.ts` — `AIContext`'e `voiceMode?: boolean;` ekle.
+2. `supabase/functions/flow-ai-agent/index.ts` — `buildContext` çağrısından hemen sonra: `if (body.voice === true) context.voiceMode = true;`
+3. `supabase/functions/shared/ai/flow/FlowPromptBuilder.ts` — `build()` sonunda, `context.voiceMode` doğruysa mevcut metne şu ek bölümü ekle (web ek bölümünün mantığıyla, ayrı sabit `VOICE_ADDENDUM`):
+```
+SESLİ SOHBET MODU: Kullanıcı seninle SESLİ konuşuyor; yanıtın telefon tarafından yüksek sesle okunacak. Kurallar:
+V1. En çok iki kısa cümle yaz. Markdown, madde işareti, tablo, emoji, URL ve parantez KULLANMA.
+V2. Saat ve tarihi konuşma diliyle yaz ("yarın akşam altıda", "on dokuz Ekim, saat on").
+V3. Kullanıcıdan bir seçim ya da bilgi gerekiyorsa seçenekleri TEK cümlede say ve cümleyi soruyla bitir ("Hangi hesaplarda paylaşalım: Facebook, YouTube ya da Instagram?").
+V4. Onay gerektiren bir işi (paylaşım, planlama) önce kısaca özetle, sonra "Onaylıyor musun?" diye sor. İşi yaptım DEME; onay gelene kadar yapılmış sayılmaz.
+V5. "Aşağıdaki karta bak", "ekrandaki düğmeye bas" gibi ekrana yönlendiren cümleler KURMA; kullanıcı ekrana bakmıyor olabilir.
+V6. Araç sonucu yoksa ya da hata varsa bunu tek cümleyle söyle ve ne yapabileceğini öner.
+```
+4. Test (`FlowPromptBuilder` için mevcut test dosyası varsa ona, yoksa yeni `FlowPromptBuilder.voice.test.ts`): `voiceMode: true` iken prompt "SESLİ SOHBET MODU" içerir; `voiceMode` yokken içermez.
+
+## Kontroller (AYNEN; hepsi OK)
+```
+deno test --allow-all supabase/functions/shared/ai/flow
+bash scripts/ci/check-bom.sh
+bash scripts/ci/check-names.sh apps/ledger apps/admin
+EXTRA_TSC_FLAGS="--allowImportingTsExtensions" bash scripts/ci/check-names.sh supabase/functions
+node scripts/ci/check-root-map.mjs
+```
+Push; GitHub'da "completed successfully" gör. Rapor sonu: `KONTROL 21 — ledger <commit>`. Deploy: ONAY'dan sonra `npx supabase@latest functions deploy flow-ai-agent --project-ref qybzidylewzsnmlofjul --use-api`.
+
+---
+
+# BÖLÜM B — MOBİL (flow)
 
 ## Sorun (kullanıcı testi)
 Şu an mikrofon yalnız **klavye dikte** gibi çalışıyor: her seferinde mikrofona basılıyor, söylenen gönderiliyor, asistan yazıyla soruyor. İstenen: mikrofona **bir kez** basılır, TÜM diyalog sesle sürer (eller serbest): kullanıcı konuşur → otomatik gider → asistan yanıtı **sesle okur** → okuma bitince mikrofon **kendiliğinden açılır** → kullanıcı konuşur… Bitirme: "Bitir" düğmesi ya da "kapat/bitir/dur" demek ya da iki kez üst üste sessizlik.

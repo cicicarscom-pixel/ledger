@@ -24,6 +24,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 20 | `TALIMAT_20_ses_tanima_yanlis_import.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 21 | `TALIMAT_21_sesli_sohbet_sunucu.md` | ledger | `flow-ai-agent` | GEREKLİ |
 | 22 | `TALIMAT_22_sesli_sohbet_mobil.md` | flow | yok (EAS derlemesi) | GEREKLİ |
+| 23 | `TALIMAT_23_sesli_sohbet_hepsi.md` (21+22 birleşik, bunu uygula) | ledger + flow | `flow-ai-agent` (ONAY sonrası) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
