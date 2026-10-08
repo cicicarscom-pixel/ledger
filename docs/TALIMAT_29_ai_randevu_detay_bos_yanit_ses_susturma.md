@@ -103,3 +103,46 @@ Aynı dalda YENİ commit (amend/force YASAK), yalnız `FlowTools.ts`, `FlowTools
 5. `FlowTools.test.ts`'e YENİ test (mevcut testleri DEĞİŞTİRME): sahte `admin` — `rpc('_slot_grid_org')` → `{ data: [], error: null }`; `from('appointments')` zinciri iki satır döndürsün (`calendar_id: 'c1'`/`'c2'`, `service_id: 's1'`); `from('calendars')` → `[{id:'c1', name:'Dr.A'}, {id:'c2', name:'Dr.B'}]`; `from('business_services')` → `[{id:'s1', name:'Muayene'}]`. Beklenen: çıktıdaki randevularda `calendar` = `'Dr.A'`/`'Dr.B'`, `service` = `'Muayene'`. İkinci test: `calendars` sorgusu `{ data: null, error: {...} }` dönerse randevular yine döner (`calendar: null`, `status: 'SUCCESS'`).
 6. Kontroller: Talimat 29 §A3 listesi + `deno test supabase/functions/shared/ai/flow/tools/FlowTools.test.ts` çıktısı AYNEN (yeni testler adıyla görünmeli) + `git grep -n "calendar_id, service_id" supabase/functions/shared/ai/flow/tools/FlowTools.ts` (1 satır dönmeli) + `git show --stat --oneline HEAD`.
 Rapor sonu: `KONTROL 29A-2 — ledger <commit>`. DEPLOY YOK (ONAY bekle).
+
+---
+
+# 29A-3 — ACİL DÜZELTME (KONTROL 29A-2 `a024d2c` RET)
+
+`select` ve test düzeltmeleri DOĞRU. **Ama commit `FlowTools.ts`'de 7 başka aracın `description` satırını, randevu aracının yeni açıklamasıyla ÜZERİNE YAZMIŞ** (toplu/regex değiştirme izi; K2'de yasak). Diff'te `-`/`+` satırlarına bak: `get_connected_social_accounts`, `open_screen`, `highlight`, `start_guide`, `prepare_post_draft`, `generate_caption`, `get_help_topic` — hepsinin açıklaması artık "İşletmenin belirli günler için randevu doluluğunu…". Bu hâliyle deploy edilirse model tüm araçları "randevu aracı" sanır; paylaşım/rehber/yardım araçları bozulur. **Raporda bu yazılmamış ("nokta atışı" denmiş) — yanlış rapor.**
+
+Düzeltme (yeni commit; amend/force YASAK; yalnız `FlowTools.ts`): aşağıdaki 7 satırı, ait oldukları sınıfın `readonly description = …;` satırına AYNEN geri yaz. Yalnız `GetAppointmentsOverviewTool`'un description'ı yeni metinde KALSIN. Editörde elle yap; betik/regex/toplu değiştirme YASAK.
+
+**GetConnectedSocialAccountsTool (get_connected_social_accounts)**
+```ts
+  readonly description = 'İşletmeye bağlı sosyal medya hesaplarını (platform, kullanıcı adı, durum) listeler.';
+```
+**OpenScreenTool (open_screen)**
+```ts
+  readonly description = 'Uygulamada bir ekranı açar. Kullanıcı "şuraya git/aç" dediğinde kullan.';
+```
+**HighlightTool (highlight)**
+```ts
+  readonly description = 'Açık ekrandaki bir öğeyi (ör. paylaş düğmesi) vurgular. Kullanıcıya adım adım yol gösterirken kullan.';
+```
+**StartGuideTool (start_guide)**
+```ts
+  readonly description = 'Kullanıcı bir işi "birlikte yapalım" dediğinde adım adım rehber modunu başlatır: doğru ekranı açar ve sırayla öğeleri vurgular. Kullanıcı "anlat" derse bunu çağırma, get_help_topic adımlarını anlat.';
+```
+**PreparePostDraftTool (prepare_post_draft)**
+```ts
+  readonly description = 'Kullanıcı için gönderi (post) metni taslağı hazırlar ve AI Üretim ekranında açılmasını sağlar. Yayınlamaz; paylaşımı kullanıcı kendisi yapar.';
+```
+**GenerateCaptionTool (generate_caption)**
+```ts
+  readonly description = 'Verilen konu/talimata göre bir gönderi metni (caption) yazar; platforma ve işletmenin marka sesine uyar. Yayınlamaz. Metni kullanıcıya göster; taslak istenirse prepare_post_draft ile kaydet.';
+```
+**GetHelpTopicTool (get_help_topic)**
+```ts
+  readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
+```
+
+Doğrulama (rapora AYNEN): `git diff HEAD~1 -- supabase/functions/shared/ai/flow/tools/FlowTools.ts` ÇIKTISI YALNIZ bu 7 satırın geri alınmasını göstermeli. Ayrıca:
+```
+git grep -c "randevu doluluğunu ve randevularını özetler" supabase/functions/shared/ai/flow/tools/FlowTools.ts
+```
+çıktı **1** olmalı (şu an 8). Sonra Talimat 29 §A3 kontrolleri + `deno test supabase/functions/shared/ai/flow/tools/FlowTools.test.ts` (12 test geçmeli) + `git show --stat --oneline HEAD` (yalnız FlowTools.ts). Rapor sonu: `KONTROL 29A-3 — ledger <commit>`. DEPLOY YOK.
