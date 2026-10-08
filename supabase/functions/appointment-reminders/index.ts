@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { WahaClient } from "../shared/infrastructure/clients/WahaClient.ts";
-import { buildReminderText, chatIdFromDigits, maskChatId } from "../shared/reminders/reminderMessage.ts";
+import { chatIdFromDigits, maskChatId, renderReminderTemplate } from "../shared/reminders/reminderMessage.ts";
 
 /**
  * WhatsApp randevu hatırlatma. pg_cron ile ~10 dk'da bir çağrılır (yalnız service-role).
@@ -27,7 +27,7 @@ serve(async (req) => {
   const limit = Math.min(50, Math.max(1, Math.floor(Number(body?.limit) || 20)));
 
   const supabase = createClient(supabaseUrl, serviceKey);
-  const { data: rows, error } = await supabase.rpc("claim_due_reminders", { p_limit: limit, p_dry: dryRun });
+  const { data: rows, error } = await supabase.rpc("claim_due_reminders_v2", { p_limit: limit, p_dry: dryRun });
   if (error) {
     console.error("[appointment-reminders] claim hatası:", error.message);
     return json({ error: "CLAIM_FAILED" }, 500);
@@ -43,7 +43,7 @@ serve(async (req) => {
         return {
           appointmentId: r.appointment_id,
           to: chatId ? maskChatId(chatId) : null,
-          text: buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service }),
+          text: renderReminderTemplate(r.template, { orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, locale: r.locale, doctor: r.doctor, service: r.service }),
         };
       }),
     });
@@ -65,7 +65,7 @@ serve(async (req) => {
       skipped++;
       continue;
     }
-    const text = buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service });
+    const text = renderReminderTemplate(r.template, { orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, locale: r.locale, doctor: r.doctor, service: r.service });
     try {
       await waha.sendWhatsAppMessage(r.owner_id, chatId, text);
       await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "sent", p_error: null });
