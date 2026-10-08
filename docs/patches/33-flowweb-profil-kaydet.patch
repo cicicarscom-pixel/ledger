@@ -1,0 +1,143 @@
+From 3eeffa00d9c01ad79e2283cfcedb1067bcf37b12 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 10:28:41 +0000
+Subject: [PATCH] feat(profil): Profili Kaydet dugmesi degisiklik varken etkin,
+ kaydedince Kaydedildi yazip pasif; profil kaydi hatayi yutmaz
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                           |  1 +
+ messages/de.json                    |  3 ++-
+ messages/en.json                    |  3 ++-
+ messages/tr.json                    |  3 ++-
+ src/app/(dashboard)/profil/page.tsx | 24 +++++++++++++++++++++---
+ 5 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/README.md b/README.md
+index 2abbf5d..e2ce50f 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[08.10.2026] Profil:** "Profili Kaydet" düğmesi yalnız değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır, bir alan değişince yeniden etkinleşir. Profil kaydı artık hatayı sessizce yutmaz.
+ - **[08.10.2026] WhatsApp randevu hatırlatma:** AI Asistan sayfasına "WhatsApp randevu hatırlatma" düğmesi eklendi (yalnız işletme sahibi değiştirir; varsayılan kapalı). Açıkken onaylı randevulara 24 saat önce WhatsApp'tan otomatik hatırlatma gider.
+ - **[06.10.2026] Sosyal Medya Gönderiler:** Gönderi listesinden beğeni, yorum, paylaşım vb. analiz sütunları kaldırıldı (tablo genişliği iyileştirildi ve gereksiz veriler temizlendi).
+ - **[06.10.2026] WAHA Bot:** WhatsApp durum sorgusunda 'bot kurulmamış' durumu hata sayılmaz (yeni kullanıcı).
+diff --git a/messages/de.json b/messages/de.json
+index 29d335f..6436456 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -573,7 +573,8 @@
+     },
+     "actions": {
+       "saving": "Wird gespeichert...",
+-      "save": "Profil speichern"
++      "save": "Profil speichern",
++      "saved": "Gespeichert"
+     }
+   },
+   "loginPage": {
+diff --git a/messages/en.json b/messages/en.json
+index 3bac663..8e5e36f 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -573,7 +573,8 @@
+     },
+     "actions": {
+       "saving": "Saving...",
+-      "save": "Save Profile"
++      "save": "Save Profile",
++      "saved": "Saved"
+     }
+   },
+   "loginPage": {
+diff --git a/messages/tr.json b/messages/tr.json
+index 182e88e..03e5e46 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -573,7 +573,8 @@
+     },
+     "actions": {
+       "saving": "Kaydediliyor...",
+-      "save": "Profili Kaydet"
++      "save": "Profili Kaydet",
++      "saved": "Kaydedildi"
+     }
+   },
+   "loginPage": {
+diff --git a/src/app/(dashboard)/profil/page.tsx b/src/app/(dashboard)/profil/page.tsx
+index 57b9464..efcdd3a 100644
+--- a/src/app/(dashboard)/profil/page.tsx
++++ b/src/app/(dashboard)/profil/page.tsx
+@@ -28,6 +28,19 @@ export default function ProfilPage() {
+   const [taxOffice, setTaxOffice] = useState("");
+   const [organizationId, setOrganizationId] = useState("");
+   const [isErrorMessage, setIsErrorMessage] = useState(false);
++
++  // Kaydet düğmesi: yalnız kaydedilmemiş değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır.
++  const [savedKey, setSavedKey] = useState<string | null>(null);
++  const [justSaved, setJustSaved] = useState(false);
++  const formKey = JSON.stringify([businessName, authorizedPerson, category, phone, addressObj, vkn, taxOffice]);
++  const isDirty = savedKey !== null && formKey !== savedKey;
++  useEffect(() => {
++    if (!loading && savedKey === null) setSavedKey(formKey);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [loading]);
++  useEffect(() => {
++    if (isDirty) setJustSaved(false);
++  }, [isDirty]);
+   
+   const supabase = createClient();
+ 
+@@ -161,6 +174,8 @@ export default function ProfilPage() {
+ 
+   const handleSave = async (e: React.FormEvent) => {
+     e.preventDefault();
++    if (!isDirty) return;
++    const keyAtSave = formKey;
+     setSaving(true);
+     setMessage("");
+     
+@@ -172,7 +187,7 @@ export default function ProfilPage() {
+       // If the user types in text, we can just save it as text, or wrap it in { fullAddress: text }
+       const addressToSave = addressObj;
+ 
+-      await supabase
++      const { error: profileError } = await supabase
+         .from("profiles")
+         .update({
+           business_name: businessName,
+@@ -182,6 +197,7 @@ export default function ProfilPage() {
+           address: addressToSave,
+         })
+         .eq("id", session.user.id);
++      if (profileError) throw profileError;
+         
+       if (organizationId) {
+         await supabase
+@@ -207,6 +223,8 @@ export default function ProfilPage() {
+         }
+       }
+       
++      setSavedKey(keyAtSave);
++      setJustSaved(true);
+       setIsErrorMessage(false);
+       setMessage(t("profilPage.messages.profileUpdated"));
+       setTimeout(() => setMessage(""), 3000);
+@@ -333,8 +351,8 @@ export default function ProfilPage() {
+           </div>
+           
+           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+-            <button type="submit" disabled={saving} className="pill-btn" style={{ padding: "12px 32px", borderRadius: 12, background: "var(--accent-primary, #22B573)", color: "#000", fontWeight: 600, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
+-              {saving ? t("profilPage.actions.saving") : t("profilPage.actions.save")}
++            <button type="submit" disabled={saving || !isDirty} className="pill-btn" style={{ padding: "12px 32px", borderRadius: 12, background: "var(--accent-primary, #22B573)", color: "#000", fontWeight: 600, border: "none", cursor: saving || !isDirty ? "not-allowed" : "pointer", opacity: saving ? 0.7 : (!isDirty ? 0.5 : 1) }}>
++              {saving ? t("profilPage.actions.saving") : (justSaved && !isDirty ? t("profilPage.actions.saved") : t("profilPage.actions.save"))}
+             </button>
+           </div>
+         </form>
+-- 
+2.43.0
+

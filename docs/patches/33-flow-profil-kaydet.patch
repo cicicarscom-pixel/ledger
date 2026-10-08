@@ -1,0 +1,120 @@
+From f89195b670b5d3f0a610b121705decb613b9b303 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 10:28:16 +0000
+Subject: [PATCH] feat(profil): Profili Kaydet dugmesi degisiklik varken etkin,
+ kaydedince Kaydedildi yazip pasif
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                     |  1 +
+ src/core/i18n/locales/de.json |  1 +
+ src/core/i18n/locales/en.json |  1 +
+ src/core/i18n/locales/tr.json |  1 +
+ src/screens/ProfilScreen.js   | 19 +++++++++++++++++--
+ 5 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index 3acb679..14293d5 100644
+--- a/README.md
++++ b/README.md
+@@ -303,6 +303,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ 
+ ## 🆕 Son Güncellemeler (08.10.2026 - WhatsApp hatırlatma)
+ - 08.10.2026 — Bot Yönetimi: "WhatsApp randevu hatırlatma" düğmesi eklendi (yalnız işletme sahibi değiştirir; varsayılan kapalı). Açıkken onaylı randevulara 24 saat önce WhatsApp'tan otomatik hatırlatma gider.
++- 08.10.2026 — Profil: "Profili Kaydet" düğmesi yalnız değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır, bir alan değişince yeniden etkinleşir.
+ 
+ ## 🆕 Son Güncellemeler (06.10.2026 - WAHA Bot)
+ - WhatsApp durum sorgusunda 'bot kurulmamış' durumu hata sayılmaz (yeni kullanıcı).
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index dc613ac..2489424 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -412,6 +412,7 @@
+     "categoryPlaceholder": "z. B. Café & Restaurant, Friseur...",
+     "addressInfo": "Adressinformationen",
+     "save": "Profil speichern",
++    "saved": "Gespeichert",
+     "signOut": "Abmelden",
+     "saveSuccessTitle": "Erfolgreich",
+     "saveSuccessMessage": "Ihre Profildaten wurden aktualisiert.",
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index ad9b6ac..6d6d6c1 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -412,6 +412,7 @@
+     "categoryPlaceholder": "e.g. Cafe & Restaurant, Hair Salon...",
+     "addressInfo": "Address Information",
+     "save": "Save Profile",
++    "saved": "Saved",
+     "signOut": "Sign Out",
+     "saveSuccessTitle": "Success",
+     "saveSuccessMessage": "Your profile has been updated.",
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index 37556da..43dddd2 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -412,6 +412,7 @@
+     "categoryPlaceholder": "Örn: Cafe & Restoran, Kuaför...",
+     "addressInfo": "Adres Bilgileri",
+     "save": "Profili Kaydet",
++    "saved": "Kaydedildi",
+     "signOut": "Çıkış Yap",
+     "saveSuccessTitle": "Başarılı",
+     "saveSuccessMessage": "Profil bilgileriniz güncellendi.",
+diff --git a/src/screens/ProfilScreen.js b/src/screens/ProfilScreen.js
+index fe4a4b3..de6eeea 100644
+--- a/src/screens/ProfilScreen.js
++++ b/src/screens/ProfilScreen.js
+@@ -86,6 +86,18 @@ export default function ProfilScreen() {
+   const { showActionSheetWithOptions } = useActionSheet();
+   const [heroImageUrl, setHeroImageUrl] = useState(null);
+ 
++  // Kaydet düğmesi: yalnız kaydedilmemiş değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır.
++  const [savedKey, setSavedKey] = useState(null);
++  const [justSaved, setJustSaved] = useState(false);
++  const formKey = JSON.stringify([businessName, authorizedPerson, category, phone, addressData, avatar, heroImageUrl, vkn, taxOffice]);
++  const isDirty = savedKey !== null && formKey !== savedKey;
++  useEffect(() => {
++    if (!loading && savedKey === null) setSavedKey(formKey);
++  }, [loading]);
++  useEffect(() => {
++    if (isDirty) setJustSaved(false);
++  }, [isDirty]);
++
+   const fetchProfileData = async () => {
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+@@ -192,6 +204,7 @@ export default function ProfilScreen() {
+     }
+   };
+ const handleSave = async () => {
++    const keyAtSave = formKey;
+     setSaving(true);
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+@@ -235,7 +248,8 @@ const handleSave = async () => {
+           }
+         }
+         
+-        Alert.alert(t('profil.saveSuccessTitle'), t('profil.saveSuccessMessage'));
++        setSavedKey(keyAtSave);
++        setJustSaved(true);
+       } else {
+         Alert.alert(t('profil.noSessionTitle'), t('profil.noSessionMessage'));
+       }
+@@ -444,9 +458,10 @@ const handleSave = async () => {
+ 
+               {/* Gradient Button */}
+               <CustomButton
+-                title={t('profil.save')}
++                title={justSaved && !isDirty ? t('profil.saved') : t('profil.save')}
+                 onPress={handleSave}
+                 isLoading={saving}
++                disabled={!isDirty}
+                 className="mb-4"
+               />
+ 
+-- 
+2.43.0
+
