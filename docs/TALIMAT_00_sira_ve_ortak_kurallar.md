@@ -28,6 +28,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 24 | `TALIMAT_24_sesli_sohbet_tani.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 25 | `TALIMAT_25_sesli_sohbet_isfinal_ve_appstate.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 | 26 | `TALIMAT_26_sohbet_kaydirma.md` | flow | yok (EAS derlemesi) | GEREKLİ |
+| 27 | `TALIMAT_27_appstate_dongusu.md` | flow | yok (EAS derlemesi) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
