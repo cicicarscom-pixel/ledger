@@ -121,7 +121,7 @@ Deno.test("yardım konusu: anahtar, kelime eşleşmesi, bulunamayan konuda uydur
 
 Deno.test("her Flow aracı açık riskLevel taşır ve EXTERNAL_ACTION değildir; ekran anahtarları tutarlı", () => {
   const tools = createFlowTools({});
-  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_help_topic", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
+  assertEquals(tools.map((x) => x.name).sort(), ["get_appointments_overview", "get_connected_social_accounts", "get_customer_history", "get_customers", "get_finance_summary", "get_help_topic", "get_payment_calendar", "open_screen", "start_guide"]); // highlight varsayılan kapalı, agent açar
   assertEquals(createFlowTools({}, { includeHighlight: true }).map((x) => x.name).includes("highlight"), true);
   assertEquals(createFlowTools({}).some((x) => x.name === "prepare_post_draft"), false); // FA3-3'e kadar kapalı
   assertEquals(createFlowTools({}, { includeDrafts: true }).some((x) => x.name === "prepare_post_draft"), true);

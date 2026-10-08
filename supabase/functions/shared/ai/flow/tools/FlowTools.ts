@@ -6,6 +6,7 @@ import type { CaptionService } from '../CaptionService.ts';
 import { PublishPostTool, type ZernioPublishCaller } from './PublishTools.ts';
 import { PrepareVideoShareTool } from './VideoShareTools.ts';
 import { createSocialAnalyticsTools, type ZernioAnalyticsCaller } from './SocialAnalyticsTools.ts';
+import { createDataTools } from './DataTools.ts';
 
 /**
  * Flow AI ilk araçları (FA1-3). Hepsi READ/PREPARE: dış dünyaya etkileri yoktur.
@@ -273,6 +274,8 @@ export function createFlowTools(admin: any, opts: { includeGuide?: boolean; incl
     new GetConnectedSocialAccountsTool(admin),
     new OpenScreenTool(),
     new GetHelpTopicTool(),
+    // Müşteriler, finans özeti, ödeme takvimi (salt okunur; _get_*_org fonksiyonlarından).
+    ...createDataTools(admin),
   ];
   // Rehber modu (ekranda adım adım vurgu) yalnız mobilde vardır; web istemcisi includeGuide:false verir.
   if (opts.includeGuide !== false) tools.push(new StartGuideTool());
