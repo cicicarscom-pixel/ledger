@@ -39,6 +39,17 @@ Hazırlayan: Claude, 08.10.2026. Ortak kurallar: `TALIMAT_00` (flow komutları).
 - de: "Ich höre zu…", "Ich denke nach…", "Ich spreche…", "Beenden", "Ich beende den Sprachchat.", "Okay, Sprachchat beendet.", "sofort", "Ich poste auf {{platforms}}. Zeit: {{when}}. Text: {{caption}}. Bestätigen Sie?"
 README "Son Güncellemeler"e 08.10.2026 tarihli madde.
 
+## EK KORUMALAR (08.10.2026, gözden geçirme sonrası eklendi — ZORUNLU)
+
+**K-A) `voiceSessionId` — her sesli sohbet bir oturum.** `const voiceSessionRef = useRef(0);` `enterVoiceChat()` içinde `voiceSessionRef.current += 1` ve yerel `const sid = voiceSessionRef.current`. Oturuma bağlı HER geri çağrı (STT `onPartial/onFinal/onSilence/onError`, TTS `onDone`, 400 ms `setTimeout`, `send` yanıtı) başında `sid` yakalasın ve `if (sid !== voiceSessionRef.current || !voiceChatRef.current) return;` ile **eski oturumdan gelen geç olayları yok saysın** (ör. kullanıcı "bitir" dedikten sonra gelen geç TTS bitişi mikrofonu yeniden açmasın; yeni oturum eskinin yanıtını okumasın). `exitVoiceChat()` önce `voiceSessionRef.current += 1` yapsın.
+
+**K-B) Açık durum makinesi.** Dört durum sabiti: `IDLE`, `LISTENING`, `PROCESSING`, `SPEAKING` (önceki `thinking` = `PROCESSING`; çeviri anahtarı `thinking` kalır). Tek işlev `transition(to)` yalnız izinli geçişleri uygulasın, diğerlerini YOK SAYSIN:
+`IDLE→LISTENING`, `LISTENING→PROCESSING`, `LISTENING→LISTENING` (sessizlikte yeniden dinle), `PROCESSING→SPEAKING`, `PROCESSING→LISTENING` (okunacak metin yoksa), `SPEAKING→LISTENING`, ve her durumdan `→IDLE` (çıkış). Mikrofon YALNIZ `LISTENING`'e geçerken açılır; `SPEAKING` ve `PROCESSING` sırasında `voice.start` ÇAĞRILMAZ (yarış/yankı koşulu yok).
+
+**K-C) İptal.** `exitVoiceChat()` (kullanıcı "Bitir" düğmesi, "kapat/bitir/dur" sözü, panel kapanması, uygulamanın arka plana/`inactive`'e geçmesi, yazıyla mesaj göndermesi, STT hatası): aktif STT'yi `abort`, TTS'i `Speech.stop`, bekleyen zamanlayıcıları temizle, `voiceSessionRef` artır, durumu `IDLE` yap. Uçuştaki `send` isteği bitse bile yanıt metni sohbete YAZILIR ama **okunmaz ve dinleme başlatmaz**. "Bitir" SPEAKING sırasında da anında çalışır (okuma yarıda kesilir).
+
+**K-D) Sesli onay yalnız "okunmuş" işe bağlanır (yanlış paylaşım koruması).** `confirmArmedRef` (null | iş kimliği): bir onay isteyen iş (bekleyen eylem `pending[0].id` ya da paylaşım kartı) için **onay sorusu okunup bittikten sonra** `confirmArmedRef.current = o işin kimliği` olur. "Evet" (tam eşleşme) yalnız `LISTENING` durumunda VE `confirmArmedRef.current` o anki tek bekleyen işin kimliğine eşitse onay sayılır; değilse "evet" normal mesaj gider. Onay/ret ya da yeni mesaj sonrası `confirmArmedRef.current = null`. Böylece okunmamış/ekranda duran eski bir iş, rastgele bir "evet" ile yayınlanamaz. Sunucudaki onay kapısı (payload özeti + onay kaydı) zaten aynen sürer; istemci yalnız bu kapıyı çağırır.
+
 ## Bilinen sınırlar (raporda tekrar ETME, yalnız bil)
 Android her dinleme başlangıcında sistem "bip" sesi çalabilir (kapatılamaz). Her tur konuşma→yazı→yanıt→okuma 3–6 sn sürer. Ekran kapalıyken/arka planda çalışmaz.
 
