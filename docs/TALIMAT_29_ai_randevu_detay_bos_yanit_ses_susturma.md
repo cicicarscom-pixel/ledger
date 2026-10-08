@@ -87,3 +87,19 @@ git show --stat --oneline HEAD
 
 ## Sonraki cihaz testi
 1) "Salih Güney'in kiminle randevusu var" → doğru müşteri adı. 2) Uzun cümle söyle (3-4 duraklamalı): kesilme azaldı mı? Hâlâ kesiliyorsa Claude cümle birleştirme penceresi (client-side) ekleyecek. 3) Aynı videoyu aynı metinle ikinci kez paylaş → Türkçe uyarı.
+
+---
+
+# 29A-2 — EK DÜZELTME (KONTROL 29A `ab5fa6f` RET)
+
+Claude'un diff incelemesi: **düzeltme ÇALIŞMAZ**, çünkü `select` satırı değişmemiş:
+`.select('date, customer_name, status')` hâlâ eski. `calendar_id` ve `service_id` hiç çekilmiyor → `a.calendar_id` her zaman `undefined` → `calendar`/`service` her zaman `null`. Ayrıca raporda "yapıldı" denenler commit'te yok: `description` güncellenmemiş; `FlowTools.test.ts` testi eklenmemiş (rapor bunu "mevcut testler geçti" diye geçiştirmiş — istenen YENİ testti); girinti bozuk (`const calIds` 12 boşluk, `catch` 8 boşluk).
+
+Aynı dalda YENİ commit (amend/force YASAK), yalnız `FlowTools.ts`, `FlowTools.test.ts`, `flow-ai-agent/index.ts` (yalnız girinti):
+1. `FlowTools.ts`: `.select('date, customer_name, status')` → `.select('date, customer_name, status, calendar_id, service_id')`.
+2. `description` → `'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.'` (tırnak kaçışına dikkat; derleme hatası olmasın).
+3. `const calIds` satırını diğer satırlarla aynı 6 boşluk girintiye getir (yalnız boşluk).
+4. `flow-ai-agent/index.ts`: `} catch (error: any) {` satırını 4 boşluk girintiye getir (yalnız boşluk).
+5. `FlowTools.test.ts`'e YENİ test (mevcut testleri DEĞİŞTİRME): sahte `admin` — `rpc('_slot_grid_org')` → `{ data: [], error: null }`; `from('appointments')` zinciri iki satır döndürsün (`calendar_id: 'c1'`/`'c2'`, `service_id: 's1'`); `from('calendars')` → `[{id:'c1', name:'Dr.A'}, {id:'c2', name:'Dr.B'}]`; `from('business_services')` → `[{id:'s1', name:'Muayene'}]`. Beklenen: çıktıdaki randevularda `calendar` = `'Dr.A'`/`'Dr.B'`, `service` = `'Muayene'`. İkinci test: `calendars` sorgusu `{ data: null, error: {...} }` dönerse randevular yine döner (`calendar: null`, `status: 'SUCCESS'`).
+6. Kontroller: Talimat 29 §A3 listesi + `deno test supabase/functions/shared/ai/flow/tools/FlowTools.test.ts` çıktısı AYNEN (yeni testler adıyla görünmeli) + `git grep -n "calendar_id, service_id" supabase/functions/shared/ai/flow/tools/FlowTools.ts` (1 satır dönmeli) + `git show --stat --oneline HEAD`.
+Rapor sonu: `KONTROL 29A-2 — ledger <commit>`. DEPLOY YOK (ONAY bekle).
