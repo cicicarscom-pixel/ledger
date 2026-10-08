@@ -1,0 +1,227 @@
+From 6ab9aab14cd6b2394a68b2968b3d9aad81e65b62 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 09:51:18 +0000
+Subject: [PATCH] feat(reminders): AI Asistan sayfasina WhatsApp randevu
+ hatirlatma dugmesi
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                  |  1 +
+ messages/de.json                           |  6 ++
+ messages/en.json                           |  6 ++
+ messages/tr.json                           |  6 ++
+ src/actions/reminderSettings.ts            | 38 +++++++++++
+ src/app/(dashboard)/ai-asistan/page.tsx    |  2 +
+ src/components/settings/ReminderToggle.tsx | 74 ++++++++++++++++++++++
+ 7 files changed, 133 insertions(+)
+ create mode 100644 src/actions/reminderSettings.ts
+ create mode 100644 src/components/settings/ReminderToggle.tsx
+
+diff --git a/README.md b/README.md
+index a58ad6a..2abbf5d 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[08.10.2026] WhatsApp randevu hatırlatma:** AI Asistan sayfasına "WhatsApp randevu hatırlatma" düğmesi eklendi (yalnız işletme sahibi değiştirir; varsayılan kapalı). Açıkken onaylı randevulara 24 saat önce WhatsApp'tan otomatik hatırlatma gider.
+ - **[06.10.2026] Sosyal Medya Gönderiler:** Gönderi listesinden beğeni, yorum, paylaşım vb. analiz sütunları kaldırıldı (tablo genişliği iyileştirildi ve gereksiz veriler temizlendi).
+ - **[06.10.2026] WAHA Bot:** WhatsApp durum sorgusunda 'bot kurulmamış' durumu hata sayılmaz (yeni kullanıcı).
+ - **[05.10.2026] İletişim e-postası:** Gizlilik Politikası (§11) ve Hesap Silme sayfasına `info@workigom.com` eklendi (tr/en/de).
+diff --git a/messages/de.json b/messages/de.json
+index 5ed66b7..29d335f 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -1304,5 +1304,11 @@
+     "adminBlocked": "Administratorkonten können hier nicht gelöscht werden.",
+     "error": "Das Konto konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+     "privacy": "Datenschutzerklärung"
++  },
++  "reminderToggle": {
++    "title": "WhatsApp-Terminerinnerung",
++    "desc": "Sendet Kunden etwa 1 Tag vor bestätigten Terminen automatisch eine WhatsApp-Erinnerung.",
++    "ownerOnly": "Nur der Inhaber kann diese Einstellung ändern.",
++    "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
+   }
+ }
+diff --git a/messages/en.json b/messages/en.json
+index 49c6dce..3bac663 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -1304,5 +1304,11 @@
+     "adminBlocked": "Administrator accounts cannot be deleted here.",
+     "error": "Could not delete the account. Please try again.",
+     "privacy": "Privacy Policy"
++  },
++  "reminderToggle": {
++    "title": "WhatsApp appointment reminders",
++    "desc": "Automatically sends customers a WhatsApp reminder about 1 day before confirmed appointments.",
++    "ownerOnly": "Only the business owner can change this setting.",
++    "saveFailed": "Could not save the setting. Please try again."
+   }
+ }
+diff --git a/messages/tr.json b/messages/tr.json
+index 66b25b7..182e88e 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -1298,5 +1298,11 @@
+     "adminBlocked": "Yönetici hesapları buradan silinemez.",
+     "error": "Hesap silinemedi. Lütfen tekrar deneyin.",
+     "privacy": "Gizlilik Politikası"
++  },
++  "reminderToggle": {
++    "title": "WhatsApp randevu hatırlatma",
++    "desc": "Onaylı randevulardan yaklaşık 1 gün önce müşteriye WhatsApp'tan otomatik hatırlatma gönderir.",
++    "ownerOnly": "Bu ayarı yalnızca işletme sahibi değiştirebilir.",
++    "saveFailed": "Ayar kaydedilemedi. Lütfen tekrar deneyin."
+   }
+ }
+diff --git a/src/actions/reminderSettings.ts b/src/actions/reminderSettings.ts
+new file mode 100644
+index 0000000..d6cbe3d
+--- /dev/null
++++ b/src/actions/reminderSettings.ts
+@@ -0,0 +1,38 @@
++'use server'
++
++import { createClient } from '@/lib/supabase/server'
++
++/** WhatsApp randevu hatırlatma ayarı: ince adaptör; iş kuralı veritabanındadır (get/set_reminder_settings). */
++export type ReminderSettings = { enabled: boolean }
++export type SetReminderResult = { ok: true; enabled: boolean } | { ok: false; reason: 'unauthorized' | 'forbidden' | 'error' }
++
++export async function getReminderSettings(): Promise<ReminderSettings | null> {
++  try {
++    const supabase = await createClient()
++    const { data: { session } } = await supabase.auth.getSession()
++    if (!session?.user) return null
++    const { data, error } = await supabase.rpc('get_reminder_settings')
++    if (error || data?.status !== 'SUCCESS') return null
++    return { enabled: !!data.enabled }
++  } catch (e) {
++    console.error('getReminderSettings exception:', e)
++    return null
++  }
++}
++
++export async function setReminderSettings(enabled: boolean): Promise<SetReminderResult> {
++  try {
++    const supabase = await createClient()
++    const { data: { session } } = await supabase.auth.getSession()
++    if (!session?.user) return { ok: false, reason: 'unauthorized' }
++    const { data, error } = await supabase.rpc('set_reminder_settings', { p_enabled: enabled })
++    if (error) return { ok: false, reason: 'error' }
++    if (data?.status === 'SUCCESS') return { ok: true, enabled: !!data.enabled }
++    if (data?.status === 'FORBIDDEN') return { ok: false, reason: 'forbidden' }
++    if (data?.status === 'UNAUTHORIZED') return { ok: false, reason: 'unauthorized' }
++    return { ok: false, reason: 'error' }
++  } catch (e) {
++    console.error('setReminderSettings exception:', e)
++    return { ok: false, reason: 'error' }
++  }
++}
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index 4635c6e..9429f06 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -5,6 +5,7 @@ import Link from "next/link";
+ import { useTranslations } from "next-intl";
+ import AiDataResetPanel from "@/components/settings/AiDataResetPanel";
+ import MultiCalendarToggle from "@/components/settings/MultiCalendarToggle";
++import ReminderToggle from "@/components/settings/ReminderToggle";
+ import { createClient } from "@/lib/supabase/client";
+ import { saveAiPersonaSettings, getAiPersonaSettings } from "@/actions/aiPersonaSettings";
+ import { getWahaStatus, startWahaSession, getWahaQrCode, getWahaPairingCode } from "@/actions/waha";
+@@ -735,6 +736,7 @@ export default function BotScreen() {
+       </div>
+ 
+       <MultiCalendarToggle />
++      <ReminderToggle />
+       <AiDataResetPanel />
+       
+       <style dangerouslySetInnerHTML={{__html: `
+diff --git a/src/components/settings/ReminderToggle.tsx b/src/components/settings/ReminderToggle.tsx
+new file mode 100644
+index 0000000..08c69a2
+--- /dev/null
++++ b/src/components/settings/ReminderToggle.tsx
+@@ -0,0 +1,74 @@
++"use client";
++
++import React, { useEffect, useState } from "react";
++import { useTranslations } from "next-intl";
++import { getReminderSettings, setReminderSettings } from "@/actions/reminderSettings";
++
++export default function ReminderToggle() {
++  const t = useTranslations("reminderToggle");
++  const [enabled, setEnabled] = useState(false);
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++  const [message, setMessage] = useState<string | null>(null);
++
++  useEffect(() => {
++    let active = true;
++    getReminderSettings().then((s) => {
++      if (!active) return;
++      if (s) setEnabled(s.enabled);
++      setLoading(false);
++    });
++    return () => { active = false; };
++  }, []);
++
++  const handleToggle = async () => {
++    if (saving) return;
++    const next = !enabled;
++    setEnabled(next); // iyimser
++    setSaving(true);
++    setMessage(null);
++    const res = await setReminderSettings(next);
++    setSaving(false);
++    if (!res.ok) {
++      setEnabled(!next); // geri al
++      setMessage(res.reason === "forbidden" ? t("ownerOnly") : t("saveFailed"));
++    }
++  };
++
++  if (loading) return null;
++
++  return (
++    <div className="glass" style={{
++      borderRadius: 16, padding: "20px 24px", border: "1px solid rgba(255,255,255,0.06)",
++      display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 16,
++    }}>
++      <div>
++        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
++          <span style={{ fontSize: 20 }}>💬</span>
++          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>{t("title")}</h3>
++        </div>
++        <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{t("desc")}</p>
++        {message && <p role="alert" style={{ margin: "8px 0 0", fontSize: 12, color: "#FF7A59" }}>{message}</p>}
++      </div>
++      <div
++        role="switch"
++        aria-checked={enabled}
++        aria-label={t("title")}
++        tabIndex={0}
++        onClick={handleToggle}
++        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggle(); } }}
++        style={{
++          width: 44, height: 24, borderRadius: 99, flexShrink: 0,
++          background: enabled ? "#22B573" : "rgba(255,255,255,0.1)",
++          display: "flex", alignItems: "center", cursor: saving ? "wait" : "pointer",
++          padding: 3, transition: "background 0.3s", opacity: saving ? 0.7 : 1,
++        }}
++      >
++        <div style={{
++          width: 18, height: 18, borderRadius: "50%", background: "#fff",
++          transform: enabled ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s",
++        }} />
++      </div>
++    </div>
++  );
++}
+-- 
+2.43.0
+

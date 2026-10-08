@@ -1,0 +1,148 @@
+From d27260664bc51b4b5795c5157c231af2022c075b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 09:50:28 +0000
+Subject: [PATCH] feat(reminders): Bot Yonetimi'ne WhatsApp randevu hatirlatma
+ dugmesi
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  3 ++
+ src/core/i18n/locales/de.json                 |  6 +++
+ src/core/i18n/locales/en.json                 |  6 +++
+ src/core/i18n/locales/tr.json                 |  6 +++
+ .../presentation/screens/BotYonetimiScreen.js | 42 +++++++++++++++++++
+ 5 files changed, 63 insertions(+)
+
+diff --git a/README.md b/README.md
+index 11c997f..3acb679 100644
+--- a/README.md
++++ b/README.md
+@@ -301,6 +301,9 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ 
+ ---
+ 
++## 🆕 Son Güncellemeler (08.10.2026 - WhatsApp hatırlatma)
++- 08.10.2026 — Bot Yönetimi: "WhatsApp randevu hatırlatma" düğmesi eklendi (yalnız işletme sahibi değiştirir; varsayılan kapalı). Açıkken onaylı randevulara 24 saat önce WhatsApp'tan otomatik hatırlatma gider.
++
+ ## 🆕 Son Güncellemeler (06.10.2026 - WAHA Bot)
+ - WhatsApp durum sorgusunda 'bot kurulmamış' durumu hata sayılmaz (yeni kullanıcı).
+ 
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 4fd3350..dc613ac 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -956,5 +956,11 @@
+     "adminBlocked": "Administratorkonten können hier nicht gelöscht werden.",
+     "error": "Das Konto konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+     "privacy": "Datenschutzerklärung"
++  },
++  "reminders": {
++    "title": "WhatsApp-Terminerinnerung",
++    "desc": "Sendet Kunden etwa 1 Tag vor bestätigten Terminen automatisch eine WhatsApp-Erinnerung.",
++    "ownerOnly": "Nur der Inhaber kann diese Einstellung ändern.",
++    "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
+   }
+ }
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 208b1c5..ad9b6ac 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -956,5 +956,11 @@
+     "adminBlocked": "Administrator accounts cannot be deleted here.",
+     "error": "Could not delete the account. Please try again.",
+     "privacy": "Privacy Policy"
++  },
++  "reminders": {
++    "title": "WhatsApp appointment reminders",
++    "desc": "Automatically sends customers a WhatsApp reminder about 1 day before confirmed appointments.",
++    "ownerOnly": "Only the business owner can change this setting.",
++    "saveFailed": "Could not save the setting. Please try again."
+   }
+ }
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index 5b5b5bf..37556da 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -948,5 +948,11 @@
+     "adminBlocked": "Yönetici hesapları buradan silinemez.",
+     "error": "Hesap silinemedi. Lütfen tekrar deneyin.",
+     "privacy": "Gizlilik Politikası"
++  },
++  "reminders": {
++    "title": "WhatsApp randevu hatırlatma",
++    "desc": "Onaylı randevulardan yaklaşık 1 gün önce müşteriye WhatsApp'tan otomatik hatırlatma gönderir.",
++    "ownerOnly": "Bu ayarı yalnızca işletme sahibi değiştirebilir.",
++    "saveFailed": "Ayar kaydedilemedi. Lütfen tekrar deneyin."
+   }
+ }
+diff --git a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+index 9bbc37b..3205b92 100644
+--- a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+@@ -179,6 +179,7 @@ export default function BotYonetimiScreen() {
+   const [timezone, setTimezone] = useState("Europe/Istanbul");
+   const [appointmentModuleEnabled, setAppointmentModuleEnabled] = useState(true);
+   const [multiCalendarEnabled, setMultiCalendarEnabled] = useState(false);
++  const [reminderEnabled, setReminderEnabled] = useState(false);
+ 
+   // Karakter (Persona): artık web ile aynı kaynaktan, canlı olarak
+   // ai_personas'tan çekiliyor (bkz. fetchInitialData) — eski hardcoded
+@@ -328,6 +329,33 @@ export default function BotYonetimiScreen() {
+     }
+   };
+ 
++  useEffect(() => {
++    let alive = true;
++    (async () => {
++      try {
++        const { data } = await supabase.rpc('get_reminder_settings');
++        if (alive && data?.status === 'SUCCESS') setReminderEnabled(!!data.enabled);
++      } catch (e) {
++        console.warn('Reminder settings load error', e);
++      }
++    })();
++    return () => { alive = false; };
++  }, []);
++
++  const handleReminderSave = async (newValue) => {
++    setReminderEnabled(newValue);
++    try {
++      const { data, error } = await supabase.rpc('set_reminder_settings', { p_enabled: newValue });
++      if (error || data?.status !== 'SUCCESS') {
++        setReminderEnabled(!newValue);
++        Alert.alert(t('sosyalMedya.alerts.error'), data?.status === 'FORBIDDEN' ? t('reminders.ownerOnly') : t('reminders.saveFailed'));
++      }
++    } catch (e) {
++      setReminderEnabled(!newValue);
++      Alert.alert(t('sosyalMedya.alerts.error'), t('reminders.saveFailed'));
++    }
++  };
++
+   const handleMultiCalendarSave = async (newValue) => {
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+@@ -897,6 +925,20 @@ export default function BotYonetimiScreen() {
+                       />
+                     </View>
+ 
++                    <View className="flex-row justify-between items-center border-t border-white/5 pt-4 mb-4">
++                      <View className="flex-1 pr-2">
++                        <Text className="text-white text-sm font-bold mb-1">{t('reminders.title')}</Text>
++                        <Text className="text-gray-400 text-[10px] leading-3">{t('reminders.desc')}</Text>
++                      </View>
++                      <Switch
++                        value={reminderEnabled}
++                        onValueChange={handleReminderSave}
++                        trackColor={{ false: '#34303C', true: '#22B573' }}
++                        thumbColor="#ffffff"
++                        style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
++                      />
++                    </View>
++
+                     <View className="flex-row justify-between items-center border-t border-white/5 pt-4">
+                       <View className="flex-1 mr-4">
+                         <Text className="text-white text-sm font-bold mb-1">Saat Dilimi (Timezone)</Text>
+-- 
+2.43.0
+
