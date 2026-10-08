@@ -35,6 +35,8 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 31 | `TALIMAT_31_whatsapp_randevu_hatirlatma.md` (hazır yama) | ledger | `appointment-reminders` (yeni; ONAY sonrası) | GEREKLİ |
 | 32 | `TALIMAT_32_hatirlatma_dugmesi.md` (hazır yama ×2) | flow + flowweb | yok (EAS derlemesi / Vercel) | GEREKLİ |
 | 33 | `TALIMAT_33_profil_kaydet_dugmesi.md` (hazır yama ×2) | flow + flowweb | yok (EAS derlemesi / Vercel) | GEREKLİ |
+| 34 | `TALIMAT_34_hatirlatma_sablon_ve_dil.md` (hazır yama) | ledger | `appointment-reminders` (ONAY sonrası) | GEREKLİ |
+| 35 | `TALIMAT_35_hatirlatma_metin_ekranlari.md` (hazır yama ×2) | flow + flowweb | yok (EAS derlemesi / Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

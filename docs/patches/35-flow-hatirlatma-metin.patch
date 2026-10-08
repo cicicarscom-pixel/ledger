@@ -1,0 +1,304 @@
+From 3120241edf4c87e1123e61c65fa25ed0cce61a18 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 11:47:01 +0000
+Subject: [PATCH] feat(reminders): hatirlatma metni duzenleme (dil secimi, yer
+ tutucular, onizleme) - mobil
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ src/core/i18n/locales/de.json                 |  13 +-
+ src/core/i18n/locales/en.json                 |  13 +-
+ src/core/i18n/locales/tr.json                 |  13 +-
+ .../components/ReminderTemplateEditor.js      | 172 ++++++++++++++++++
+ .../presentation/screens/BotYonetimiScreen.js |   6 +
+ 6 files changed, 215 insertions(+), 3 deletions(-)
+ create mode 100644 src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
+
+diff --git a/README.md b/README.md
+index 14293d5..12629a3 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (08.10.2026 - WhatsApp hatırlatma)
++- 08.10.2026 — WhatsApp hatırlatma metni: işletme kendi metnini yazar, mesaj dilini seçer (tr/en/de/fr/es); hitap (Sayın/Mr./Herr…) metne işletme tarafından yazılır, kodda sabit değildir.
+ - 08.10.2026 — Bot Yönetimi: "WhatsApp randevu hatırlatma" düğmesi eklendi (yalnız işletme sahibi değiştirir; varsayılan kapalı). Açıkken onaylı randevulara 24 saat önce WhatsApp'tan otomatik hatırlatma gider.
+ - 08.10.2026 — Profil: "Profili Kaydet" düğmesi yalnız değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır, bir alan değişince yeniden etkinleşir.
+ 
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 2489424..2463e20 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -962,6 +962,17 @@
+     "title": "WhatsApp-Terminerinnerung",
+     "desc": "Sendet Kunden etwa 1 Tag vor bestätigten Terminen automatisch eine WhatsApp-Erinnerung.",
+     "ownerOnly": "Nur der Inhaber kann diese Einstellung ändern.",
+-    "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
++    "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.",
++    "languageLabel": "Sprache der Nachricht",
++    "messageLabel": "Erinnerungstext",
++    "placeholdersHint": "Zum Einfügen antippen. Diese Felder werden beim Senden mit den Daten des Kunden gefüllt:",
++    "honorificHint": "Tipp: Schreiben Sie die Anrede (Herr, Frau, Sehr geehrte…) selbst in Ihren Text. Das Geschlecht des Kunden wird nie erraten.",
++    "previewLabel": "Vorschau (mit Beispieldaten)",
++    "save": "Text speichern",
++    "saved": "Gespeichert",
++    "resetDefault": "Auf Standardtext zurücksetzen",
++    "unknownPlaceholder": "Unbekanntes Feld: {{list}}. Verwenden Sie nur die aufgeführten Felder.",
++    "tooLong": "Der Text darf höchstens 700 Zeichen lang sein.",
++    "ph": {"name": "vollständiger Name", "first_name": "Vorname", "business": "Unternehmen", "date": "Datum", "time": "Uhrzeit", "doctor": "Mitarbeiter", "service": "Leistung"}
+   }
+ }
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 6d6d6c1..02aa04d 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -962,6 +962,17 @@
+     "title": "WhatsApp appointment reminders",
+     "desc": "Automatically sends customers a WhatsApp reminder about 1 day before confirmed appointments.",
+     "ownerOnly": "Only the business owner can change this setting.",
+-    "saveFailed": "Could not save the setting. Please try again."
++    "saveFailed": "Could not save the setting. Please try again.",
++    "languageLabel": "Message language",
++    "messageLabel": "Reminder message",
++    "placeholdersHint": "Tap to insert. These fields are filled with the customer's details when the message is sent:",
++    "honorificHint": "Tip: write any form of address (Mr., Mrs., Dear, Herr…) in your own text. The customer's gender is never guessed.",
++    "previewLabel": "Preview (with sample details)",
++    "save": "Save message",
++    "saved": "Saved",
++    "resetDefault": "Reset to default message",
++    "unknownPlaceholder": "Unknown field: {{list}}. Use only the listed fields.",
++    "tooLong": "The message can be at most 700 characters.",
++    "ph": {"name": "full name", "first_name": "first name", "business": "business", "date": "date", "time": "time", "doctor": "staff", "service": "service"}
+   }
+ }
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index 43dddd2..e6f5398 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -954,6 +954,17 @@
+     "title": "WhatsApp randevu hatırlatma",
+     "desc": "Onaylı randevulardan yaklaşık 1 gün önce müşteriye WhatsApp'tan otomatik hatırlatma gönderir.",
+     "ownerOnly": "Bu ayarı yalnızca işletme sahibi değiştirebilir.",
+-    "saveFailed": "Ayar kaydedilemedi. Lütfen tekrar deneyin."
++    "saveFailed": "Ayar kaydedilemedi. Lütfen tekrar deneyin.",
++    "languageLabel": "Mesaj dili",
++    "messageLabel": "Hatırlatma metni",
++    "placeholdersHint": "Metne eklemek için dokunun. Bu alanlar mesaj gönderilirken müşterinin bilgileriyle dolar:",
++    "honorificHint": "İpucu: Hitap (Sayın, Bay/Bayan, Mr., Herr…) kendi metninize siz yazın. Müşterinin cinsiyeti tahmin edilmez.",
++    "previewLabel": "Önizleme (örnek bilgilerle)",
++    "save": "Metni Kaydet",
++    "saved": "Kaydedildi",
++    "resetDefault": "Varsayılan metne dön",
++    "unknownPlaceholder": "Bilinmeyen alan: {{list}}. Yalnızca listedeki alanları kullanın.",
++    "tooLong": "Metin en fazla 700 karakter olabilir.",
++    "ph": {"name": "ad soyad", "first_name": "ilk ad", "business": "işletme", "date": "tarih", "time": "saat", "doctor": "uzman", "service": "işlem"}
+   }
+ }
+diff --git a/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js b/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
+new file mode 100644
+index 0000000..fe92cb9
+--- /dev/null
++++ b/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
+@@ -0,0 +1,172 @@
++import React, { useEffect, useRef, useState } from 'react';
++import { View, Text, TextInput, TouchableOpacity } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { supabase, CustomButton } from '../../../../shared';
++
++// WhatsApp randevu hatırlatma metni: işletme kendi metnini yazar, mesaj dilini seçer.
++// Doğrulama ve varsayılan metinler veritabanındadır (get_reminder_settings / set_reminder_template).
++// Hitap (Sayın / Mr. / Herr…) kodda sabit DEĞİLDİR; isteyen metne kendisi yazar.
++
++const LOCALES = [['tr', 'Türkçe'], ['en', 'English'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español']];
++const PLACEHOLDERS = ['name', 'first_name', 'business', 'date', 'time', 'doctor', 'service'];
++const SAMPLES = {
++  tr: { name: 'Ayşe Demir', first_name: 'Ayşe', business: 'İşletmeniz', date: '9 Ekim Cuma', time: '10:30', doctor: 'Dr. Mehmet Kaya', service: 'Kontrol' },
++  en: { name: 'Alex Morgan', first_name: 'Alex', business: 'Your Business', date: 'Friday 9 October', time: '10:30', doctor: 'Dr. Jane Smith', service: 'Check-up' },
++  de: { name: 'Anna Müller', first_name: 'Anna', business: 'Ihre Praxis', date: 'Freitag, 9. Oktober', time: '10:30', doctor: 'Dr. Lena Schmidt', service: 'Kontrolle' },
++  fr: { name: 'Claire Martin', first_name: 'Claire', business: 'Votre cabinet', date: 'vendredi 9 octobre', time: '10:30', doctor: 'Dr Marie Dubois', service: 'Contrôle' },
++  es: { name: 'Lucía Pérez', first_name: 'Lucía', business: 'Su clínica', date: 'viernes, 9 de octubre', time: '10:30', doctor: 'Dra. Ana Ruiz', service: 'Revisión' },
++};
++
++function renderPreview(text, locale) {
++  const s = SAMPLES[locale] || SAMPLES.en;
++  return String(text || '').replace(/\{([A-Za-z_]+)\}/g, (m, k) => (k in s ? s[k] : m));
++}
++
++export default function ReminderTemplateEditor() {
++  const { t } = useTranslation();
++  const [loading, setLoading] = useState(true);
++  const [defaults, setDefaults] = useState({});
++  const [locale, setLocale] = useState('en');
++  const [text, setText] = useState('');
++  const [savedKey, setSavedKey] = useState(null);
++  const [justSaved, setJustSaved] = useState(false);
++  const [saving, setSaving] = useState(false);
++  const [error, setError] = useState('');
++  const selection = useRef({ start: 0, end: 0 });
++
++  const formKey = JSON.stringify([locale, text]);
++  const isDirty = savedKey !== null && formKey !== savedKey;
++
++  useEffect(() => {
++    let alive = true;
++    (async () => {
++      try {
++        const { data } = await supabase.rpc('get_reminder_settings');
++        if (!alive || data?.status !== 'SUCCESS') return;
++        const loc = data.locale || 'en';
++        const initial = data.template || data.defaults?.[loc] || '';
++        setDefaults(data.defaults || {});
++        setLocale(loc);
++        setText(initial);
++        setSavedKey(JSON.stringify([loc, initial]));
++      } catch (e) {
++        console.warn('Reminder template load error', e);
++      } finally {
++        if (alive) setLoading(false);
++      }
++    })();
++    return () => { alive = false; };
++  }, []);
++
++  useEffect(() => {
++    if (isDirty) setJustSaved(false);
++  }, [isDirty]);
++
++  const changeLocale = (next) => {
++    if (next === locale) return;
++    // Metin hâlâ eski dilin varsayılanıysa yeni dilin varsayılanına geç; özel metin korunur.
++    if (text.trim() === String(defaults[locale] || '').trim() && defaults[next]) setText(defaults[next]);
++    setLocale(next);
++  };
++
++  const insertPlaceholder = (key) => {
++    const token = `{${key}}`;
++    const { start, end } = selection.current;
++    const s = Math.min(start, text.length);
++    const e = Math.min(Math.max(end, s), text.length);
++    setText(text.slice(0, s) + token + text.slice(e));
++    const pos = s + token.length;
++    selection.current = { start: pos, end: pos };
++  };
++
++  const handleSave = async () => {
++    const keyAtSave = formKey;
++    setSaving(true);
++    setError('');
++    try {
++      const isDefault = text.trim() === String(defaults[locale] || '').trim();
++      const { data, error: rpcError } = await supabase.rpc('set_reminder_template', {
++        p_template: isDefault ? null : text,
++        p_locale: locale,
++      });
++      if (rpcError || !data) throw new Error('rpc');
++      if (data.status === 'SUCCESS') {
++        setSavedKey(keyAtSave);
++        setJustSaved(true);
++      } else if (data.status === 'FORBIDDEN') {
++        setError(t('reminders.ownerOnly'));
++      } else if (data.status === 'UNKNOWN_PLACEHOLDER') {
++        setError(t('reminders.unknownPlaceholder', { list: (data.unknown || []).map((k) => `{${k}}`).join(', ') }));
++      } else if (data.status === 'TEMPLATE_TOO_LONG') {
++        setError(t('reminders.tooLong'));
++      } else {
++        setError(t('reminders.saveFailed'));
++      }
++    } catch (e) {
++      setError(t('reminders.saveFailed'));
++    } finally {
++      setSaving(false);
++    }
++  };
++
++  if (loading || savedKey === null) return null;
++
++  return (
++    <View className="border-t border-white/5 pt-4">
++      <Text className="text-white text-sm font-bold mb-2">{t('reminders.languageLabel')}</Text>
++      <View className="flex-row flex-wrap mb-4">
++        {LOCALES.map(([code, label]) => (
++          <TouchableOpacity
++            key={code}
++            onPress={() => changeLocale(code)}
++            className={`px-3 py-2 rounded-lg mr-2 mb-2 border ${locale === code ? 'bg-[#22B573]/20 border-[#22B573]' : 'bg-white/5 border-white/10'}`}
++          >
++            <Text className={`text-xs ${locale === code ? 'text-white font-bold' : 'text-gray-300'}`}>{label}</Text>
++          </TouchableOpacity>
++        ))}
++      </View>
++
++      <Text className="text-white text-sm font-bold mb-2">{t('reminders.messageLabel')}</Text>
++      <TextInput
++        value={text}
++        onChangeText={setText}
++        onSelectionChange={(e) => { selection.current = e.nativeEvent.selection; }}
++        multiline
++        maxLength={700}
++        textAlignVertical="top"
++        className="text-white text-xs bg-white/5 border border-white/10 rounded-lg p-3"
++        style={{ minHeight: 150 }}
++      />
++      <Text className="text-gray-500 text-[10px] mt-1 mb-3">{text.length}/700</Text>
++
++      <Text className="text-gray-400 text-[10px] mb-2">{t('reminders.placeholdersHint')}</Text>
++      <View className="flex-row flex-wrap mb-3">
++        {PLACEHOLDERS.map((k) => (
++          <TouchableOpacity key={k} onPress={() => insertPlaceholder(k)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 mr-2 mb-2">
++            <Text className="text-[#00DAF3] text-[11px]">{`{${k}}`}</Text>
++            <Text className="text-gray-500 text-[9px]">{t(`reminders.ph.${k}`)}</Text>
++          </TouchableOpacity>
++        ))}
++      </View>
++      <Text className="text-gray-400 text-[10px] leading-3 mb-4">{t('reminders.honorificHint')}</Text>
++
++      <Text className="text-white text-sm font-bold mb-2">{t('reminders.previewLabel')}</Text>
++      <View className="bg-[#1F2C34] rounded-xl p-3 mb-4">
++        <Text className="text-gray-100 text-xs leading-5">{renderPreview(text, locale)}</Text>
++      </View>
++
++      {error ? <Text className="text-[#FF7A59] text-xs mb-3">{error}</Text> : null}
++
++      <CustomButton
++        title={justSaved && !isDirty ? t('reminders.saved') : t('reminders.save')}
++        onPress={handleSave}
++        isLoading={saving}
++        disabled={!isDirty}
++        className="mb-2"
++      />
++      <TouchableOpacity onPress={() => { if (defaults[locale]) setText(defaults[locale]); }} className="items-center py-2">
++        <Text className="text-gray-400 text-xs">{t('reminders.resetDefault')}</Text>
++      </TouchableOpacity>
++    </View>
++  );
++}
+diff --git a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+index 3205b92..6440837 100644
+--- a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+@@ -43,6 +43,7 @@ import {
+   DialSlider
+ } from '../../../persona_engine';
+ 
++import ReminderTemplateEditor from '../components/ReminderTemplateEditor';
+ import { container } from '../../../../core/container';
+ import { ManageBotUseCase } from '@application/useCases/ManageBotUseCase';
+ const botUseCase = container.resolve(ManageBotUseCase);
+@@ -938,6 +939,11 @@ export default function BotYonetimiScreen() {
+                         style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                       />
+                     </View>
++                    {reminderEnabled ? (
++                      <View className="mb-4">
++                        <ReminderTemplateEditor />
++                      </View>
++                    ) : null}
+ 
+                     <View className="flex-row justify-between items-center border-t border-white/5 pt-4">
+                       <View className="flex-1 mr-4">
+-- 
+2.43.0
+

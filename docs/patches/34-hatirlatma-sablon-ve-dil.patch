@@ -1,0 +1,245 @@
+From 16e23dde8c18087e2194cd8c026726a7b18ee151 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 11:45:35 +0000
+Subject: [PATCH] feat(reminders): hatirlatma metni sablonu (isletme yazar),
+ dil secimi, unvan kodda yok
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ .../functions/appointment-reminders/index.ts  |  8 +-
+ .../shared/reminders/reminderMessage.test.ts  | 56 +++++++++----
+ .../shared/reminders/reminderMessage.ts       | 83 +++++++++++++------
+ 3 files changed, 102 insertions(+), 45 deletions(-)
+
+diff --git a/supabase/functions/appointment-reminders/index.ts b/supabase/functions/appointment-reminders/index.ts
+index 4b909d0..aa6a0e1 100644
+--- a/supabase/functions/appointment-reminders/index.ts
++++ b/supabase/functions/appointment-reminders/index.ts
+@@ -1,7 +1,7 @@
+ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+ import { createClient } from "npm:@supabase/supabase-js@2";
+ import { WahaClient } from "../shared/infrastructure/clients/WahaClient.ts";
+-import { buildReminderText, chatIdFromDigits, maskChatId } from "../shared/reminders/reminderMessage.ts";
++import { chatIdFromDigits, maskChatId, renderReminderTemplate } from "../shared/reminders/reminderMessage.ts";
+ 
+ /**
+  * WhatsApp randevu hatırlatma. pg_cron ile ~10 dk'da bir çağrılır (yalnız service-role).
+@@ -27,7 +27,7 @@ serve(async (req) => {
+   const limit = Math.min(50, Math.max(1, Math.floor(Number(body?.limit) || 20)));
+ 
+   const supabase = createClient(supabaseUrl, serviceKey);
+-  const { data: rows, error } = await supabase.rpc("claim_due_reminders", { p_limit: limit, p_dry: dryRun });
++  const { data: rows, error } = await supabase.rpc("claim_due_reminders_v2", { p_limit: limit, p_dry: dryRun });
+   if (error) {
+     console.error("[appointment-reminders] claim hatası:", error.message);
+     return json({ error: "CLAIM_FAILED" }, 500);
+@@ -43,7 +43,7 @@ serve(async (req) => {
+         return {
+           appointmentId: r.appointment_id,
+           to: chatId ? maskChatId(chatId) : null,
+-          text: buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service }),
++          text: renderReminderTemplate(r.template, { orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, locale: r.locale, doctor: r.doctor, service: r.service }),
+         };
+       }),
+     });
+@@ -65,7 +65,7 @@ serve(async (req) => {
+       skipped++;
+       continue;
+     }
+-    const text = buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service });
++    const text = renderReminderTemplate(r.template, { orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, locale: r.locale, doctor: r.doctor, service: r.service });
+     try {
+       await waha.sendWhatsAppMessage(r.owner_id, chatId, text);
+       await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "sent", p_error: null });
+diff --git a/supabase/functions/shared/reminders/reminderMessage.test.ts b/supabase/functions/shared/reminders/reminderMessage.test.ts
+index 06da17c..a5d3afd 100644
+--- a/supabase/functions/shared/reminders/reminderMessage.test.ts
++++ b/supabase/functions/shared/reminders/reminderMessage.test.ts
+@@ -1,40 +1,62 @@
+ // Çalıştırma: deno test --no-check --allow-all supabase/functions/shared/reminders/reminderMessage.test.ts
+ import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
+-import { buildReminderText, chatIdFromDigits, maskChatId } from "./reminderMessage.ts";
++import { chatIdFromDigits, localeTag, maskChatId, renderReminderTemplate } from "./reminderMessage.ts";
++
++const TR_DEFAULT = "Merhaba {first_name},\n{business} olarak {date} saat {time} randevunuzu hatırlatmak isteriz.\nUzman: {doctor}\nİşlem: {service}\nRandevunuzla ilgili bir değişiklik için bu mesaja yazabilirsiniz. Sizi bekliyoruz!";
++// 2026-10-09 07:30 UTC = İstanbul 10:30 (Cuma)
++const base = { startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul", locale: "tr", orgName: "Atlas Diş Kliniği", customerName: "ahmet yavuz", doctor: "Dr.Salih GÜNEY", service: "Kontrol" };
+ 
+ Deno.test("chatIdFromDigits: Türkiye biçimleri 90 ile tamamlanır, geçersizler null", () => {
+   assertEquals(chatIdFromDigits("905051478877"), "905051478877@c.us");
+   assertEquals(chatIdFromDigits("5051478877"), "905051478877@c.us");
+   assertEquals(chatIdFromDigits("05051478877"), "905051478877@c.us");
+   assertEquals(chatIdFromDigits("+90 505 147 88 77"), "905051478877@c.us");
+-  assertEquals(chatIdFromDigits("4915112345678"), "4915112345678@c.us"); // yabancı numara
++  assertEquals(chatIdFromDigits("4915112345678"), "4915112345678@c.us");
+   assertEquals(chatIdFromDigits("12345"), null);
+-  assertEquals(chatIdFromDigits("90505147"), null); // eksik TR numarası
++  assertEquals(chatIdFromDigits("90505147"), null);
+   assertEquals(chatIdFromDigits(null), null);
+-  assertEquals(chatIdFromDigits(""), null);
+ });
+ 
+-Deno.test("hatırlatma metni: işletme saat diliminde gün/saat, doktor ve işlem satırları", () => {
+-  // 2026-10-09 07:30 UTC = İstanbul 10:30 (Cuma)
+-  const t = buildReminderText({ orgName: "Demo Klinik", customerName: "ahmet yavuz", startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul", doctor: "Dr.Salih GÜNEY", service: "Kontrol" });
+-  const lines = t.split("\n");
++Deno.test("varsayılan Türkçe metin: işletme saat diliminde gün/saat, doktor ve işlem satırları", () => {
++  const lines = renderReminderTemplate(TR_DEFAULT, base).split("\n");
+   assertEquals(lines[0], "Merhaba Ahmet,");
+-  assertEquals(lines[1], "Demo Klinik olarak 9 Ekim Cuma saat 10:30 randevunuzu hatırlatmak isteriz.");
+-  assertEquals(lines[2], "Doktor: Dr.Salih GÜNEY");
++  assertEquals(lines[1], "Atlas Diş Kliniği olarak 9 Ekim Cuma saat 10:30 randevunuzu hatırlatmak isteriz.");
++  assertEquals(lines[2], "Uzman: Dr.Salih GÜNEY");
+   assertEquals(lines[3], "İşlem: Kontrol");
+-  assertEquals(lines[4].startsWith("Randevunuzla ilgili"), true);
+ });
+ 
+-Deno.test("hatırlatma metni: eksik alanlarda satır atlanır, uydurma yok", () => {
+-  const t = buildReminderText({ startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul" });
+-  assertEquals(t.split("\n")[0], "Merhaba,");
+-  assertEquals(t.includes("Doktor:"), false);
++Deno.test("işletmenin kendi metni AYNEN korunur; unvan (Mr./Mrs./Sayın) koda gömülü değil, yazdığı gibi gider", () => {
++  const t = renderReminderTemplate("Dear Mr./Mrs. {name}, see you at {business} on {date}, {time}.", { ...base, locale: "en" });
++  assertEquals(t, "Dear Mr./Mrs. ahmet yavuz, see you at Atlas Diş Kliniği on Friday 9 October, 10:30.");
++  assertEquals(renderReminderTemplate("Sayın {name}, {time}", base), "Sayın ahmet yavuz, 10:30");
++});
++
++Deno.test("doktor/işlem boşsa o satır çıkar; boş ad 'Merhaba ,' bırakmaz", () => {
++  const t = renderReminderTemplate(TR_DEFAULT, { ...base, doctor: null, service: "", customerName: "" });
++  const lines = t.split("\n");
++  assertEquals(lines[0], "Merhaba,");
++  assertEquals(t.includes("Uzman:"), false);
+   assertEquals(t.includes("İşlem:"), false);
+   assertEquals(t.includes("undefined") || t.includes("null"), false);
+ });
+ 
+-Deno.test("hatırlatma metni: Türkçe büyük/küçük harf (İ/ı) doğru", () => {
+-  assertEquals(buildReminderText({ customerName: "İBRAHİM kaya", startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul" }).split("\n")[0], "Merhaba İbrahim,");
++Deno.test("dil ve saat biçimi: Almanca 24 saat, ABD'de 12 saat, İngilizce diğer yerlerde 24 saat", () => {
++  assertEquals(localeTag("de", "Europe/Berlin"), "de-DE");
++  assertEquals(localeTag("en", "America/New_York"), "en-US");
++  assertEquals(localeTag("en", "Europe/London"), "en-GB");
++  const de = renderReminderTemplate("{date} um {time}", { ...base, locale: "de", timezone: "Europe/Berlin" });
++  assertEquals(de, "Freitag, 9. Oktober um 09:30");
++  const us = renderReminderTemplate("{time}", { ...base, locale: "en", timezone: "America/New_York" });
++  assertEquals(us.includes("AM") || us.includes("am"), true); // 03:30 AM
++});
++
++Deno.test("Türkçe büyük/küçük harf (İ/ı) doğru; çok kelimeli ad tam gelir", () => {
++  assertEquals(renderReminderTemplate("{first_name}|{name}", { ...base, customerName: "İBRAHİM kaya" }), "İbrahim|İBRAHİM kaya");
++});
++
++Deno.test("enjeksiyon: adın içindeki {…} ve kontrol karakterleri temizlenir; bilinmeyen yer tutucu olduğu gibi kalır", () => {
++  assertEquals(renderReminderTemplate("{name}", { ...base, customerName: "{service}\u0007 X" }), "service X");
++  assertEquals(renderReminderTemplate("a {bilinmeyen} b", base), "a {bilinmeyen} b");
+ });
+ 
+ Deno.test("maskChatId: telefon yalnız son 4 hane görünür", () => {
+diff --git a/supabase/functions/shared/reminders/reminderMessage.ts b/supabase/functions/shared/reminders/reminderMessage.ts
+index d69ce5d..2e2f10e 100644
+--- a/supabase/functions/shared/reminders/reminderMessage.ts
++++ b/supabase/functions/shared/reminders/reminderMessage.ts
+@@ -1,10 +1,13 @@
+-/** WhatsApp randevu hatırlatma: saf (test edilebilir) yardımcılar. */
++/** WhatsApp randevu hatırlatma: saf (test edilebilir) yardımcılar. Metin şablonu işletmeye aittir; unvan (Sayın/Mr/Mrs/Herr/Frau) koda GÖMÜLMEZ. */
+ 
+-export interface ReminderMessageInput {
+-  orgName?: string | null;
++export type ReminderLocale = 'tr' | 'en' | 'de' | 'fr' | 'es';
++
++export interface ReminderVars {
+   customerName?: string | null;
++  orgName?: string | null;
+   startsAt: Date | string;
+   timezone: string;
++  locale?: string | null;
+   doctor?: string | null;
+   service?: string | null;
+ }
+@@ -19,29 +22,61 @@ export function chatIdFromDigits(raw: unknown): string | null {
+   return `${d}@c.us`;
+ }
+ 
+-function firstName(name: string | null | undefined): string {
+-  const first = String(name ?? '').trim().split(/\s+/)[0] ?? '';
+-  if (!first) return '';
+-  return first.charAt(0).toLocaleUpperCase('tr-TR') + first.slice(1).toLocaleLowerCase('tr-TR');
+-}
+-
+-export function buildReminderText(i: ReminderMessageInput): string {
+-  const when = new Date(i.startsAt);
+-  const day = new Intl.DateTimeFormat('tr-TR', { timeZone: i.timezone, weekday: 'long', day: 'numeric', month: 'long' }).format(when);
+-  const time = new Intl.DateTimeFormat('tr-TR', { timeZone: i.timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(when);
+-  const name = firstName(i.customerName);
+-  const org = String(i.orgName ?? '').trim();
+-  const lines: string[] = [];
+-  lines.push(name ? `Merhaba ${name},` : 'Merhaba,');
+-  lines.push(`${org ? org + ' olarak ' : ''}${day} saat ${time} randevunuzu hatırlatmak isteriz.`);
+-  if (i.doctor) lines.push(`Doktor: ${i.doctor}`);
+-  if (i.service) lines.push(`İşlem: ${i.service}`);
+-  lines.push('Randevunuzla ilgili bir değişiklik için bu mesaja yazabilirsiniz. Sizi bekliyoruz!');
+-  return lines.join('\n');
+-}
+-
+ /** Günlüklerde telefonu açık yazmamak için. */
+ export function maskChatId(chatId: string): string {
+   const d = chatId.replace(/@.*/, '');
+   return d.length <= 4 ? '****' : `${'*'.repeat(d.length - 4)}${d.slice(-4)}`;
+ }
++
++/** Dil → Intl yerel etiketi. İngilizce: Amerika saat dilimlerinde 12 saatlik (en-US), diğerlerinde en-GB. */
++export function localeTag(locale: string | null | undefined, timezone: string): string {
++  switch (locale) {
++    case 'tr': return 'tr-TR';
++    case 'de': return 'de-DE';
++    case 'fr': return 'fr-FR';
++    case 'es': return 'es-ES';
++    default: return String(timezone ?? '').startsWith('America/') ? 'en-US' : 'en-GB';
++  }
++}
++
++/** Değer şablona girerken süslü parantezler ve kontrol karakterleri temizlenir (şablon enjeksiyonu olmaz) ve kısaltılır. */
++function clean(value: unknown, max: number): string {
++  return String(value ?? '').replace(/[{}]/g, '').replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
++}
++
++function firstName(name: string, tag: string): string {
++  const first = name.split(' ')[0] ?? '';
++  if (!first) return '';
++  return first.charAt(0).toLocaleUpperCase(tag) + first.slice(1).toLocaleLowerCase(tag);
++}
++
++/**
++ * Şablonu doldurur. Yer tutucular: {name} {first_name} {business} {date} {time} {doctor} {service}.
++ * - {doctor} ya da {service} boşsa, o yer tutucuyu içeren SATIR mesajdan çıkarılır.
++ * - Diğer boş yer tutucular boş yazılır; "Merhaba ," gibi artıklar toparlanır ("Merhaba,").
++ * - Bilinmeyen {x} olduğu gibi kalır (kayıt sırasında veritabanı zaten reddeder).
++ */
++export function renderReminderTemplate(template: string, v: ReminderVars): string {
++  const tag = localeTag(v.locale, v.timezone);
++  const when = new Date(v.startsAt);
++  const name = clean(v.customerName, 60);
++  const values: Record<string, string> = {
++    name,
++    first_name: firstName(name, tag),
++    business: clean(v.orgName, 80),
++    date: new Intl.DateTimeFormat(tag, { timeZone: v.timezone, weekday: 'long', day: 'numeric', month: 'long' }).format(when),
++    time: new Intl.DateTimeFormat(tag, { timeZone: v.timezone, hour: '2-digit', minute: '2-digit', hour12: tag === 'en-US' }).format(when),
++    doctor: clean(v.doctor, 80),
++    service: clean(v.service, 80),
++  };
++  const optional = new Set(['doctor', 'service']);
++  const lines: string[] = [];
++  for (const line of String(template ?? '').replace(/\r\n?/g, '\n').split('\n')) {
++    const names = [...line.matchAll(/\{([A-Za-z_]+)\}/g)].map((m) => m[1]);
++    if (names.some((n) => optional.has(n) && !values[n])) continue; // opsiyonel alan boş: satırı at
++    let out = line.replace(/\{([A-Za-z_]+)\}/g, (m, n: string) => (n in values ? values[n] : m));
++    out = out.replace(/[ \t]+([,.!?:;])/g, '$1').replace(/[ \t]{2,}/g, ' ').replace(/[ \t]+$/g, '');
++    lines.push(out);
++  }
++  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1000);
++}
+-- 
+2.43.0
+
