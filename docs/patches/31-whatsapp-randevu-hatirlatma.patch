@@ -1,0 +1,216 @@
+From 2bf414c6b761c554f2ae51ad65c7a664331b254c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 8 Oct 2026 09:29:35 +0000
+Subject: [PATCH] feat(reminders): WhatsApp randevu hatirlatma Edge Function ve
+ mesaj yardimcilari
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ .../functions/appointment-reminders/index.ts  | 89 +++++++++++++++++++
+ .../shared/reminders/reminderMessage.test.ts  | 42 +++++++++
+ .../shared/reminders/reminderMessage.ts       | 47 ++++++++++
+ 3 files changed, 178 insertions(+)
+ create mode 100644 supabase/functions/appointment-reminders/index.ts
+ create mode 100644 supabase/functions/shared/reminders/reminderMessage.test.ts
+ create mode 100644 supabase/functions/shared/reminders/reminderMessage.ts
+
+diff --git a/supabase/functions/appointment-reminders/index.ts b/supabase/functions/appointment-reminders/index.ts
+new file mode 100644
+index 0000000..4b909d0
+--- /dev/null
++++ b/supabase/functions/appointment-reminders/index.ts
+@@ -0,0 +1,89 @@
++import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
++import { createClient } from "npm:@supabase/supabase-js@2";
++import { WahaClient } from "../shared/infrastructure/clients/WahaClient.ts";
++import { buildReminderText, chatIdFromDigits, maskChatId } from "../shared/reminders/reminderMessage.ts";
++
++/**
++ * WhatsApp randevu hatırlatma. pg_cron ile ~10 dk'da bir çağrılır (yalnız service-role).
++ * Hangi randevuya mesaj gideceğine veritabanı karar verir (claim_due_reminders): açık işletme, Approved randevu,
++ * zaman penceresi, sessiz saatler, tekrar yok. Bu fonksiyon yalnız gönderir ve sonucu kaydeder.
++ * Gövde (isteğe bağlı): { dryRun: true } → hiçbir şey göndermez/kaydetmez, gönderilecekleri (telefon maskeli) listeler.
++ */
++
++const MAX_RUN_MS = 100_000;
++const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
++const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
++
++serve(async (req) => {
++  const supabaseUrl = Deno.env.get("SUPABASE_URL");
++  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
++  if (!supabaseUrl || !serviceKey) return json({ error: "CONFIG_MISSING" }, 500);
++
++  const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
++  if (token !== serviceKey) return json({ error: "Forbidden: service-role only" }, 403);
++
++  const body = await req.json().catch(() => ({}));
++  const dryRun = body?.dryRun === true;
++  const limit = Math.min(50, Math.max(1, Math.floor(Number(body?.limit) || 20)));
++
++  const supabase = createClient(supabaseUrl, serviceKey);
++  const { data: rows, error } = await supabase.rpc("claim_due_reminders", { p_limit: limit, p_dry: dryRun });
++  if (error) {
++    console.error("[appointment-reminders] claim hatası:", error.message);
++    return json({ error: "CLAIM_FAILED" }, 500);
++  }
++  const items = (rows ?? []) as any[];
++
++  if (dryRun) {
++    return json({
++      dryRun: true,
++      count: items.length,
++      items: items.map((r) => {
++        const chatId = chatIdFromDigits(r.phone_digits);
++        return {
++          appointmentId: r.appointment_id,
++          to: chatId ? maskChatId(chatId) : null,
++          text: buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service }),
++        };
++      }),
++    });
++  }
++
++  const waha = new WahaClient();
++  const started = Date.now();
++  let sent = 0, failed = 0, skipped = 0;
++
++  for (const r of items) {
++    if (Date.now() - started > MAX_RUN_MS) {
++      await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "failed", p_error: "Süre doldu; sonraki çalışmada denenecek" });
++      failed++;
++      continue;
++    }
++    const chatId = chatIdFromDigits(r.phone_digits);
++    if (!chatId) {
++      await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "skipped", p_error: "Geçersiz telefon" });
++      skipped++;
++      continue;
++    }
++    const text = buildReminderText({ orgName: r.org_name, customerName: r.customer_name, startsAt: r.starts_at, timezone: r.timezone, doctor: r.doctor, service: r.service });
++    try {
++      await waha.sendWhatsAppMessage(r.owner_id, chatId, text);
++      await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "sent", p_error: null });
++      sent++;
++      // Denetim: gönderilen mesaj konuşma günlüğüne düşer (hata sessizce yutulur).
++      try {
++        await supabase.from("ai_communication_logs").insert({ platform: "whatsapp", sender_id: chatId, user_message: "[randevu hatırlatma]", ai_response: text, org_id: r.org_id });
++      } catch (_e) { /* günlük yazılamasa da gönderim başarılıdır */ }
++    } catch (e: any) {
++      const msg = String(e?.message ?? e).slice(0, 300);
++      console.error(`[appointment-reminders] gönderilemedi (${maskChatId(chatId)}):`, msg);
++      await supabase.rpc("mark_reminder_result", { p_id: r.reminder_id, p_status: "failed", p_error: msg });
++      failed++;
++    }
++    // WhatsApp'ın toplu gönderim algısını önlemek için mesajlar arasında kısa, değişken bekleme.
++    await sleep(1500 + Math.floor(Math.random() * 1500));
++  }
++
++  console.log(`[appointment-reminders] claimed=${items.length} sent=${sent} failed=${failed} skipped=${skipped}`);
++  return json({ claimed: items.length, sent, failed, skipped });
++});
+diff --git a/supabase/functions/shared/reminders/reminderMessage.test.ts b/supabase/functions/shared/reminders/reminderMessage.test.ts
+new file mode 100644
+index 0000000..06da17c
+--- /dev/null
++++ b/supabase/functions/shared/reminders/reminderMessage.test.ts
+@@ -0,0 +1,42 @@
++// Çalıştırma: deno test --no-check --allow-all supabase/functions/shared/reminders/reminderMessage.test.ts
++import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
++import { buildReminderText, chatIdFromDigits, maskChatId } from "./reminderMessage.ts";
++
++Deno.test("chatIdFromDigits: Türkiye biçimleri 90 ile tamamlanır, geçersizler null", () => {
++  assertEquals(chatIdFromDigits("905051478877"), "905051478877@c.us");
++  assertEquals(chatIdFromDigits("5051478877"), "905051478877@c.us");
++  assertEquals(chatIdFromDigits("05051478877"), "905051478877@c.us");
++  assertEquals(chatIdFromDigits("+90 505 147 88 77"), "905051478877@c.us");
++  assertEquals(chatIdFromDigits("4915112345678"), "4915112345678@c.us"); // yabancı numara
++  assertEquals(chatIdFromDigits("12345"), null);
++  assertEquals(chatIdFromDigits("90505147"), null); // eksik TR numarası
++  assertEquals(chatIdFromDigits(null), null);
++  assertEquals(chatIdFromDigits(""), null);
++});
++
++Deno.test("hatırlatma metni: işletme saat diliminde gün/saat, doktor ve işlem satırları", () => {
++  // 2026-10-09 07:30 UTC = İstanbul 10:30 (Cuma)
++  const t = buildReminderText({ orgName: "Demo Klinik", customerName: "ahmet yavuz", startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul", doctor: "Dr.Salih GÜNEY", service: "Kontrol" });
++  const lines = t.split("\n");
++  assertEquals(lines[0], "Merhaba Ahmet,");
++  assertEquals(lines[1], "Demo Klinik olarak 9 Ekim Cuma saat 10:30 randevunuzu hatırlatmak isteriz.");
++  assertEquals(lines[2], "Doktor: Dr.Salih GÜNEY");
++  assertEquals(lines[3], "İşlem: Kontrol");
++  assertEquals(lines[4].startsWith("Randevunuzla ilgili"), true);
++});
++
++Deno.test("hatırlatma metni: eksik alanlarda satır atlanır, uydurma yok", () => {
++  const t = buildReminderText({ startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul" });
++  assertEquals(t.split("\n")[0], "Merhaba,");
++  assertEquals(t.includes("Doktor:"), false);
++  assertEquals(t.includes("İşlem:"), false);
++  assertEquals(t.includes("undefined") || t.includes("null"), false);
++});
++
++Deno.test("hatırlatma metni: Türkçe büyük/küçük harf (İ/ı) doğru", () => {
++  assertEquals(buildReminderText({ customerName: "İBRAHİM kaya", startsAt: "2026-10-09T07:30:00Z", timezone: "Europe/Istanbul" }).split("\n")[0], "Merhaba İbrahim,");
++});
++
++Deno.test("maskChatId: telefon yalnız son 4 hane görünür", () => {
++  assertEquals(maskChatId("905051478877@c.us"), "********8877");
++});
+diff --git a/supabase/functions/shared/reminders/reminderMessage.ts b/supabase/functions/shared/reminders/reminderMessage.ts
+new file mode 100644
+index 0000000..d69ce5d
+--- /dev/null
++++ b/supabase/functions/shared/reminders/reminderMessage.ts
+@@ -0,0 +1,47 @@
++/** WhatsApp randevu hatırlatma: saf (test edilebilir) yardımcılar. */
++
++export interface ReminderMessageInput {
++  orgName?: string | null;
++  customerName?: string | null;
++  startsAt: Date | string;
++  timezone: string;
++  doctor?: string | null;
++  service?: string | null;
++}
++
++/** normalize_phone çıktısı (yalnız rakam) → WhatsApp sohbet kimliği; geçersizse null. Türkiye yerel biçimleri (5XXXXXXXXX, 05XXXXXXXXX) 90 ile tamamlanır. */
++export function chatIdFromDigits(raw: unknown): string | null {
++  let d = String(raw ?? '').replace(/\D/g, '');
++  if (/^05\d{9}$/.test(d)) d = '9' + d;        // 05XXXXXXXXX -> 905XXXXXXXXX
++  else if (/^5\d{9}$/.test(d)) d = '90' + d;   // 5XXXXXXXXX  -> 905XXXXXXXXX
++  if (!/^\d{10,15}$/.test(d)) return null;
++  if (d.startsWith('90') && d.length !== 12) return null; // Türkiye numarası tam 12 hane olmalı
++  return `${d}@c.us`;
++}
++
++function firstName(name: string | null | undefined): string {
++  const first = String(name ?? '').trim().split(/\s+/)[0] ?? '';
++  if (!first) return '';
++  return first.charAt(0).toLocaleUpperCase('tr-TR') + first.slice(1).toLocaleLowerCase('tr-TR');
++}
++
++export function buildReminderText(i: ReminderMessageInput): string {
++  const when = new Date(i.startsAt);
++  const day = new Intl.DateTimeFormat('tr-TR', { timeZone: i.timezone, weekday: 'long', day: 'numeric', month: 'long' }).format(when);
++  const time = new Intl.DateTimeFormat('tr-TR', { timeZone: i.timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(when);
++  const name = firstName(i.customerName);
++  const org = String(i.orgName ?? '').trim();
++  const lines: string[] = [];
++  lines.push(name ? `Merhaba ${name},` : 'Merhaba,');
++  lines.push(`${org ? org + ' olarak ' : ''}${day} saat ${time} randevunuzu hatırlatmak isteriz.`);
++  if (i.doctor) lines.push(`Doktor: ${i.doctor}`);
++  if (i.service) lines.push(`İşlem: ${i.service}`);
++  lines.push('Randevunuzla ilgili bir değişiklik için bu mesaja yazabilirsiniz. Sizi bekliyoruz!');
++  return lines.join('\n');
++}
++
++/** Günlüklerde telefonu açık yazmamak için. */
++export function maskChatId(chatId: string): string {
++  const d = chatId.replace(/@.*/, '');
++  return d.length <= 4 ? '****' : `${'*'.repeat(d.length - 4)}${d.slice(-4)}`;
++}
+-- 
+2.43.0
+
