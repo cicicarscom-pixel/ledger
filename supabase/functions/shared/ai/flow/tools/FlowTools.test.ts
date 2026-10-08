@@ -42,7 +42,7 @@ Deno.test("randevu özeti: işletme yalnız bağlamdan gelir, model argümanı y
   const day = (r.data as any).days[0];
   assertEquals(day.date, "2026-10-04");
   assertEquals(day.calendars, [{ name: "Dr. A", free: 2, booked: 1, blocked: 1 }]);
-  assertEquals(day.appointments, [{ time: "13:00", customer: "Ali", status: "Pending" }]);
+  assertEquals(day.appointments, [{ time: "13:00", customer: "Ali", calendar: null, service: null, status: "Pending" }]);
   assertEquals(log.rpc[0].fn, "_slot_grid_org");
   assertEquals(log.rpc[0].args.p_org, "ORG-A");
   assertEquals(log.eq.some(([c, v]) => c === "org_id" && v === "ORG-A"), true);
@@ -161,4 +161,68 @@ Deno.test("open_screen sonucundaki clientAction orkestratör sonucuna taşınır
   });
   const r = await orch.run(ctx, "randevuları aç");
   assertEquals(r.actions.map((a) => a.clientAction), [{ type: "navigate", screen: "randevu", route: "RandevuMain" }]);
+});
+
+
+Deno.test("randevu özeti: doktor/hizmet adlarının dolu gelmesi", async () => {
+  const { GetAppointmentsOverviewTool } = await import("./FlowTools.ts");
+  const admin: any = {
+    rpc: () => Promise.resolve({ data: [], error: null }),
+    from: (table: string) => {
+      const b: any = {
+        select: () => b, eq: () => b, in: () => b, gte: () => b, lte: () => b, order: () => b, limit: () => b,
+        then: (res: any) => {
+          if (table === 'appointments') {
+            return res({ data: [
+              { date: "2026-10-04T13:00:00", customer_name: "Ali", status: "Pending", calendar_id: 'c1', service_id: 's1' },
+              { date: "2026-10-04T14:00:00", customer_name: "Veli", status: "Pending", calendar_id: 'c2', service_id: 's1' }
+            ], error: null });
+          }
+          if (table === 'calendars') {
+            return res({ data: [{id: 'c1', name: 'Dr.A'}, {id: 'c2', name: 'Dr.B'}], error: null });
+          }
+          if (table === 'business_services') {
+            return res({ data: [{id: 's1', name: 'Muayene'}], error: null });
+          }
+          return res({ data: [], error: null });
+        }
+      };
+      return b;
+    }
+  };
+  const ctx: any = { organizationId: "ORG-A", customerId: "u1", now: new Date("2026-10-03T21:30:00Z"), timezone: "Europe/Istanbul" };
+  const r = await new GetAppointmentsOverviewTool(admin).execute(ctx, { date: "2026-10-04", days: 1 });
+  const appts = (r.data as any).days[0].appointments;
+  if (appts[0].calendar !== 'Dr.A' || appts[0].service !== 'Muayene') throw new Error("isimler çözülemedi 1");
+  if (appts[1].calendar !== 'Dr.B' || appts[1].service !== 'Muayene') throw new Error("isimler çözülemedi 2");
+});
+
+Deno.test("randevu özeti: takvim sorgusu hata verse bile randevuların dönmesi", async () => {
+  const { GetAppointmentsOverviewTool } = await import("./FlowTools.ts");
+  const admin: any = {
+    rpc: () => Promise.resolve({ data: [], error: null }),
+    from: (table: string) => {
+      const b: any = {
+        select: () => b, eq: () => b, in: () => b, gte: () => b, lte: () => b, order: () => b, limit: () => b,
+        then: (res: any) => {
+          if (table === 'appointments') {
+            return res({ data: [{ date: "2026-10-04T13:00:00", customer_name: "Ali", status: "Pending", calendar_id: 'c1', service_id: 's1' }], error: null });
+          }
+          if (table === 'calendars') {
+            return res({ data: null, error: new Error('db error') });
+          }
+          if (table === 'business_services') {
+            return res({ data: null, error: new Error('db error') });
+          }
+          return res({ data: [], error: null });
+        }
+      };
+      return b;
+    }
+  };
+  const ctx: any = { organizationId: "ORG-A", customerId: "u1", now: new Date("2026-10-03T21:30:00Z"), timezone: "Europe/Istanbul" };
+  const r = await new GetAppointmentsOverviewTool(admin).execute(ctx, { date: "2026-10-04", days: 1 });
+  const appts = (r.data as any).days[0].appointments;
+  if (appts[0].calendar !== null || appts[0].service !== null) throw new Error("hata durumunda null dönmeli");
+  if (r.status !== 'SUCCESS') throw new Error("status SUCCESS dönmeli");
 });

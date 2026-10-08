@@ -201,7 +201,7 @@ serve(async (req) => {
     let result;
     try {
       result = await orchestrator.run(context, llmMessage, history);
-        } catch (error: any) {
+    } catch (error: any) {
       console.error("[flow-ai-agent] orkestratör hatası:", error);
       if (String(error?.message || '').includes('boş yanıt')) {
         result = { text: 'Tam anlayamadım, biraz daha açık söyler misiniz?', actions: [], usage: { rounds: 0, toolCalls: 0 } };
