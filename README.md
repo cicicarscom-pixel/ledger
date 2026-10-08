@@ -1,4 +1,6 @@
 ## 🆕 Son Güncellemeler (Ekim 2026)
+- 08.10.2026 — WhatsApp hatırlatma: metni işletme yazar ({name}, {business}, {date}, {time}, {doctor}, {service}); mesaj dili seçilir (tr/en/de/fr/es); unvanlar koda gömülü değildir.
+
 - 08.10.2026 — WhatsApp randevu hatırlatma: onaylı randevulara 24 saat önce otomatik mesaj (işletme başına açılır/kapanır, varsayılan kapalı).
 
 - 08.10.2026 — Flow AI: müşteriler, finans özeti ve ödeme takvimi artık sorulabilir (salt okunur araçlar).
