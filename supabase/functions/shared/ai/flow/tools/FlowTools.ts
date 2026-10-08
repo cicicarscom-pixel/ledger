@@ -88,7 +88,7 @@ export class GetAppointmentsOverviewTool implements ITool {
 
 export class GetConnectedSocialAccountsTool implements ITool {
   readonly name = 'get_connected_social_accounts';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'İşletmeye bağlı sosyal medya hesaplarını (platform, kullanıcı adı, durum) listeler.';
   readonly riskLevel = 'READ' as const;
   readonly schema = { type: 'object', properties: {} };
   constructor(private readonly admin: any) {}
@@ -113,7 +113,7 @@ export class GetConnectedSocialAccountsTool implements ITool {
 
 export class OpenScreenTool implements ITool {
   readonly name = 'open_screen';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Uygulamada bir ekranı açar. Kullanıcı "şuraya git/aç" dediğinde kullan.';
   readonly riskLevel = 'PREPARE' as const;
   readonly schema = {
     type: 'object',
@@ -130,7 +130,7 @@ export class OpenScreenTool implements ITool {
 
 export class HighlightTool implements ITool {
   readonly name = 'highlight';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Açık ekrandaki bir öğeyi (ör. paylaş düğmesi) vurgular. Kullanıcıya adım adım yol gösterirken kullan.';
   readonly riskLevel = 'PREPARE' as const;
   readonly schema = {
     type: 'object',
@@ -153,7 +153,7 @@ export class HighlightTool implements ITool {
 
 export class StartGuideTool implements ITool {
   readonly name = 'start_guide';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Kullanıcı bir işi "birlikte yapalım" dediğinde adım adım rehber modunu başlatır: doğru ekranı açar ve sırayla öğeleri vurgular. Kullanıcı "anlat" derse bunu çağırma, get_help_topic adımlarını anlat.';
   readonly riskLevel = 'PREPARE' as const;
   readonly schema = {
     type: 'object',
@@ -177,7 +177,7 @@ const MAX_ACTIVE_DRAFTS = 20;
  */
 export class PreparePostDraftTool implements ITool {
   readonly name = 'prepare_post_draft';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Kullanıcı için gönderi (post) metni taslağı hazırlar ve AI Üretim ekranında açılmasını sağlar. Yayınlamaz; paylaşımı kullanıcı kendisi yapar.';
   readonly riskLevel = 'PREPARE' as const;
   readonly schema = {
     type: 'object',
@@ -220,7 +220,7 @@ export class PreparePostDraftTool implements ITool {
  */
 export class GenerateCaptionTool implements ITool {
   readonly name = 'generate_caption';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Verilen konu/talimata göre bir gönderi metni (caption) yazar; platforma ve işletmenin marka sesine uyar. Yayınlamaz. Metni kullanıcıya göster; taslak istenirse prepare_post_draft ile kaydet.';
   readonly riskLevel = 'PREPARE' as const;
   readonly schema = {
     type: 'object',
@@ -247,7 +247,7 @@ export class GenerateCaptionTool implements ITool {
 
 export class GetHelpTopicTool implements ITool {
   readonly name = 'get_help_topic';
-  readonly description = 'İşletmenin belirli günler için randevu doluluğunu ve randevularını özetler. Her randevu için müşteri, takvim (doktor/çalışan) ve hizmet adı döner; "X\'in randevusu kimde/kiminle" sorularını bu araçla yanıtla.';
+  readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
   readonly riskLevel = 'READ' as const;
   readonly schema = {
     type: 'object',
