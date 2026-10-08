@@ -8,6 +8,11 @@ Hatırlatma metnini işletme sahibi kendisi yazabilsin; uygulama uluslararası o
 - Edge Function artık metni `claim_due_reminders_v2`'den gelen şablondan üretir. Unvan kodda YOK (cinsiyet tahmin edilmez; işletme isterse şablonuna "Sayın {name}" ya da "Dear Mr./Mrs. {name}" yazar). Doktor/işlem boşsa o satır çıkar; tarih/saat dile göre biçimlenir.
 - Eski `claim_due_reminders` veritabanında bırakıldı (kullanılmaz; canlıda DROP komutları takıldığı için).
 
+## GÜNCEL DURUM (08.10.2026, kullanıcı kararı) — BUNLARA DOKUNMA
+- WhatsApp hatırlatmaları **DURDURULDU** (uygulama henüz canlıda değil): pg_cron işi `appointment-reminders-job` PASİF, hiçbir işletmede hatırlatma AÇIK değil. Deploy sonrası da **zamanlayıcıyı açma, işletme ayarlarını değiştirme, veritabanına dokunma**. Zamanlayıcıyı yalnız Claude, kullanıcı "aç" dedikten sonra açar.
+- Eski `claim_due_reminders` veritabanından silindi; fonksiyon artık yalnız `claim_due_reminders_v2` kullanır (yama bunu zaten yapar). Bu yüzden bu talimatın deploy'u, zamanlayıcı açılmadan ÖNCE bitmiş olmalıdır.
+- Deploy edildikten sonra fonksiyonu elle ÇAĞIRMA (gerçek mesaj gönderebilir). Doğrulamayı Claude yapar.
+
 ## Adımlar
 1. K1 başlangıç: `main`'de, temiz. `git fetch origin` + `git merge origin/claude/new-session-hrbrhq` (migration ve yama buradan gelir; migration'ı ÇALIŞTIRMA).
 2. `git am --3way docs/patches/34-hatirlatma-sablon-ve-dil.patch` (içeriği değiştirme).

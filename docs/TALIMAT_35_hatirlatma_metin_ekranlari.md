@@ -4,6 +4,9 @@ Hazırlayan: Claude, 08.10.2026. Ortak kurallar: `TALIMAT_00`. Betik/regex/toplu
 
 **Önce Talimat 34** (Edge Function) bitmiş ve ONAYLANMIŞ olmalı; bu iş ondan bağımsız uygulanabilir ama kullanıcıya birlikte teslim edilir.
 
+## GÜNCEL DURUM (08.10.2026, kullanıcı kararı)
+Hatırlatmalar şu an DURDURULMUŞTUR (zamanlayıcı pasif, hiçbir işletmede açık değil). Bu talimat yalnız ekran ekler; ekranları test ederken hatırlatma düğmesini AÇMA/KAPATMA deneme amaçlı bile olsa gerçek hesapta yapma. Veritabanına, zamanlayıcıya ve Edge Function'lara dokunma.
+
 ## Ne yapılıyor
 Hatırlatma açıkken, düğmenin altında:
 - **Mesaj dili** seçimi (Türkçe / English / Deutsch / Français / Español).
