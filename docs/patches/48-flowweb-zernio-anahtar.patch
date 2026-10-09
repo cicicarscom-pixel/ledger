@@ -1,0 +1,42 @@
+From a5a5a0ba36a028b381f859f293041b6ba5bf6ea7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 08:24:12 +0000
+Subject: [PATCH] fix(security): Zernio API anahtari NEXT_PUBLIC yedegi
+ kaldirildi (Kalite Faz 1A)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md             | 1 +
+ src/actions/zernio.ts | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index ac2bcf2..4ef66ab 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Güvenlik (Kalite Faz 1A):** `actions/zernio.ts` Zernio API anahtarını artık yalnız sunucu değişkeni `ZERNIO_API_KEY`'den okur; tarayıcıya gömülen `NEXT_PUBLIC_ZERNIO_API_KEY` yedeği kaldırıldı.
+ - **[09.10.2026] Anasayfa "Yaklaşan Randevular":** boş durumda "Bugün için planlı randevu yok" yazıyordu (Bugünkü Randevular ile çelişiyordu); artık "Yaklaşan randevu veya rezervasyon bulunmuyor" (tr/en/de). Mobil zaten doğruydu.
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri randevularla senkron:** silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications` RPC'leri; web + mobil aynı kaynak).
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri:** "Raporları Temizle" düğmesi eklendi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez; tr/en/de). Veritabanı: `clear_appointment_notifications()`.
+diff --git a/src/actions/zernio.ts b/src/actions/zernio.ts
+index 4450067..aea452a 100644
+--- a/src/actions/zernio.ts
++++ b/src/actions/zernio.ts
+@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
+ import { revalidatePath } from 'next/cache'
+ import { getTranslations } from 'next-intl/server'
+ 
+-const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY || ''
++// Yalnız sunucu değişkeni: `NEXT_PUBLIC_*` adları tarayıcı paketine gömülür, gizli anahtar için KULLANILMAZ.
++const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY || ''
+ const ZERNIO_API_URL = 'https://api.zernio.com/v1'
+ 
+ export async function getZernioConnectUrl(platform: string, redirectUrl: string) {
+-- 
+2.43.0
+

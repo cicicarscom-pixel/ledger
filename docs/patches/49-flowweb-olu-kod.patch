@@ -1,0 +1,183 @@
+From ba6529de412f59995c274aa13b2d5f519fb8a547 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 08:24:27 +0000
+Subject: [PATCH] chore(cleanup): kullanilmayan sunucu islemleri ve
+ derlenemeyen arsiv dosyasi silindi (Kalite Faz 2)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                  |  1 +
+ docs/archive/test_appts.ts |  9 ----
+ src/actions/accounting.ts  | 91 --------------------------------------
+ src/actions/insights.ts    | 32 --------------
+ 4 files changed, 1 insertion(+), 132 deletions(-)
+ delete mode 100644 docs/archive/test_appts.ts
+ delete mode 100644 src/actions/accounting.ts
+ delete mode 100644 src/actions/insights.ts
+
+diff --git a/README.md b/README.md
+index ac2bcf2..4aae9fd 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Temizlik (Kalite Faz 2):** hiçbir yerden çağrılmayan ve tablo izinleriyle zaten çalışmayan sunucu işlemleri (`actions/accounting.ts`, `actions/insights.ts`) ile derlenemeyen eski `docs/archive/test_appts.ts` silindi; tam `tsc` artık hatasız.
+ - **[09.10.2026] Anasayfa "Yaklaşan Randevular":** boş durumda "Bugün için planlı randevu yok" yazıyordu (Bugünkü Randevular ile çelişiyordu); artık "Yaklaşan randevu veya rezervasyon bulunmuyor" (tr/en/de). Mobil zaten doğruydu.
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri randevularla senkron:** silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications` RPC'leri; web + mobil aynı kaynak).
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri:** "Raporları Temizle" düğmesi eklendi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez; tr/en/de). Veritabanı: `clear_appointment_notifications()`.
+diff --git a/docs/archive/test_appts.ts b/docs/archive/test_appts.ts
+deleted file mode 100644
+index 741a909..0000000
+--- a/docs/archive/test_appts.ts
++++ /dev/null
+@@ -1,9 +0,0 @@
+-import { getAppointmentsByDate } from './src/actions/appointments';
+-import { createClient } from './src/lib/supabase/server';
+-
+-async function test() {
+-  const res = await getAppointmentsByDate('2026-09-30');
+-  console.log('Appointments:', res.data?.length);
+-  console.log(res.data);
+-}
+-test();
+diff --git a/src/actions/accounting.ts b/src/actions/accounting.ts
+deleted file mode 100644
+index 6657f64..0000000
+--- a/src/actions/accounting.ts
++++ /dev/null
+@@ -1,91 +0,0 @@
+-'use server'
+-
+-import { createClient } from '@/lib/supabase/server'
+-import { revalidatePath } from 'next/cache'
+-
+-// Transactions Tablosu için Server Actions
+-export async function getTransactions() {
+-  const supabase = await createClient()
+-  const { data, error } = await supabase
+-    .from('transactions')
+-    .select('*')
+-    .order('created_at', { ascending: false })
+-
+-  if (error) {
+-    console.error('Error fetching transactions:', error)
+-    return []
+-  }
+-  return data
+-}
+-
+-export async function addTransaction(formData: FormData) {
+-  const supabase = await createClient()
+-  
+-  const title = formData.get('title') as string
+-  const type = formData.get('type') as string // 'income' or 'expense'
+-  const amount = parseFloat(formData.get('amount') as string)
+-  const date = formData.get('date') as string
+-  const payment_status = formData.get('payment_status') as string || 'paid'
+-
+-  const { error } = await supabase.rpc('create_finance_entry', {
+-    p_type: type,
+-    p_title: title,
+-    p_amount: amount,
+-    p_date: date,
+-    p_payment_status: payment_status
+-  })
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/accounting')
+-  return { success: true }
+-}
+-
+-export async function deleteTransaction(id: string) {
+-  const supabase = await createClient()
+-  
+-  const { error } = await supabase.from('transactions').delete().eq('id', id)
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/accounting')
+-  return { success: true }
+-}
+-
+-// Accounting Drafts (AI Muhasebe Fatura Taslakları - AGENTS.md Phase 3)
+-export async function getAccountingDrafts() {
+-  const supabase = await createClient()
+-  const { data, error } = await supabase
+-    .from('accounting_drafts')
+-    .select('*')
+-    .eq('status', 'pending_approval')
+-    .order('created_at', { ascending: false })
+-
+-  if (error) {
+-    console.error('Error fetching drafts:', error)
+-    return []
+-  }
+-  return data
+-}
+-
+-export async function approveDraft(draftId: string) {
+-  const supabase = await createClient()
+-  
+-  // Müşavir Onayı (Phase 4)
+-  // Gerçekte burada bir Edge Function veya RPC çağrısı da olabilir
+-  const { error } = await supabase
+-    .from('accounting_drafts')
+-    .update({ status: 'approved' })
+-    .eq('id', draftId)
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/accounting')
+-  return { success: true }
+-}
+diff --git a/src/actions/insights.ts b/src/actions/insights.ts
+deleted file mode 100644
+index ff50d13..0000000
+--- a/src/actions/insights.ts
++++ /dev/null
+@@ -1,32 +0,0 @@
+-'use server'
+-
+-import { createClient } from '@/lib/supabase/server'
+-
+-export async function getAnalyticsOverview(platform: string = 'all', timeRange: string = '30d') {
+-  const supabase = await createClient()
+-  
+-  // Örnek bir analitik metodu (Gerçek projede ZernioClient'tan cache'lenmiş data döner)
+-  const { data, error } = await supabase
+-    .from('analytics_cache')
+-    .select('*')
+-    .eq('platform', platform)
+-    .eq('time_range', timeRange)
+-    .single()
+-
+-  if (error) {
+-    console.error('Error fetching analytics:', error)
+-    return {
+-      totalPosts: 0,
+-      totalComments: 0,
+-      totalFollowers: 0,
+-      reviews: 0
+-    }
+-  }
+-
+-  return {
+-    totalPosts: data.total_posts || 0,
+-    totalComments: data.total_comments || 0,
+-    totalFollowers: data.total_followers || 0,
+-    reviews: data.reviews || 0
+-  }
+-}
+-- 
+2.43.0
+

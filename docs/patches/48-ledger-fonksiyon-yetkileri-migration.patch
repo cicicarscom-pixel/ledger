@@ -1,0 +1,56 @@
+From e76291079b8c14d6205e723b2fbf3d96ce9461ff Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 08:25:18 +0000
+Subject: [PATCH] feat(db): tetikleyici fonksiyonlarin anon/authenticated
+ EXECUTE haklari kaldirildi (Kalite Faz 1B)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ ...xecute_trigger_and_sensitive_functions.sql | 23 +++++++++++++++++++
+ 2 files changed, 24 insertions(+)
+ create mode 100644 supabase/migrations/20261009000003_revoke_public_execute_trigger_and_sensitive_functions.sql
+
+diff --git a/README.md b/README.md
+index e5fb1f8..b2f4995 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,5 @@
+ ## 🆕 Son Güncellemeler (Ekim 2026)
++- 09.10.2026 — Güvenlik (Kalite Faz 1B): tetikleyici olan 8 `SECURITY DEFINER` fonksiyonun REST/RPC erişimi kapatıldı; `get_financial_report_summary` ve `complete_onboarding` yalnız oturum açmış kullanıcıya açık (migration `…000003`).
+ - 09.10.2026 — Randevu bildirimleri randevularla senkron: `get_appointment_notifications(p_limit)` ve `count_unread_appointment_notifications()` silinen/iptal edilen randevunun bildirimini gizler (Anasayfa web + mobil).
+ - 09.10.2026 — `clear_appointment_notifications()` (Anasayfa "Raporları Temizle"): işletmenin randevu bildirimlerini siler; randevular ve konuşma kayıtları silinmez.
+ - 09.10.2026 — `persona-test` (AI Asistan "Canlı Test" simülasyonu) açılmıyordu ("Failed to send a request to the Edge Function"): kaynakta `serve` iki kez içe aktarılmıştı (`Identifier 'serve' has already been declared`, işçi açılışta çöküyordu). Yinelenen satır silindi; CI `check-names` artık yinelenen tanımı (TS2300) yakalıyor.
+diff --git a/supabase/migrations/20261009000003_revoke_public_execute_trigger_and_sensitive_functions.sql b/supabase/migrations/20261009000003_revoke_public_execute_trigger_and_sensitive_functions.sql
+new file mode 100644
+index 0000000..851f267
+--- /dev/null
++++ b/supabase/migrations/20261009000003_revoke_public_execute_trigger_and_sensitive_functions.sql
+@@ -0,0 +1,23 @@
++-- Kalite Faz 1B: Supabase güvenlik uyarısı (advisor 0028/0029) — "anon/oturum açmış kullanıcı SECURITY DEFINER fonksiyonu REST üzerinden çağırabiliyor".
++-- 1) Yalnız TETİKLEYİCİ olan 8 fonksiyondan tüm dış EXECUTE hakları alınır. PostgreSQL tetikleyici fonksiyonunun EXECUTE hakkını
++--    tetikleyici OLUŞTURULURKEN denetler, çalışırken denetlemez; yani tetikleyiciler aynen çalışır, yalnız /rest/v1/rpc/... ile çağrılamaz.
++--    Canlıda doğrulandı: hepsi `returns trigger`, hiçbiri RLS politikasında kullanılmıyor.
++-- 2) İki oturum gerektiren fonksiyondan yalnız `anon` hakkı alınır (oturum açmış kullanıcı çağırmaya devam eder):
++--    get_financial_report_summary (içeride auth.uid() null ise hata veriyordu), complete_onboarding (onboarding oturum açıkken yapılır).
++-- DOKUNULMAYANLAR (bilinçli): is_admin, org_today, check_accountant_document_access, current_org_id vb. — iç kontrollerde/politikalarda
++-- çağrılıyor olabilir; kaldırmak sorgu hatası üretebilir. Onlar ayrı, testli bir adımda ele alınır.
++-- GERİ ALMA (gerekirse): grant execute on function public.<ad>() to anon, authenticated;  (anon yalnız 2. maddedekiler için)
++
++revoke all on function public.handle_new_user() from public, anon, authenticated;
++revoke all on function public.sync_business_name_to_org() from public, anon, authenticated;
++revoke all on function public.sync_org_name_to_profile() from public, anon, authenticated;
++revoke all on function public.tr_appointment_ensure_customer() from public, anon, authenticated;
++revoke all on function public.tr_appointments_block_guard() from public, anon, authenticated;
++revoke all on function public.tr_atl_events() from public, anon, authenticated;
++revoke all on function public.tr_finance_document_to_transaction() from public, anon, authenticated;
++revoke all on function public.tr_transactions_normalize() from public, anon, authenticated;
++
++revoke all on function public.get_financial_report_summary(date) from public, anon;
++grant execute on function public.get_financial_report_summary(date) to authenticated, service_role;
++revoke all on function public.complete_onboarding(text, text, text) from public, anon;
++grant execute on function public.complete_onboarding(text, text, text) to authenticated, service_role;
+-- 
+2.43.0
+

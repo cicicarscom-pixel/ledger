@@ -1,0 +1,277 @@
+From c6af8a4e52f66d9a868e264b6b74d502b5064930 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 08:24:37 +0000
+Subject: [PATCH] chore(cleanup): kullanilmayan CommunicationLogs,
+ CustomerMapper ve toDateString silindi (Kalite Faz 2)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ .../infrastructure/mappers/CustomerMapper.ts  |  14 ---
+ .../presentation/hooks/useAppointments.ts     |   4 -
+ .../components/CommunicationLogsTable.js      | 110 ------------------
+ .../hooks/useCommunicationLogs.ts             |  86 --------------
+ 5 files changed, 1 insertion(+), 214 deletions(-)
+ delete mode 100644 src/modules/musteriler/infrastructure/mappers/CustomerMapper.ts
+ delete mode 100644 src/modules/sosyal_medya/presentation/components/CommunicationLogsTable.js
+ delete mode 100644 src/modules/sosyal_medya/presentation/hooks/useCommunicationLogs.ts
+
+diff --git a/README.md b/README.md
+index c11c06c..11d72a3 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Temizlik (Kalite Faz 2): kullanılmayan ve hatalı `CommunicationLogsTable.js` (tüm konuşma kayıtlarını silen eski "Raporları Temizle"), `useCommunicationLogs.ts`, `CustomerMapper.ts` ve kullanılmayan `toDateString` (UTC gün kayması) silindi; bu dosyalardaki 2 tip hatası da ortadan kalktı.
+ - 09.10.2026 — Anasayfa Randevu Bildirimleri randevularla senkron: silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications`).
+ - 09.10.2026 — Anasayfa "Randevu Bildirimleri": "Raporları Temizle" düğmesi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez). Veritabanı: `clear_appointment_notifications()`.
+ - 09.10.2026 — Canlı Test bilgilendirmesi: Bot Yönetimi'ndeki Canlı Test kartına "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+diff --git a/src/modules/musteriler/infrastructure/mappers/CustomerMapper.ts b/src/modules/musteriler/infrastructure/mappers/CustomerMapper.ts
+deleted file mode 100644
+index 64a3842..0000000
+--- a/src/modules/musteriler/infrastructure/mappers/CustomerMapper.ts
++++ /dev/null
+@@ -1,14 +0,0 @@
+-import { Customer } from '../../domain/entities/Customer';
+-
+-export class CustomerMapper {
+-  static toDomain(raw: any): Customer {
+-    return new Customer({
+-      id: raw.id,
+-      organizationId: raw.organization_id,
+-      phone: raw.phone,
+-      name: raw.name,
+-      notes: raw.notes,
+-      createdAt: raw.created_at,
+-    });
+-  }
+-}
+diff --git a/src/modules/randevu/presentation/hooks/useAppointments.ts b/src/modules/randevu/presentation/hooks/useAppointments.ts
+index bd68b0e..9ac69d8 100644
+--- a/src/modules/randevu/presentation/hooks/useAppointments.ts
++++ b/src/modules/randevu/presentation/hooks/useAppointments.ts
+@@ -12,10 +12,6 @@ export function extractTime(dateStr: string): string {
+   return "";
+ }
+ 
+-function toDateString(date: Date): string {
+-  return date.toISOString().split("T")[0];
+-}
+-
+ export interface UseAppointmentsResult {
+   daySchedule: any[];
+   refreshDaySchedule: (calId?: string) => Promise<void>;
+diff --git a/src/modules/sosyal_medya/presentation/components/CommunicationLogsTable.js b/src/modules/sosyal_medya/presentation/components/CommunicationLogsTable.js
+deleted file mode 100644
+index b30437d..0000000
+--- a/src/modules/sosyal_medya/presentation/components/CommunicationLogsTable.js
++++ /dev/null
+@@ -1,110 +0,0 @@
+-/* eslint-disable i18next/no-literal-string */
+-import React from 'react';
+-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+-import { Ionicons } from '@expo/vector-icons';
+-import { useCommunicationLogs } from '../hooks/useCommunicationLogs';
+-
+-export const CommunicationLogsTable = () => {
+-  const { logs, platformStats, loading, clearLogs } = useCommunicationLogs();
+-
+-  const StatsStrip = () => (
+-    platformStats.length > 0 ? (
+-      <View className="flex-row flex-wrap gap-2 mb-3 px-1">
+-        {platformStats.map((s) => (
+-          <View key={s.platform} className="bg-[#201D24] border border-white/10 rounded-full px-3 py-1.5 flex-row items-center gap-1.5">
+-            <Text className="text-white text-xs font-bold">{s.count}</Text>
+-            <Text className="text-white/50 text-[11px] capitalize">{s.platform}</Text>
+-          </View>
+-        ))}
+-        <View className="bg-[#22B573]/10 border border-[#22B573]/30 rounded-full px-3 py-1.5">
+-          <Text className="text-[#22B573] text-xs font-bold">
+-            Toplam: {platformStats.reduce((sum, s) => sum + s.count, 0)}
+-          </Text>
+-        </View>
+-      </View>
+-    ) : null
+-  );
+-
+-  if (loading) {
+-    return (
+-      <View className="flex-1 items-center justify-center p-4">
+-        <ActivityIndicator size="small" color="#22B573" />
+-      </View>
+-    );
+-  }
+-
+-  if (!logs || logs.length === 0) {
+-    return (
+-      <View className="mt-3 mb-4">
+-        <StatsStrip />
+-        <TouchableOpacity 
+-          className="bg-[#2A2631] border border-[#FF7A59]/50 rounded-xl overflow-hidden py-4 px-6 items-center flex-row justify-center"
+-          activeOpacity={0.7}
+-        >
+-          <Ionicons name="chatbubbles-outline" size={24} color="#FF7A59" className="mr-3" />
+-          <View>
+-            <Text className="text-white text-sm font-bold">İletişim Raporları</Text>
+-            <Text className="text-white/50 text-xs mt-1">Henüz bir iletişim geçmişi bulunmuyor.</Text>
+-          </View>
+-        </TouchableOpacity>
+-      </View>
+-    );
+-  }
+-
+-  const renderItem = ({ item, index }) => {
+-    const isWhatsApp = item.platform === 'whatsapp';
+-    const bgColor = index % 2 === 0 ? 'bg-white/5' : 'bg-transparent';
+-    const iconName = isWhatsApp ? 'logo-whatsapp' : 'logo-instagram';
+-    const iconColor = isWhatsApp ? '#25D366' : '#E1306C';
+-
+-    return (
+-      <View key={item.id} className={`p-3 border-b border-white/5 ${bgColor}`}>
+-        <View className="flex-row justify-between items-center mb-2">
+-          <View className="flex-row items-center gap-1.5">
+-            <Ionicons name={iconName} size={14} color={iconColor} />
+-            <Text className="text-[10px] text-white/40 uppercase tracking-wider">
+-              {(item.sender_name || item.sender_id).substring(0, 15)}...
+-            </Text>
+-          </View>
+-          <Text className="text-[9px] text-white/30">
+-            {new Date(item.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+-          </Text>
+-        </View>
+-        <Text className="text-white/80 text-xs mb-1.5" numberOfLines={2}>
+-          <Text className="font-bold">Soru: </Text>{item.user_message}
+-        </Text>
+-        <Text className="text-[#22B573]/80 text-xs" numberOfLines={2}>
+-          <Text className="font-bold">Yanıt: </Text>{item.ai_response}
+-        </Text>
+-      </View>
+-    );
+-  };
+-
+-  return (
+-    <View className="bg-[#201D24] border border-white/10 rounded-xl overflow-hidden mt-3 max-h-[350px]">
+-      <StatsStrip />
+-      <View className="bg-black/40 p-3 border-b border-white/5">
+-        <Text className="text-white/80 text-xs font-bold uppercase tracking-wider">
+-          <Ionicons name="list" size={12} color="#ffffff" /> İletişim Raporları
+-        </Text>
+-      </View>
+-      <ScrollView 
+-        nestedScrollEnabled={true}
+-        showsVerticalScrollIndicator={true}
+-        contentContainerStyle={{ paddingBottom: 10 }}
+-      >
+-        {logs.map((item, index) => renderItem({ item, index }))}
+-      </ScrollView>
+-      {/* Clear Logs Button */}
+-      <TouchableOpacity 
+-        onPress={clearLogs}
+-        className="bg-black/40 p-3 border-t border-white/5 items-center justify-center flex-row"
+-      >
+-        <Ionicons name="trash-outline" size={14} color="#EF4444" className="mr-2" />
+-        <Text className="text-[#EF4444] text-xs font-bold uppercase tracking-wider ml-1">
+-          Raporları Temizle
+-        </Text>
+-      </TouchableOpacity>
+-    </View>
+-  );
+-};
+diff --git a/src/modules/sosyal_medya/presentation/hooks/useCommunicationLogs.ts b/src/modules/sosyal_medya/presentation/hooks/useCommunicationLogs.ts
+deleted file mode 100644
+index 2d494cc..0000000
+--- a/src/modules/sosyal_medya/presentation/hooks/useCommunicationLogs.ts
++++ /dev/null
+@@ -1,86 +0,0 @@
+-import { useState, useEffect, useCallback } from 'react';
+-import { supabase } from '../../../../shared/lib/supabase';
+-import { getCurrentOrgId } from '../../../../lib/org';
+-
+-export interface CommunicationLog {
+-  id: string;
+-  merchant_id: string;
+-  platform: 'whatsapp' | 'social';
+-  sender_id: string;
+-  sender_name?: string;
+-  user_message: string;
+-  ai_response: string;
+-  created_at: string;
+-}
+-
+-export function useCommunicationLogs() {
+-  const [logs, setLogs] = useState<CommunicationLog[]>([]);
+-  const [platformStats, setPlatformStats] = useState<{ platform: string; count: number }[]>([]);
+-  const [loading, setLoading] = useState(true);
+-  const [error, setError] = useState<Error | null>(null);
+-
+-  const fetchLogs = useCallback(async () => {
+-    try {
+-      setLoading(true);
+-      const { data: { session } } = await supabase.auth.getSession();
+-      if (!session) throw new Error('No active session');
+-      const merchantId = session.user.id;
+-      const { data: orgMember } = await supabase.from('organization_members').select('organization_id').eq('user_id', merchantId).maybeSingle();
+-      const orgId = orgMember?.organization_id || merchantId;
+-      
+-      const { data, error: fetchError } = await supabase
+-        .from('ai_communication_logs')
+-        .select('*')
+-        .order('created_at', { ascending: false })
+-        .limit(50);
+-      
+-      if (fetchError) throw fetchError;
+-      setLogs(data || []);
+-      
+-      // Platform bazlı toplam sayaç
+-      const statsMap: Record<string, number> = {};
+-      (data || []).forEach(l => {
+-        const p = (l.platform || 'whatsapp').toLowerCase();
+-        statsMap[p] = (statsMap[p] || 0) + 1;
+-      });
+-      const { data: commentPlatforms } = await supabase.from('comments').select('platform').eq('profile_id', orgId);
+-      (commentPlatforms || []).forEach(c => {
+-        const p = (c.platform || 'diğer').toLowerCase();
+-        statsMap[p] = (statsMap[p] || 0) + 1;
+-      });
+-      const { data: messagePlatforms } = await supabase.from('messages').select('conversation_id, conversations(platform)').eq('profile_id', orgId);
+-      (messagePlatforms || []).forEach(m => {
+-        const p = (m.conversations?.platform || 'diğer').toLowerCase();
+-        statsMap[p] = (statsMap[p] || 0) + 1;
+-      });
+-      
+-      setPlatformStats(Object.entries(statsMap).map(([platform, count]) => ({ platform, count })).sort((a, b) => b.count - a.count));
+-    } catch (err: any) {
+-      setError(err);
+-      console.error('Error fetching communication logs:', err);
+-    } finally {
+-      setLoading(false);
+-    }
+-  }, []);
+-
+-  const clearLogs = useCallback(async () => {
+-    try {
+-      const { data: { session } } = await supabase.auth.getSession();
+-      if (!session) return;
+-      const orgId = await getCurrentOrgId(supabase);
+-      if (!orgId) return;
+-      const { error: deleteError } = await supabase.from('ai_communication_logs').delete().eq('org_id', orgId);
+-      if (deleteError) throw deleteError;
+-      setLogs([]);
+-      setPlatformStats([]);
+-    } catch (err) {
+-      console.error('Error clearing communication logs:', err);
+-    }
+-  }, []);
+-
+-  useEffect(() => {
+-    fetchLogs();
+-  }, [fetchLogs]);
+-
+-  return { logs, platformStats, loading, error, refetch: fetchLogs, clearLogs };
+-}
+-- 
+2.43.0
+
