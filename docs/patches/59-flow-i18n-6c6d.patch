@@ -1,0 +1,1162 @@
+From 8441f856a9b952c95960f27291b582bb3e2e5cbf Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 16:46:07 +0000
+Subject: [PATCH] feat(i18n): AiUretim, Analytics, Musteri ve sosyal medya
+ ekranlarindaki sabit metinler tr/en/de anahtarlarina tasindi (Kalite Faz
+ 6C/6D, mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ scripts/ci/eslint-baseline.json               |   2 +-
+ src/core/i18n/locales/de.json                 | 105 ++++++++++++++++-
+ src/core/i18n/locales/en.json                 | 105 ++++++++++++++++-
+ src/core/i18n/locales/tr.json                 | 105 ++++++++++++++++-
+ .../screens/MusteriDetayScreen.js             |  12 +-
+ .../presentation/screens/MusterilerScreen.js  |   4 +-
+ .../presentation/screens/AiUretimScreen.js    | 110 +++++++++---------
+ .../presentation/screens/AnalyticsScreen.js   |  80 ++++++-------
+ .../presentation/screens/ChatScreen.js        |   4 +-
+ .../presentation/screens/InboxScreen.js       |   2 +-
+ .../presentation/screens/SosyalMedyaScreen.js |   2 +-
+ 12 files changed, 409 insertions(+), 123 deletions(-)
+
+diff --git a/README.md b/README.md
+index 46a7c0b..a33f451 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Kalite Faz 6C/6D (i18n, mobil): `AiUretimScreen` (platform formları, ipuçları, zamanlama), `AnalyticsScreen` (kart başlıkları, tablo sütunları), Müşteri detayı ve listesi, Sohbet/Gelen Kutusu/Sosyal Medya ekranlarındaki ~110 sabit metin tr/en/de anahtarlarına taşındı (79 yeni anahtar). ESLint sabit-metin hataları 110 azaldı (211 → 101); çıta tabanı güncellendi. Marka adları (YouTube, Instagram…) ve para simgesi bilerek sabit bırakıldı.
+ - 09.10.2026 — Kalite Faz 5 (CI kapıları): CI artık `npm ci` + `tsc --noEmit` (hata olursa kırmızı) + ESLint çıtası çalıştırıyor. Çıta (`scripts/ci/eslint-ratchet.mjs`): hata/uyarı sayısı kayıtlı tabanı (211 hata, 122 uyarı; çoğu React Compiler kuralları ve i18n sabit metinleri) AŞAMAZ; temizlik yapıldıkça taban düşürülür. Yeni kod mevcut borcu artıramaz.
+ - 09.10.2026 — Kalite Faz 4 (mobil): `tsc --noEmit` 20 hata → 0. Gerçek hata düzeltildi: iptal edilen randevunun "iptal nedeni" varlığa hiç aktarılmıyordu, Randevular ekranındaki neden rozeti hiç görünmüyordu (`Appointment.cancelReason`). Ödeme Takvimi ekranı: ay sınırları `toISOString().split('T')` yerine `monthRangeYmd` ile, "bugün" işaretçisi cihazın değil işletmenin saat dilimine göre (`todayInTimezone`). 19 tekrarlı `import` birleştirildi; kullanılmayan import ve `catch` bağlayıcıları temizlendi (`no-unused-vars` 127 → 61). React Compiler kuralları ve i18n sabit metinleri sonraki fazlarda.
+ - 09.10.2026 — E-posta doğrulama akışı (mobil): doğrulama bağlantısı uygulamayı açınca kullanıcı GİRİŞ ekranına yönlendirilir ve "E-postanız doğrulandı" bildirimi görür (süresi dolmuş/kullanılmış bağlantı için ayrı mesaj); doğrulanmamış hesapla girişte ham İngilizce hata yerine Doğrulama ekranı açılır; Doğrulama ekranı tr/en/de çevrildi; kayıtta `locale` gönderilir (e-posta şablonu dile göre seçilir). Yeni: `src/shared/lib/authLink.js`.
+diff --git a/scripts/ci/eslint-baseline.json b/scripts/ci/eslint-baseline.json
+index f3d4f5e..29e9e31 100644
+--- a/scripts/ci/eslint-baseline.json
++++ b/scripts/ci/eslint-baseline.json
+@@ -1 +1 @@
+-{ "errors": 211, "warnings": 122 }
++{ "errors": 101, "warnings": 122 }
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 251c760..8b4d222 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -60,7 +60,8 @@
+       "yourAccounts": "Ihre verbundenen Konten",
+       "sync": "Synchronisieren",
+       "active": "Aktiv",
+-      "noAccountsYet": "Sie haben noch kein verbundenes Konto."
++      "noAccountsYet": "Sie haben noch kein verbundenes Konto.",
++      "connectNewAccount": "Neues Konto verbinden"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} ausgewählt",
+@@ -75,7 +76,8 @@
+         "messages": "Nachrichten",
+         "comments": "Kommentare",
+         "reviews": "Bewertungen"
+-      }
++      },
++      "selectAll": "Alle auswählen"
+     },
+     "bot": {
+       "title": "Bot-Verwaltung",
+@@ -183,7 +185,84 @@
+       "responseTimeMin": "12 Min",
+       "responseTimeAnalysis": "Antwortzeitanalyse",
+       "firstResponseText": "Erste Antwort auf Kundennachricht",
+-      "greatSpeed": "Sie sind super schnell!"
++      "greatSpeed": "Sie sind super schnell!",
++      "cards": {
++        "avgEngRate": "Ø Interaktionsrate",
++        "formatVideoImage": "Format (Video/Bild)",
++        "bestPost": "Bester Beitrag",
++        "followerGrowth": "Follower-Wachstum (Follower History)",
++        "followerGrowthSub": "Kumulative Follower-Entwicklung",
++        "topPosts": "Leistungsstärkste Beiträge",
++        "topPostsSub": "Ihre Beiträge mit der höchsten Interaktion",
++        "platformBreakdown": "Plattform-Aufschlüsselung",
++        "bestTimes": "Beste Zeiten zum Veröffentlichen",
++        "bestTimesSub": "Durchschnittliche Interaktion nach Wochentag und Uhrzeit",
++        "contentDecay": "Lebensdauer von Inhalten (Content Decay)",
++        "contentDecaySub": "Verteilung der Interaktionen nach der Veröffentlichung",
++        "frequencyVsER": "Veröffentlichungshäufigkeit vs. Interaktionsrate",
++        "frequencyVsERSub": "Einfluss der wöchentlichen Beitragszahl auf die durchschnittliche Interaktionsrate",
++        "engagementCount": "{{count}} Interaktionen"
++      },
++      "cols": {
++        "views": "Aufrufe",
++        "likes": "Gefällt mir",
++        "post": "Beitrag",
++        "comments": "Kommentare",
++        "shares": "Geteilt",
++        "saves": "Gespeichert",
++        "clicks": "Klicks",
++        "followers": "Follower",
++        "impressionsShort": "Impr.",
++        "reach": "Reichweite",
++        "erShort": "ER%",
++        "platform": "Plattform"
++      }
++    },
++    "aiUretim": {
++      "connectedAccounts": "Verbundene Konten (Plattformen)",
++      "noAccounts": "Noch kein Konto verbunden.",
++      "connectAccount": "Konto verbinden",
++      "titleOptional": "Titel (optional)",
++      "tagsOptional": "Tags (optional)",
++      "visibility": "Sichtbarkeit",
++      "category": "Kategorie",
++      "customCaptionOptional": "Eigene Beschreibung (optional)",
++      "storyNoticeMedia": "Der Inhalt verschwindet nach 24 Stunden. Medien (Bild oder Video) erforderlich.",
++      "firstCommentOptional": "Erster Kommentar (optional)",
++      "storyNoticeText": "Der Inhalt verschwindet nach 24 Stunden. Eingeschränkte Textunterstützung.",
++      "markAsAi": "Als KI-generiert markieren",
++      "markAsAiHint": "Fügt das KI-Inhaltslabel von Instagram hinzu. Verwenden Sie es, wenn die Medien ganz oder überwiegend mit KI erstellt wurden.",
++      "insert": "Einfügen",
++      "repostLinkedIn": "Einen LinkedIn-Beitrag erneut teilen",
++      "disableLinkPreview": "Link-Vorschau deaktivieren",
++      "thread": "Thread",
++      "threadHintTweet": "Der Haupttext wird zum ersten Tweet. Darunter kann ein Thread ergänzt werden.",
++      "remove": "Entfernen",
++      "tiktokDraft": "In TikTok-Entwürfen speichern",
++      "tiktokDraftHint": "Das Video wird nicht direkt veröffentlicht, sondern als Entwurf hochgeladen. Sie können in TikTok Musik hinzufügen und es selbst veröffentlichen.",
++      "pinterestTitleHint": "Nicht erforderlich. Bleibt das Feld leer, wird die erste Zeile des Haupttexts als Titel verwendet.",
++      "targetLinkOptional": "Ziel-Link (optional)",
++      "pinterestLinkHint": "Legt die URL fest, die beim Klick auf den Pin geöffnet wird.",
++      "threadHintPost": "Der Haupttext wird zum ersten Beitrag. Darunter kann ein Thread ergänzt werden.",
++      "callToAction": "Handlungsaufforderung",
++      "eventDetails": "Veranstaltungsdetails",
++      "spoiler": "Spoiler",
++      "inboxReplies": "Antworten im Posteingang",
++      "sendSilently": "Stumm senden (ohne Benachrichtigung)",
++      "publishing": "Veröffentlichung",
++      "scheduled": "Geplant",
++      "now": "Jetzt",
++      "dateTimeFormat": "Datum & Uhrzeit (TT.MM.JJJJ HH:MM)",
++      "timezone": "Zeitzone",
++      "selectCategory": "Kategorie auswählen",
++      "selectTimezone": "Zeitzone auswählen",
++      "liMentionTip1": "Personenerwähnungen erfordern, dass Ihr LinkedIn-Konto Administrator mindestens einer Organisation ist (Einschränkung der LinkedIn-API).",
++      "liMentionTip2": "Organisationserwähnungen (z. B. @Microsoft) funktionieren ohne diese Voraussetzung.",
++      "liMentionTip3": "Der Anzeigename muss exakt mit dem Profil übereinstimmen, damit die Erwähnung anklickbar ist.",
++      "liRepostTip1": "Holen Sie den Link über die Option „Link zum Beitrag kopieren“ des Beitrags (der Link in der Adressleiste funktioniert nicht).",
++      "liRepostTip2": "Der ursprüngliche Beitrag wird unter Ihrem Text eingebettet. Medien werden bei einem Repost nicht unterstützt.",
++      "tweetN": "Tweet {{n}}",
++      "addTweet": "+ Tweet hinzufügen {{n}}"
+     }
+   },
+   "muhasebe": {
+@@ -849,7 +928,15 @@
+     },
+     "notes": "Notizen",
+     "saved": "Gespeichert",
+-    "notesPlaceholder": "Notiz zum Kunden hinzufügen..."
++    "notesPlaceholder": "Notiz zum Kunden hinzufügen...",
++    "detail": {
++      "call": "Anrufen",
++      "appointment": "Termin",
++      "history": "Terminverlauf",
++      "noAppointments": "Keine Termine gefunden."
++    },
++    "fullName": "Vor- und Nachname",
++    "phoneLabel": "Telefon (+90 5XX ...)"
+   },
+   "updateGate": {
+     "title": "Update erforderlich",
+@@ -994,6 +1081,14 @@
+     "resetDefault": "Auf Standardtext zurücksetzen",
+     "unknownPlaceholder": "Unbekanntes Feld: {{list}}. Verwenden Sie nur die aufgeführten Felder.",
+     "tooLong": "Der Text darf höchstens 700 Zeichen lang sein.",
+-    "ph": {"name": "vollständiger Name", "first_name": "Vorname", "business": "Unternehmen", "date": "Datum", "time": "Uhrzeit", "doctor": "Mitarbeiter", "service": "Leistung"}
++    "ph": {
++      "name": "vollständiger Name",
++      "first_name": "Vorname",
++      "business": "Unternehmen",
++      "date": "Datum",
++      "time": "Uhrzeit",
++      "doctor": "Mitarbeiter",
++      "service": "Leistung"
++    }
+   }
+ }
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 14fabe6..7ec2d26 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -60,7 +60,8 @@
+       "yourAccounts": "Your Connected Accounts",
+       "sync": "Sync",
+       "active": "Active",
+-      "noAccountsYet": "You don't have any connected accounts yet."
++      "noAccountsYet": "You don't have any connected accounts yet.",
++      "connectNewAccount": "Connect New Account"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} Selected",
+@@ -75,7 +76,8 @@
+         "messages": "Messages",
+         "comments": "Comments",
+         "reviews": "Reviews"
+-      }
++      },
++      "selectAll": "Select All"
+     },
+     "bot": {
+       "title": "Bot Management",
+@@ -183,7 +185,84 @@
+       "responseTimeMin": "12 min",
+       "responseTimeAnalysis": "Response Time Analysis",
+       "firstResponseText": "First response to customer message",
+-      "greatSpeed": "You're at great speed!"
++      "greatSpeed": "You're at great speed!",
++      "cards": {
++        "avgEngRate": "Avg. Eng. Rate",
++        "formatVideoImage": "Format (Video/Image)",
++        "bestPost": "Best Post",
++        "followerGrowth": "Follower Growth (Follower History)",
++        "followerGrowthSub": "Cumulative follower growth",
++        "topPosts": "Top Performing Posts",
++        "topPostsSub": "Your posts with the most engagement",
++        "platformBreakdown": "Platform Breakdown",
++        "bestTimes": "Best Times to Post",
++        "bestTimesSub": "Average engagement by day of week and hour",
++        "contentDecay": "Content Lifespan (Content Decay)",
++        "contentDecaySub": "Distribution of engagement after posting",
++        "frequencyVsER": "Posting Frequency vs Engagement Rate",
++        "frequencyVsERSub": "Effect of weekly post count on average engagement rate",
++        "engagementCount": "{{count}} engagements"
++      },
++      "cols": {
++        "views": "Views",
++        "likes": "Likes",
++        "post": "Post",
++        "comments": "Comments",
++        "shares": "Shares",
++        "saves": "Saves",
++        "clicks": "Clicks",
++        "followers": "Followers",
++        "impressionsShort": "Impr.",
++        "reach": "Reach",
++        "erShort": "ER%",
++        "platform": "Platform"
++      }
++    },
++    "aiUretim": {
++      "connectedAccounts": "Connected Accounts (Platforms)",
++      "noAccounts": "No connected account yet.",
++      "connectAccount": "Connect Account",
++      "titleOptional": "Title (Optional)",
++      "tagsOptional": "Tags (optional)",
++      "visibility": "Visibility",
++      "category": "Category",
++      "customCaptionOptional": "Custom Caption (Optional)",
++      "storyNoticeMedia": "Content disappears after 24 hours. Requires media (image or video).",
++      "firstCommentOptional": "First Comment (Optional)",
++      "storyNoticeText": "Content disappears after 24 hours. Limited text support.",
++      "markAsAi": "Mark as AI-generated",
++      "markAsAiHint": "Adds Instagram's AI content label. Use it when the media is fully or largely created with AI.",
++      "insert": "Insert",
++      "repostLinkedIn": "Repost a LinkedIn post",
++      "disableLinkPreview": "Disable link preview",
++      "thread": "Thread",
++      "threadHintTweet": "The main text becomes the first tweet. A thread can be added below.",
++      "remove": "Remove",
++      "tiktokDraft": "Save to TikTok drafts",
++      "tiktokDraftHint": "The video is not published directly; it is uploaded as a draft. You can add music in TikTok and publish it yourself.",
++      "pinterestTitleHint": "Not required. If left empty, the first line of the main text becomes the title.",
++      "targetLinkOptional": "Destination Link (Optional)",
++      "pinterestLinkHint": "Sets the URL opened when the pin is clicked.",
++      "threadHintPost": "The main text becomes the first post. A thread can be added below.",
++      "callToAction": "Call To Action",
++      "eventDetails": "Event Details",
++      "spoiler": "Spoiler",
++      "inboxReplies": "Inbox Replies",
++      "sendSilently": "Send Silently (No Notification)",
++      "publishing": "Publishing",
++      "scheduled": "Scheduled",
++      "now": "Now",
++      "dateTimeFormat": "Date & time (DD.MM.YYYY HH:MM)",
++      "timezone": "Timezone",
++      "selectCategory": "Select Category",
++      "selectTimezone": "Select Timezone",
++      "liMentionTip1": "Person mentions require your LinkedIn account to be an admin of at least one organization (LinkedIn API restriction).",
++      "liMentionTip2": "Organization mentions (e.g. @Microsoft) work without this requirement.",
++      "liMentionTip3": "The display name must match their profile exactly for the mention to be clickable.",
++      "liRepostTip1": "Get the link with the post's \"Copy link to post\" option (the link in the address bar does not work).",
++      "liRepostTip2": "The original post is embedded below your text. Media is not supported in a repost.",
++      "tweetN": "Tweet {{n}}",
++      "addTweet": "+ add tweet {{n}}"
+     }
+   },
+   "muhasebe": {
+@@ -849,7 +928,15 @@
+     },
+     "notes": "Notes",
+     "saved": "Saved",
+-    "notesPlaceholder": "Add a note for this customer..."
++    "notesPlaceholder": "Add a note for this customer...",
++    "detail": {
++      "call": "Call",
++      "appointment": "Appointment",
++      "history": "Appointment History",
++      "noAppointments": "No appointments found."
++    },
++    "fullName": "Full name",
++    "phoneLabel": "Phone (+90 5XX ...)"
+   },
+   "updateGate": {
+     "title": "Update required",
+@@ -994,6 +1081,14 @@
+     "resetDefault": "Reset to default message",
+     "unknownPlaceholder": "Unknown field: {{list}}. Use only the listed fields.",
+     "tooLong": "The message can be at most 700 characters.",
+-    "ph": {"name": "full name", "first_name": "first name", "business": "business", "date": "date", "time": "time", "doctor": "staff", "service": "service"}
++    "ph": {
++      "name": "full name",
++      "first_name": "first name",
++      "business": "business",
++      "date": "date",
++      "time": "time",
++      "doctor": "staff",
++      "service": "service"
++    }
+   }
+ }
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index f8190b4..a667ff1 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -60,7 +60,8 @@
+       "yourAccounts": "Eklediğiniz Hesaplarınız",
+       "sync": "Senkronize Et",
+       "active": "Aktif",
+-      "noAccountsYet": "Henüz bağlı bir hesabınız bulunmuyor."
++      "noAccountsYet": "Henüz bağlı bir hesabınız bulunmuyor.",
++      "connectNewAccount": "Yeni Hesap Bağla"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} Seçildi",
+@@ -75,7 +76,8 @@
+         "messages": "Mesajlar",
+         "comments": "Yorumlar",
+         "reviews": "Değerlendirmeler"
+-      }
++      },
++      "selectAll": "Tümünü Seç"
+     },
+     "bot": {
+       "title": "Bot Yönetimi",
+@@ -183,7 +185,84 @@
+       "responseTimeMin": "12 dk",
+       "responseTimeAnalysis": "Yanıt Süresi Analizi",
+       "firstResponseText": "Müşteri mesajına ilk yanıtın verilmesi",
+-      "greatSpeed": "Harika bir hızdasınız!"
++      "greatSpeed": "Harika bir hızdasınız!",
++      "cards": {
++        "avgEngRate": "Ort. Etkileşim Oranı",
++        "formatVideoImage": "Format (Video/Görsel)",
++        "bestPost": "En İyi Gönderi",
++        "followerGrowth": "Takipçi Büyümesi (Follower History)",
++        "followerGrowthSub": "Kümülatif takipçi gelişimi",
++        "topPosts": "En İyi Performanslı Gönderiler",
++        "topPostsSub": "En çok etkileşim alan gönderileriniz",
++        "platformBreakdown": "Platform Kırılımı",
++        "bestTimes": "Paylaşım İçin En İyi Zamanlar",
++        "bestTimesSub": "Haftanın günleri ve saatlere göre ortalama etkileşim yoğunluğu",
++        "contentDecay": "İçerik Ömrü (Content Decay)",
++        "contentDecaySub": "Gönderi sonrası etkileşimlerin dağılımı",
++        "frequencyVsER": "Paylaşım Sıklığı vs Etkileşim Oranı",
++        "frequencyVsERSub": "Haftalık gönderi sayısının ortalama etkileşim oranına etkisi",
++        "engagementCount": "{{count}} Etkileşim"
++      },
++      "cols": {
++        "views": "Görüntülenme",
++        "likes": "Beğeni",
++        "post": "Gönderi",
++        "comments": "Yorum",
++        "shares": "Paylaşım",
++        "saves": "Kaydetme",
++        "clicks": "Tıklama",
++        "followers": "Takipçi",
++        "impressionsShort": "Göst.",
++        "reach": "Erişim",
++        "erShort": "EO%",
++        "platform": "Platform"
++      }
++    },
++    "aiUretim": {
++      "connectedAccounts": "Bağlantılı Hesaplar (Platformlar)",
++      "noAccounts": "Henüz bağlı bir hesap yok.",
++      "connectAccount": "Hesap Bağla",
++      "titleOptional": "Başlık (Opsiyonel)",
++      "tagsOptional": "Etiketler (Opsiyonel)",
++      "visibility": "Görünürlük",
++      "category": "Kategori",
++      "customCaptionOptional": "Özel Açıklama (Opsiyonel)",
++      "storyNoticeMedia": "İçerik 24 saat sonra kaybolur. Medya (görsel veya video) gerektirir.",
++      "firstCommentOptional": "İlk Yorum (Opsiyonel)",
++      "storyNoticeText": "İçerik 24 saat sonra kaybolur. Sınırlı metin desteği.",
++      "markAsAi": "AI ile üretildi olarak işaretle",
++      "markAsAiHint": "Instagram'ın AI içerik etiketini ekler. Medya tamamen veya büyük oranda AI ile oluşturulduğunda kullanın.",
++      "insert": "Ekle",
++      "repostLinkedIn": "Bir LinkedIn gönderisini yeniden paylaş",
++      "disableLinkPreview": "Bağlantı önizlemesini kapat",
++      "thread": "Zincir (thread)",
++      "threadHintTweet": "Ana metin ilk tweet olur. Altına zincir eklenebilir.",
++      "remove": "Kaldır",
++      "tiktokDraft": "TikTok taslaklarına kaydet",
++      "tiktokDraftHint": "Video direkt yayınlanmaz, taslak olarak yüklenir. İsterseniz TikTok üzerinden müzik ekleyip yayınlayabilirsiniz.",
++      "pinterestTitleHint": "Zorunlu değildir. Boş bırakılırsa ana metnin ilk satırı başlık yapılır.",
++      "targetLinkOptional": "Hedef Bağlantı (Opsiyonel)",
++      "pinterestLinkHint": "Pin'e tıklandığında gidilecek URL bağlantısını belirler.",
++      "threadHintPost": "Ana metin ilk gönderi olur. Altına zincir eklenebilir.",
++      "callToAction": "Harekete Geçirici Mesaj",
++      "eventDetails": "Etkinlik Ayrıntıları",
++      "spoiler": "Spoiler",
++      "inboxReplies": "Gelen Kutusuna Yanıtlar",
++      "sendSilently": "Sessiz Gönder (Bildirimsiz)",
++      "publishing": "Yayınlama",
++      "scheduled": "Planlı",
++      "now": "Şimdi",
++      "dateTimeFormat": "Tarih ve saat (GG.AA.YYYY SS:DD)",
++      "timezone": "Saat dilimi",
++      "selectCategory": "Kategori Seçin",
++      "selectTimezone": "Saat Dilimi Seçin",
++      "liMentionTip1": "Kişi etiketlemeleri (person mentions) LinkedIn hesabınızın en az bir organizasyonun yöneticisi olmasını gerektirir (LinkedIn API kısıtlaması).",
++      "liMentionTip2": "Organizasyon etiketlemeleri (örn. @Microsoft) bu gereksinim olmadan çalışır.",
++      "liMentionTip3": "Görünen isim (display name), etiketin tıklanabilir olması için profilleriyle tam olarak eşleşmelidir.",
++      "liRepostTip1": "Gönderinin \"Gönderi bağlantısını kopyala\" (Copy link to post) seçeneği ile bağlantıyı alın (adres çubuğundaki bağlantı çalışmaz).",
++      "liRepostTip2": "Orijinal gönderi, metninizin altına gömülür. Medya, bir yeniden paylaşımda (repost) desteklenmez.",
++      "tweetN": "Tweet {{n}}",
++      "addTweet": "+ tweet ekle {{n}}"
+     }
+   },
+   "muhasebe": {
+@@ -841,7 +920,15 @@
+     },
+     "notes": "Notlar",
+     "saved": "Kaydedildi",
+-    "notesPlaceholder": "Müşteri için not ekleyin..."
++    "notesPlaceholder": "Müşteri için not ekleyin...",
++    "detail": {
++      "call": "Ara",
++      "appointment": "Randevu",
++      "history": "Randevu Geçmişi",
++      "noAppointments": "Randevu bulunamadı."
++    },
++    "fullName": "İsim Soyisim",
++    "phoneLabel": "Telefon (+90 5XX ...)"
+   },
+   "updateGate": {
+     "title": "Güncelleme gerekli",
+@@ -986,6 +1073,14 @@
+     "resetDefault": "Varsayılan metne dön",
+     "unknownPlaceholder": "Bilinmeyen alan: {{list}}. Yalnızca listedeki alanları kullanın.",
+     "tooLong": "Metin en fazla 700 karakter olabilir.",
+-    "ph": {"name": "ad soyad", "first_name": "ilk ad", "business": "işletme", "date": "tarih", "time": "saat", "doctor": "uzman", "service": "işlem"}
++    "ph": {
++      "name": "ad soyad",
++      "first_name": "ilk ad",
++      "business": "işletme",
++      "date": "tarih",
++      "time": "saat",
++      "doctor": "uzman",
++      "service": "işlem"
++    }
+   }
+ }
+diff --git a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+index a33fd23..24e9d62 100644
+--- a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
++++ b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+@@ -107,10 +107,10 @@ export default function MusteriDetayScreen({ route, navigation }) {
+               <Text style={{ color: '#fff', fontWeight: 'bold' }}>WhatsApp</Text>
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => Linking.openURL(`tel:+${cleanPhone}`)} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}>
+-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Ara</Text>
++              <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('musteriler.detail.call')}</Text>
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Ai Asistan', params: { screen: 'RandevuMain' } })} style={{ flex: 1, backgroundColor: '#3b82f6', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}>
+-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Randevu</Text>
++              <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('musteriler.detail.appointment')}</Text>
+             </TouchableOpacity>
+           </View>
+ 
+@@ -132,8 +132,8 @@ export default function MusteriDetayScreen({ route, navigation }) {
+           {/* Notes */}
+           <View style={{ marginBottom: 24 }}>
+             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>Notlar</Text>
+-              {saved && <Text style={{ color: '#7ddba8', fontSize: 12 }}>Kaydedildi</Text>}
++              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>{t('musteriler.notes')}</Text>
++              {saved && <Text style={{ color: '#7ddba8', fontSize: 12 }}>{t('musteriler.saved')}</Text>}
+             </View>
+             <TextInput
+               value={notes}
+@@ -148,11 +148,11 @@ export default function MusteriDetayScreen({ route, navigation }) {
+ 
+           {/* Appointments */}
+           <View>
+-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>Randevu Geçmişi</Text>
++            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>{t('musteriler.detail.history')}</Text>
+             {loading ? (
+               <ActivityIndicator size="small" color="#FF7A59" />
+             ) : appointments.length === 0 ? (
+-              <Text style={{ color: '#A79E96', fontSize: 13 }}>Randevu bulunamadı.</Text>
++              <Text style={{ color: '#A79E96', fontSize: 13 }}>{t('musteriler.detail.noAppointments')}</Text>
+             ) : (
+               appointments.map(appt => (
+                 <View key={appt.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: appt.status === 'Approved' ? '#22c55e' : appt.status === 'Pending' ? '#eab308' : '#6b7280' }}>
+diff --git a/src/modules/musteriler/presentation/screens/MusterilerScreen.js b/src/modules/musteriler/presentation/screens/MusterilerScreen.js
+index 81e37d4..cadc3fa 100644
+--- a/src/modules/musteriler/presentation/screens/MusterilerScreen.js
++++ b/src/modules/musteriler/presentation/screens/MusterilerScreen.js
+@@ -162,13 +162,13 @@ export default function MusterilerScreen({ navigation }) {
+               <TouchableOpacity onPress={() => setIsAddOpen(false)}><MaterialIcons name="close" size={24} color="#A79E96" /></TouchableOpacity>
+             </View>
+             
+-            <Text style={{ color: '#A79E96', fontSize: 12, marginBottom: 8 }}>İsim Soyisim</Text>
++            <Text style={{ color: '#A79E96', fontSize: 12, marginBottom: 8 }}>{t('musteriler.fullName')}</Text>
+             <TextInput 
+               value={addName} onChangeText={setAddName} 
+               style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, color: '#fff', padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} 
+             />
+             
+-            <Text style={{ color: '#A79E96', fontSize: 12, marginBottom: 8 }}>Telefon (+90 5XX ...)</Text>
++            <Text style={{ color: '#A79E96', fontSize: 12, marginBottom: 8 }}>{t('musteriler.phoneLabel')}</Text>
+             <TextInput 
+               value={addPhone} onChangeText={setAddPhone} keyboardType="phone-pad"
+               style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, color: '#fff', padding: 16, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} 
+diff --git a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+index b4dab44..7b16b23 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+@@ -1072,13 +1072,13 @@ export default function AiUretimScreen({ route, navigation }) {
+         {/* Platforms Section */}
+         <FlowHighlight screen="ai_uretim" id="platform_selector" scrollRef={scrollRef} scrollYRef={scrollYRef} style={{ marginTop: 24, marginBottom: 24 }}>
+         <View>
+-          <Text className="text-[#A79E96] text-xs font-medium mb-3">Bağlantılı Hesaplar (Platformlar)</Text>
++          <Text className="text-[#A79E96] text-xs font-medium mb-3">{t('sosyalMedya.aiUretim.connectedAccounts')}</Text>
+           
+           {zernioAccounts.length === 0 ? (
+             <View className="items-center p-4 bg-[#2A2631]/30 rounded-lg border border-white/5">
+-              <Text className="text-[#A79E96]/70 text-xs mb-2">Henüz bağlı bir hesap yok.</Text>
++              <Text className="text-[#A79E96]/70 text-xs mb-2">{t('sosyalMedya.aiUretim.noAccounts')}</Text>
+               <TouchableOpacity onPress={() => navigation.navigate('SosyalMedya')}>
+-                <Text className="text-[#22B573] text-xs font-medium">Hesap Bağla</Text>
++                <Text className="text-[#22B573] text-xs font-medium">{t('sosyalMedya.aiUretim.connectAccount')}</Text>
+               </TouchableOpacity>
+             </View>
+           ) : (
+@@ -1135,7 +1135,7 @@ export default function AiUretimScreen({ route, navigation }) {
+                <Text className="text-[#F6F1EC] text-sm font-semibold ml-2">YouTube</Text>
+             </View>
+             
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">Başlık (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.titleOptional')}</Text>
+             <TextInput 
+                value={ytTitle} onChangeText={setYtTitle}
+                placeholder="Custom title for your video..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1144,14 +1144,14 @@ export default function AiUretimScreen({ route, navigation }) {
+             />
+             <Text className="text-[#A79E96]/50 text-[10px] text-right mb-2">{ytTitle.length}/100</Text>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">tags (optional)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.tagsOptional')}</Text>
+             <TextInput 
+                value={ytTags} onChangeText={setYtTags}
+                placeholder="Type a tag and press Enter..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+                className="bg-[#201D24]/50 border border-white/5 rounded-lg text-[#F6F1EC] text-sm px-3 py-2 mb-4"
+             />
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">visibility</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.visibility')}</Text>
+             <View className="flex-row rounded-lg border border-white/5 mb-4 overflow-hidden">
+                {['Public', 'Unlisted', 'Private'].map((opt) => (
+                  <TouchableOpacity 
+@@ -1165,7 +1165,7 @@ export default function AiUretimScreen({ route, navigation }) {
+                ))}
+             </View>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">category</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.category')}</Text>
+             <TouchableOpacity 
+                onPress={() => setYtCategoryModalVisible(true)}
+                className="flex-row items-center justify-between bg-[#201D24]/50 rounded-lg border border-white/5 px-3 py-3 mb-4"
+@@ -1174,7 +1174,7 @@ export default function AiUretimScreen({ route, navigation }) {
+                <MaterialIcons name="keyboard-arrow-down" size={18} color="#A79E96" />
+             </TouchableOpacity>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">Özel Açıklama (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+             <TextInput 
+                value={ytCustomCaption} onChangeText={setYtCustomCaption}
+                placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1206,10 +1206,10 @@ export default function AiUretimScreen({ route, navigation }) {
+             </View>
+ 
+             {fbFormat === 'Story' && (
+-               <Text className="text-[#A79E96]/70 text-[11px] mb-4">İçerik 24 saat sonra kaybolur. Medya (görsel veya video) gerektirir.</Text>
++               <Text className="text-[#A79E96]/70 text-[11px] mb-4">{t('sosyalMedya.aiUretim.storyNoticeMedia')}</Text>
+             )}
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">İlk Yorum (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.firstCommentOptional')}</Text>
+             <TextInput 
+                value={fbFirstComment} onChangeText={setFbFirstComment}
+                placeholder="İlk yoruma eklemek istediğiniz bağlantı veya notu girin..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1218,7 +1218,7 @@ export default function AiUretimScreen({ route, navigation }) {
+             />
+             <Text className="text-[#A79E96]/50 text-[10px] text-right mb-4">{fbFirstComment.length}/8000</Text>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">Özel Açıklama (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+             <TextInput 
+                value={fbCustomCaption} onChangeText={setFbCustomCaption}
+                placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1249,7 +1249,7 @@ export default function AiUretimScreen({ route, navigation }) {
+                </View>
+             </View>
+ 
+-            <Text className="text-[#A79E96]/70 text-[11px] mb-4">İçerik 24 saat sonra kaybolur. Sınırlı metin desteği.</Text>
++            <Text className="text-[#A79E96]/70 text-[11px] mb-4">{t('sosyalMedya.aiUretim.storyNoticeText')}</Text>
+ 
+             <TouchableOpacity 
+                onPress={() => setIgAiLabel(!igAiLabel)}
+@@ -1259,12 +1259,12 @@ export default function AiUretimScreen({ route, navigation }) {
+                   {igAiLabel && <MaterialIcons name="check" size={12} color="#1C3327" />}
+                </View>
+                <View className="flex-1">
+-                 <Text className="text-[#F6F1EC] text-[13px] font-medium">AI ile üretildi olarak işaretle</Text>
+-                 <Text className="text-[#A79E96]/70 text-[11px] mt-1">Instagram'ın AI içerik etiketini ekler. Medya tamamen veya büyük oranda AI ile oluşturulduğunda kullanın.</Text>
++                 <Text className="text-[#F6F1EC] text-[13px] font-medium">{t('sosyalMedya.aiUretim.markAsAi')}</Text>
++                 <Text className="text-[#A79E96]/70 text-[11px] mt-1">{t('sosyalMedya.aiUretim.markAsAiHint')}</Text>
+                </View>
+             </TouchableOpacity>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">İlk Yorum (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.firstCommentOptional')}</Text>
+             <TextInput 
+                value={igFirstComment} onChangeText={setIgFirstComment}
+                placeholder="İlk yoruma eklemek istediğiniz bağlantı veya notu girin..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1273,7 +1273,7 @@ export default function AiUretimScreen({ route, navigation }) {
+             />
+             <Text className="text-[#A79E96]/50 text-[10px] text-right mb-4">{igFirstComment.length}/2200</Text>
+ 
+-            <Text className="text-[#A79E96] text-xs font-medium mb-1">Özel Açıklama (Opsiyonel)</Text>
++            <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+             <TextInput 
+                value={igCustomCaption} onChangeText={setIgCustomCaption}
+                placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1304,13 +1304,13 @@ export default function AiUretimScreen({ route, navigation }) {
+              {showLiMentionTooltip && (
+                 <View className="bg-[#2A2631] border border-white/10 rounded-lg p-3 mb-2 z-20">
+                    <Text className="text-white text-[11px] mb-2 leading-4">
+-                     Kişi etiketlemeleri (person mentions) LinkedIn hesabınızın en az bir organizasyonun yöneticisi olmasını gerektirir (LinkedIn API kısıtlaması).
++                     {t('sosyalMedya.aiUretim.liMentionTip1')}
+                    </Text>
+                    <Text className="text-white text-[11px] mb-2 leading-4">
+-                     Organizasyon etiketlemeleri (örn. @Microsoft) bu gereksinim olmadan çalışır.
++                     {t('sosyalMedya.aiUretim.liMentionTip2')}
+                    </Text>
+                    <Text className="text-white text-[11px] leading-4">
+-                     Görünen isim (display name), etiketin tıklanabilir olması için profilleriyle tam olarak eşleşmelidir.
++                     {t('sosyalMedya.aiUretim.liMentionTip3')}
+                    </Text>
+                 </View>
+              )}
+@@ -1338,13 +1338,13 @@ export default function AiUretimScreen({ route, navigation }) {
+                   accessibilityRole="button"
+                   accessibilityLabel="Etiketi metne ekle"
+                 >
+-                  <Text className={`text-xs font-medium ${(liMentionUsername || liMentionDisplayName) ? 'text-white' : 'text-[#A79E96]/50'}`}>Insert</Text>
++                  <Text className={`text-xs font-medium ${(liMentionUsername || liMentionDisplayName) ? 'text-white' : 'text-[#A79E96]/50'}`}>{t('sosyalMedya.aiUretim.insert')}</Text>
+                 </TouchableOpacity>
+              </View>
+ 
+              {/* Repost section */}
+              <View className="flex-row items-center mb-1 z-10 mt-2">
+-                <Text className="text-[#A79E96] text-xs font-medium mr-1">Repost a LinkedIn post</Text>
++                <Text className="text-[#A79E96] text-xs font-medium mr-1">{t('sosyalMedya.aiUretim.repostLinkedIn')}</Text>
+                 <TouchableOpacity onPress={() => setShowLiRepostTooltip(!showLiRepostTooltip)}>
+                    <MaterialIcons name="info-outline" size={14} color="#A79E96" />
+                 </TouchableOpacity>
+@@ -1352,10 +1352,10 @@ export default function AiUretimScreen({ route, navigation }) {
+              {showLiRepostTooltip && (
+                 <View className="bg-[#2A2631] border border-white/10 rounded-lg p-3 mb-2 z-10">
+                    <Text className="text-white text-[11px] mb-2 leading-4">
+-                     Gönderinin "Gönderi bağlantısını kopyala" (Copy link to post) seçeneği ile bağlantıyı alın (adres çubuğundaki bağlantı çalışmaz).
++                     {t('sosyalMedya.aiUretim.liRepostTip1')}
+                    </Text>
+                    <Text className="text-white text-[11px] leading-4">
+-                     Orijinal gönderi, metninizin altına gömülür. Medya, bir yeniden paylaşımda (repost) desteklenmez.
++                     {t('sosyalMedya.aiUretim.liRepostTip2')}
+                    </Text>
+                 </View>
+              )}
+@@ -1373,10 +1373,10 @@ export default function AiUretimScreen({ route, navigation }) {
+                 <View className={`w-4 h-4 rounded-sm border mr-2 items-center justify-center ${liDisableLinkPreview ? 'bg-[#22B573] border-[#22B573]' : 'border-[#A79E96]/50 bg-transparent'}`}>
+                    {liDisableLinkPreview && <MaterialIcons name="check" size={12} color="#1C3327" />}
+                 </View>
+-                <Text className="text-[#F6F1EC] text-[13px]">Disable link preview</Text>
++                <Text className="text-[#F6F1EC] text-[13px]">{t('sosyalMedya.aiUretim.disableLinkPreview')}</Text>
+              </TouchableOpacity>
+ 
+-             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">İlk Yorum (Opsiyonel)</Text>
++             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">{t('sosyalMedya.aiUretim.firstCommentOptional')}</Text>
+              <TextInput 
+                 value={liFirstComment} onChangeText={setLiFirstComment}
+                 placeholder="Add a İlk Yorum (Opsiyonel) to boost engagement." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1385,7 +1385,7 @@ export default function AiUretimScreen({ route, navigation }) {
+              />
+              <Text className="text-[#A79E96]/50 text-[10px] text-right mb-4">{liFirstComment.length}/1250</Text>
+ 
+-             <Text className="text-[#A79E96] text-xs font-medium mb-1">Özel Açıklama (Opsiyonel)</Text>
++             <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+              <TextInput 
+                 value={liCustomCaption} onChangeText={setLiCustomCaption}
+                 placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1408,7 +1408,7 @@ export default function AiUretimScreen({ route, navigation }) {
+ 
+              {/* Thread Toggle */}
+              <View className="flex-row items-center justify-between mb-2">
+-                <Text className="text-[#A79E96] text-xs font-medium">thread</Text>
++                <Text className="text-[#A79E96] text-xs font-medium">{t('sosyalMedya.aiUretim.thread')}</Text>
+                 <TouchableOpacity
+                    activeOpacity={0.8} onPress={() => setTwIsThread(!twIsThread)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+@@ -1423,16 +1423,16 @@ export default function AiUretimScreen({ route, navigation }) {
+              
+              {twIsThread && (
+                 <View className="mb-4">
+-                   <Text className="text-[#A79E96]/70 text-[10px] mb-3">Ana metin ilk tweet olur. Altına zincir eklenebilir.</Text>
++                   <Text className="text-[#A79E96]/70 text-[10px] mb-3">{t('sosyalMedya.aiUretim.threadHintTweet')}</Text>
+                    
+                    {twThreadTweets.map((tweet, index) => (
+                       <View key={tweet.id} className="bg-[#2A2631] border border-white/5 rounded-lg p-3 mb-2">
+                          <View className="flex-row justify-between items-center mb-2">
+-                            <Text className="text-[#A79E96] text-xs font-medium text-dashed">Tweet {index + 2}</Text>
++                            <Text className="text-[#A79E96] text-xs font-medium text-dashed">{t('sosyalMedya.aiUretim.tweetN', { n: index + 2 })}</Text>
+                             <View className="flex-row items-center">
+                                <Text className="text-[#A79E96]/50 text-[10px] mr-2">{tweet.content.length}/280</Text>
+                                <TouchableOpacity onPress={() => removeTweet(tweet.id)}>
+-                                  <Text className="text-[#F59E0B] text-[10px]">remove</Text>
++                                  <Text className="text-[#F59E0B] text-[10px]">{t('sosyalMedya.aiUretim.remove')}</Text>
+                                </TouchableOpacity>
+                             </View>
+                          </View>
+@@ -1449,12 +1449,12 @@ export default function AiUretimScreen({ route, navigation }) {
+                    ))}
+                    
+                    <TouchableOpacity onPress={addTweet} className="py-2">
+-                      <Text className="text-[#A79E96] text-xs">+ add tweet {twThreadTweets.length + 2}</Text>
++                      <Text className="text-[#A79E96] text-xs">{t('sosyalMedya.aiUretim.addTweet', { n: twThreadTweets.length + 2 })}</Text>
+                    </TouchableOpacity>
+                 </View>
+              )}
+ 
+-             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">Özel Açıklama (Opsiyonel)</Text>
++             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+              <TextInput 
+                 value={twCustomCaption} onChangeText={setTwCustomCaption}
+                 placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1485,12 +1485,12 @@ export default function AiUretimScreen({ route, navigation }) {
+                    {ttSaveToInbox && <MaterialIcons name="check" size={12} color="#1C3327" />}
+                 </View>
+                 <View className="flex-1">
+-                  <Text className="text-[#F6F1EC] text-xs font-semibold mb-1">TikTok taslaklarına kaydet</Text>
+-                  <Text className="text-[#A79E96]/80 text-[10px] leading-4">Video direkt yayınlanmaz, taslak olarak yüklenir. İsterseniz TikTok üzerinden müzik ekleyip yayınlayabilirsiniz.</Text>
++                  <Text className="text-[#F6F1EC] text-xs font-semibold mb-1">{t('sosyalMedya.aiUretim.tiktokDraft')}</Text>
++                  <Text className="text-[#A79E96]/80 text-[10px] leading-4">{t('sosyalMedya.aiUretim.tiktokDraftHint')}</Text>
+                 </View>
+              </TouchableOpacity>
+ 
+-             <Text className="text-[#A79E96] text-xs font-medium mb-1">Özel Açıklama (Opsiyonel)</Text>
++             <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+              <TextInput 
+                value={ttCustomCaption} onChangeText={setTtCustomCaption}
+                placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1512,15 +1512,15 @@ export default function AiUretimScreen({ route, navigation }) {
+                  <Text className="text-[#F6F1EC] font-semibold text-sm">Pinterest</Text>
+                </View>
+ 
+-               <Text className="text-[#A79E96] text-xs font-medium mb-1">Başlık (Opsiyonel)</Text>
++               <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.titleOptional')}</Text>
+                <TextInput 
+                  value={pinTitle} onChangeText={setPinTitle}
+                  placeholder="Pin'iniz için özel bir başlık girin..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+                  className="bg-[#201D24]/50 border border-white/5 rounded-lg text-[#F6F1EC] text-sm px-3 py-2 mb-1"
+                />
+-               <Text className="text-[#A79E96]/60 text-[10px] mb-4">Zorunlu değildir. Boş bırakılırsa ana metnin ilk satırı başlık yapılır.</Text>
++               <Text className="text-[#A79E96]/60 text-[10px] mb-4">{t('sosyalMedya.aiUretim.pinterestTitleHint')}</Text>
+ 
+-               <Text className="text-[#A79E96] text-xs font-medium mb-1">Hedef Bağlantı (Opsiyonel)</Text>
++               <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.targetLinkOptional')}</Text>
+                <TextInput 
+                  value={pinLink} onChangeText={setPinLink}
+                  placeholder="https://example.com" placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1528,9 +1528,9 @@ export default function AiUretimScreen({ route, navigation }) {
+                  autoCapitalize="none"
+                  className="bg-[#201D24]/50 border border-white/5 rounded-lg text-[#F6F1EC] text-sm px-3 py-2 mb-1"
+                />
+-               <Text className="text-[#A79E96]/60 text-[10px] mb-4">Pin'e tıklandığında gidilecek URL bağlantısını belirler.</Text>
++               <Text className="text-[#A79E96]/60 text-[10px] mb-4">{t('sosyalMedya.aiUretim.pinterestLinkHint')}</Text>
+ 
+-               <Text className="text-[#A79E96] text-xs font-medium mb-1">Özel Açıklama (Opsiyonel)</Text>
++               <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+                <TextInput 
+                  value={pinCustomCaption} onChangeText={setPinCustomCaption}
+                  placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1552,7 +1552,7 @@ export default function AiUretimScreen({ route, navigation }) {
+ 
+              {/* Thread Toggle */}
+              <View className="flex-row items-center justify-between mb-2">
+-                <Text className="text-[#A79E96] text-xs font-medium">thread</Text>
++                <Text className="text-[#A79E96] text-xs font-medium">{t('sosyalMedya.aiUretim.thread')}</Text>
+                 <TouchableOpacity
+                    activeOpacity={0.8} onPress={() => setBskyIsThread(!bskyIsThread)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+@@ -1565,10 +1565,10 @@ export default function AiUretimScreen({ route, navigation }) {
+                 </TouchableOpacity>
+              </View>
+              {bskyIsThread && (
+-                <Text className="text-[#A79E96]/70 text-[10px] mb-4">Ana metin ilk gönderi olur. Altına zincir eklenebilir.</Text>
++                <Text className="text-[#A79E96]/70 text-[10px] mb-4">{t('sosyalMedya.aiUretim.threadHintPost')}</Text>
+              )}
+ 
+-             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">Özel Açıklama (Opsiyonel)</Text>
++             <Text className="text-[#A79E96] text-xs font-medium mb-1 mt-2">{t('sosyalMedya.aiUretim.customCaptionOptional')}</Text>
+              <TextInput
+                 value={bskyCustomCaption} onChangeText={setBskyCustomCaption}
+                 placeholder="Ana metni kullanmak için boş bırakın..." placeholderTextColor="rgba(185, 202, 203, 0.5)"
+@@ -1601,7 +1601,7 @@ export default function AiUretimScreen({ route, navigation }) {
+ 
+              {(gbpPostType === 'STANDARD' || gbpPostType === 'EVENT') && (
+                <View className="mb-3">
+-                 <Text className="text-[#A79E96] text-xs font-medium mb-1">Call To Action</Text>
++                 <Text className="text-[#A79E96] text-xs font-medium mb-1">{t('sosyalMedya.aiUretim.callToAction')}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-2">
+                     {['NONE', 'LEARN_MORE', 'BOOK', 'ORDER', 'SHOP', 'SIGN_UP', 'CALL'].map(cta => (
+                       <TouchableOpacity 
+@@ -1626,7 +1626,7 @@ export default function AiUretimScreen({ route, navigation }) {
+ 
+              {gbpPostType === 'EVENT' && (
+                <View className="mb-2 bg-[#2A2631]/30 p-2 rounded-lg border border-white/5">
+-                  <Text className="text-[#A79E96] text-[10px] font-medium mb-1">Event Details</Text>
++                  <Text className="text-[#A79E96] text-[10px] font-medium mb-1">{t('sosyalMedya.aiUretim.eventDetails')}</Text>
+                   <TextInput value={gbpEventTitle} onChangeText={setGbpEventTitle} placeholder="Event Title" placeholderTextColor="rgba(185, 202, 203, 0.5)" className="bg-[#201D24]/50 border border-white/5 rounded text-[#F6F1EC] text-xs px-2 py-1.5 mb-2" />
+                   <View className="flex-row space-x-2">
+                     <TextInput value={gbpEventStartDate} onChangeText={setGbpEventStartDate} placeholder="Start YYYY-MM-DD" placeholderTextColor="rgba(185, 202, 203, 0.5)" className="flex-1 bg-[#201D24]/50 border border-white/5 rounded text-[#F6F1EC] text-xs px-2 py-1.5 mr-1" />
+@@ -1682,13 +1682,13 @@ export default function AiUretimScreen({ route, navigation }) {
+                    <View className={`w-4 h-4 rounded-sm border mr-2 items-center justify-center ${redditSpoiler ? 'bg-[#FF4500] border-[#FF4500]' : 'border-[#A79E96]/50 bg-transparent'}`}>
+                       {redditSpoiler && <MaterialIcons name="check" size={12} color="#fff" />}
+                    </View>
+-                   <Text className="text-[#F6F1EC] text-xs">Spoiler</Text>
++                   <Text className="text-[#F6F1EC] text-xs">{t('sosyalMedya.aiUretim.spoiler')}</Text>
+                 </TouchableOpacity>
+                 <TouchableOpacity activeOpacity={0.8} onPress={() => setRedditSendReplies(!redditSendReplies)} className="flex-row items-center">
+                    <View className={`w-4 h-4 rounded-sm border mr-2 items-center justify-center ${redditSendReplies ? 'bg-[#FF4500] border-[#FF4500]' : 'border-[#A79E96]/50 bg-transparent'}`}>
+                       {redditSendReplies && <MaterialIcons name="check" size={12} color="#fff" />}
+                    </View>
+-                   <Text className="text-[#F6F1EC] text-xs">Inbox Replies</Text>
++                   <Text className="text-[#F6F1EC] text-xs">{t('sosyalMedya.aiUretim.inboxReplies')}</Text>
+                 </TouchableOpacity>
+              </View>
+           </View>
+@@ -1710,32 +1710,32 @@ export default function AiUretimScreen({ route, navigation }) {
+                 <View className={`w-4 h-4 rounded-sm border mr-2 items-center justify-center ${tgDisableNotification ? 'bg-[#2AABEE] border-[#2AABEE]' : 'border-[#A79E96]/50 bg-transparent'}`}>
+                    {tgDisableNotification && <MaterialIcons name="check" size={12} color="#fff" />}
+                 </View>
+-                <Text className="text-[#F6F1EC] text-xs">Send Silently (No Notification)</Text>
++                <Text className="text-[#F6F1EC] text-xs">{t('sosyalMedya.aiUretim.sendSilently')}</Text>
+              </TouchableOpacity>
+           </View>
+         )}
+ 
+         {/* Publishing Options Section */}
+         <View className="mb-6">
+-          <Text className="text-[#A79E96] text-xs font-medium mb-3">yayıncılık</Text>
++          <Text className="text-[#A79E96] text-xs font-medium mb-3">{t('sosyalMedya.aiUretim.publishing')}</Text>
+           <View className="flex-row bg-[#2A2631]/50 rounded-lg p-1 mb-4 border border-white/5">
+              <TouchableOpacity 
+                onPress={() => setPublishMode('schedule')}
+                className={`flex-1 items-center py-2 rounded-md ${publishMode === 'schedule' ? 'bg-[#34303C]' : ''}`}
+              >
+-               <Text className={`text-sm ${publishMode === 'schedule' ? 'text-white' : 'text-[#A79E96]'}`}>Planlı</Text>
++               <Text className={`text-sm ${publishMode === 'schedule' ? 'text-white' : 'text-[#A79E96]'}`}>{t('sosyalMedya.aiUretim.scheduled')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => setPublishMode('now')}
+                className={`flex-1 items-center py-2 rounded-md ${publishMode === 'now' ? 'bg-[#34303C]' : ''}`}
+              >
+-               <Text className={`text-sm ${publishMode === 'now' ? 'text-white' : 'text-[#A79E96]'}`}>Şimdi</Text>
++               <Text className={`text-sm ${publishMode === 'now' ? 'text-white' : 'text-[#A79E96]'}`}>{t('sosyalMedya.aiUretim.now')}</Text>
+              </TouchableOpacity>
+           </View>
+ 
+           {publishMode === 'schedule' && (
+             <>
+-              <Text className="text-[#A79E96] text-xs font-medium mb-2">tarih & saat (GG.AA.YYYY SS:DD)</Text>
++              <Text className="text-[#A79E96] text-xs font-medium mb-2">{t('sosyalMedya.aiUretim.dateTimeFormat')}</Text>
+               <View className="flex-row items-center justify-between bg-[#2A2631]/50 rounded-lg border border-white/5 p-3 mb-4">
+                  <TextInput
+                    value={scheduleDate}
+@@ -1748,7 +1748,7 @@ export default function AiUretimScreen({ route, navigation }) {
+                  <MaterialIcons name="calendar-today" size={18} color="#A79E96" />
+               </View>
+ 
+-              <Text className="text-[#A79E96] text-xs font-medium mb-2">timezone</Text>
++              <Text className="text-[#A79E96] text-xs font-medium mb-2">{t('sosyalMedya.aiUretim.timezone')}</Text>
+               <TouchableOpacity 
+                 onPress={() => setTimezoneModalVisible(true)}
+                 className="flex-row items-center justify-between bg-[#2A2631]/50 rounded-lg border border-white/5 p-3 mb-4"
+@@ -1822,7 +1822,7 @@ export default function AiUretimScreen({ route, navigation }) {
+         <View className="flex-1 bg-black/80 justify-end">
+           <View className="bg-[#2A2631] rounded-t-3xl h-[60%]">
+             <View className="flex-row justify-between items-center p-5 border-b border-white/10">
+-              <Text className="text-[#F6F1EC] text-lg font-semibold">Kategori Seçin</Text>
++              <Text className="text-[#F6F1EC] text-lg font-semibold">{t('sosyalMedya.aiUretim.selectCategory')}</Text>
+               <TouchableOpacity onPress={() => setYtCategoryModalVisible(false)}>
+                 <MaterialIcons name="close" size={24} color="#A79E96" />
+               </TouchableOpacity>
+@@ -1858,7 +1858,7 @@ export default function AiUretimScreen({ route, navigation }) {
+         <View className="flex-1 bg-black/80 justify-end">
+           <View className="bg-[#2A2631] rounded-t-3xl h-[60%]">
+             <View className="flex-row justify-between items-center p-5 border-b border-white/10">
+-              <Text className="text-[#F6F1EC] text-lg font-semibold">Timezone Seçin</Text>
++              <Text className="text-[#F6F1EC] text-lg font-semibold">{t('sosyalMedya.aiUretim.selectTimezone')}</Text>
+               <TouchableOpacity onPress={() => setTimezoneModalVisible(false)}>
+                 <MaterialIcons name="close" size={24} color="#A79E96" />
+               </TouchableOpacity>
+diff --git a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+index 4ae3677..aadf5cd 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+@@ -488,7 +488,7 @@ export default function AnalyticsScreen({ navigation }) {
+              <GlassCard style={{ flex: 1, marginLeft: 6, padding: 12, borderRadius: 12 }}>
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="analytics" size={12} color="#A79E96" style={{ marginRight: 4 }} />
+-                 <Text className="text-[#A79E96] text-[10px]">Avg. Eng. Rate</Text>
++                 <Text className="text-[#A79E96] text-[10px]">{t('sosyalMedya.analytics.cards.avgEngRate')}</Text>
+                </View>
+                <Text className="text-[#22B573] text-[16px] font-bold">%{overallEr}</Text>
+              </GlassCard>
+@@ -511,7 +511,7 @@ export default function AnalyticsScreen({ navigation }) {
+             <GlassCard style={{ flex: 1, marginRight: 6, padding: 12, borderRadius: 12 }}>
+               <View className="flex-row items-center mb-1">
+                 <Ionicons name="pie-chart" size={12} color="#A79E96" style={{ marginRight: 4 }} />
+-                <Text className="text-[#A79E96] text-[10px]">Format (Video/Görsel)</Text>
++                <Text className="text-[#A79E96] text-[10px]">{t('sosyalMedya.analytics.cards.formatVideoImage')}</Text>
+               </View>
+               <View className="flex-row items-baseline">
+                 <Text className="text-[#E8A8CD] text-[16px] font-bold">{formatVideo}</Text>
+@@ -538,13 +538,13 @@ export default function AnalyticsScreen({ navigation }) {
+               <GlassCard style={{ flex: 1, marginLeft: 6, padding: 12, borderRadius: 12 }}>
+                 <View className="flex-row items-center mb-1">
+                   <Ionicons name="star" size={12} color="#FFD700" style={{ marginRight: 4 }} />
+-                  <Text className="text-[#A79E96] text-[10px]">En İyi Gönderi</Text>
++                  <Text className="text-[#A79E96] text-[10px]">{t('sosyalMedya.analytics.cards.bestPost')}</Text>
+                 </View>
+                 <Text className="text-[#F6F1EC] text-[11px] font-bold mb-1" numberOfLines={1}>
+                   {bestPost.content || bestPost.title || 'Görsel Gönderi'}
+                 </Text>
+                 <Text className="text-[#FFD700] text-[9px] font-bold">
+-                  {totalE} Etkileşim
++                  {t('sosyalMedya.analytics.cards.engagementCount', { count: totalE })}
+                 </Text>
+               </GlassCard>
+             );
+@@ -554,7 +554,7 @@ export default function AnalyticsScreen({ navigation }) {
+             <GlassCard style={{ flex: 1, marginLeft: 6, padding: 12, borderRadius: 12 }}>
+               <View className="flex-row items-center mb-1">
+                 <Ionicons name="star" size={12} color="#A79E96" style={{ marginRight: 4 }} />
+-                <Text className="text-[#A79E96] text-[10px]">En İyi Gönderi</Text>
++                <Text className="text-[#A79E96] text-[10px]">{t('sosyalMedya.analytics.cards.bestPost')}</Text>
+               </View>
+               <Text className="text-[#F6F1EC] text-[16px] font-bold">--</Text>
+             </GlassCard>
+@@ -568,9 +568,9 @@ export default function AnalyticsScreen({ navigation }) {
+           <Text className="text-[#F6F1EC] text-[14px] font-bold">{t('sosyalMedya.analytics.engagementImpressions')}</Text>
+           <View className="flex-row items-center">
+              <View className="w-2 h-2 rounded-full bg-[#22B573] mr-1" />
+-             <Text className="text-[#A79E96] text-[8px] mr-3">Views</Text>
++             <Text className="text-[#A79E96] text-[8px] mr-3">{t('sosyalMedya.analytics.cols.views')}</Text>
+              <View className="w-2 h-2 rounded-full bg-[#C2478D] mr-1" />
+-             <Text className="text-[#A79E96] text-[8px]">Likes</Text>
++             <Text className="text-[#A79E96] text-[8px]">{t('sosyalMedya.analytics.cols.likes')}</Text>
+           </View>
+         </View>
+         <Text className="text-[#A79E96] text-[10px] mb-4">{t('sosyalMedya.analytics.changeOverTime')}</Text>
+@@ -628,9 +628,9 @@ export default function AnalyticsScreen({ navigation }) {
+           <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+             <View className="flex-row items-center mb-1">
+               <Ionicons name="trending-up" size={14} color={chartColor} style={{ marginRight: 4 }} />
+-              <Text className="text-[#F6F1EC] text-[14px] font-bold">Takipçi Büyümesi (Follower History)</Text>
++              <Text className="text-[#F6F1EC] text-[14px] font-bold">{t('sosyalMedya.analytics.cards.followerGrowth')}</Text>
+             </View>
+-            <Text className="text-[#A79E96] text-[10px] mb-4">Kümülatif takipçi gelişimi</Text>
++            <Text className="text-[#A79E96] text-[10px] mb-4">{t('sosyalMedya.analytics.cards.followerGrowthSub')}</Text>
+             
+             <View style={{marginLeft: -20}}>
+               <LineChart
+@@ -685,23 +685,23 @@ export default function AnalyticsScreen({ navigation }) {
+           tablosunda (bkz. width: 1090 deseni) zaten kullanılan yöntem. */}
+       {zernioData.postAnalytics && zernioData.postAnalytics.length > 0 && (
+         <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+-          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">Top Performing Posts</Text>
+-          <Text className="text-[#A79E96] text-[10px] mb-3">En çok etkileşim alan gönderileriniz</Text>
++          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">{t('sosyalMedya.analytics.cards.topPosts')}</Text>
++          <Text className="text-[#A79E96] text-[10px] mb-3">{t('sosyalMedya.analytics.cards.topPostsSub')}</Text>
+           <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+             <View style={{ width: 898 }}>
+               {/* Header */}
+               <View className="flex-row items-center pb-2 mb-2 border-b border-white/10">
+-                <Text className="text-[#A79E96] text-[10px] font-bold" style={{ width: 190 }}>Gönderi</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Beğeni</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>Yorum</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>Paylaşım</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>Kaydetme</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>Tıklama</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 96 }}>Görüntülenme</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Takipçi</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Impr.</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Erişim</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 56 }}>ER%</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold" style={{ width: 190 }}>{t('sosyalMedya.analytics.cols.post')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.likes')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>{t('sosyalMedya.analytics.cols.comments')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>{t('sosyalMedya.analytics.cols.shares')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>{t('sosyalMedya.analytics.cols.saves')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>{t('sosyalMedya.analytics.cols.clicks')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 96 }}>{t('sosyalMedya.analytics.cols.views')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.followers')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.impressionsShort')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.reach')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 56 }}>{t('sosyalMedya.analytics.cols.erShort')}</Text>
+               </View>
+               {/* Rows */}
+               {[...zernioData.postAnalytics]
+@@ -774,22 +774,22 @@ export default function AnalyticsScreen({ navigation }) {
+           Aynı yatay-kaydırılabilir-tablo deseni burada da kullanılıyor. */}
+       {zernioData.platformBreakdown && zernioData.platformBreakdown.length > 0 && selectedPlatform.id === 'all' && (
+         <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+-          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-3">Platform Kırılımı</Text>
++          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-3">{t('sosyalMedya.analytics.cards.platformBreakdown')}</Text>
+           <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+             <View style={{ width: 832 }}>
+               {/* Header */}
+               <View className="flex-row items-center pb-2 mb-2 border-b border-white/10">
+-                <Text className="text-[#A79E96] text-[10px] font-bold" style={{ width: 130 }}>Platform</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>Gönderi</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Beğeni</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>Yorum</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>Paylaşım</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>Kaydetme</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>Tıklama</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 96 }}>Görüntülenme</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Impr.</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>Erişim</Text>
+-                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 56 }}>ER%</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold" style={{ width: 130 }}>{t('sosyalMedya.analytics.cols.platform')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>{t('sosyalMedya.analytics.cols.post')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.likes')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>{t('sosyalMedya.analytics.cols.comments')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>{t('sosyalMedya.analytics.cols.shares')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 74 }}>{t('sosyalMedya.analytics.cols.saves')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 64 }}>{t('sosyalMedya.analytics.cols.clicks')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 96 }}>{t('sosyalMedya.analytics.cols.views')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.impressionsShort')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 70 }}>{t('sosyalMedya.analytics.cols.reach')}</Text>
++                <Text className="text-[#A79E96] text-[10px] font-bold text-right" style={{ width: 56 }}>{t('sosyalMedya.analytics.cols.erShort')}</Text>
+               </View>
+               {/* Rows */}
+               {zernioData.platformBreakdown.map((p, idx) => {
+@@ -852,8 +852,8 @@ export default function AnalyticsScreen({ navigation }) {
+           avg_engagement/maxEngagement, taban 0.1) web ile birebir aynıdır. */}
+       {zernioData.bestTimes && zernioData.bestTimes.length > 0 && (
+         <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+-          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">Paylaşım İçin En İyi Zamanlar</Text>
+-          <Text className="text-[#A79E96] text-[10px] mb-4">Haftanın günleri ve saatlere göre ortalama etkileşim yoğunluğu</Text>
++          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">{t('sosyalMedya.analytics.cards.bestTimes')}</Text>
++          <Text className="text-[#A79E96] text-[10px] mb-4">{t('sosyalMedya.analytics.cards.bestTimesSub')}</Text>
+           {(() => {
+             const dayNames = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+             const cellSize = 22;
+@@ -926,8 +926,8 @@ export default function AnalyticsScreen({ navigation }) {
+       {/* Phase 5: Content Decay */}
+       {zernioData.contentDecay && zernioData.contentDecay.length > 0 && (
+         <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+-          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">İçerik Ömrü (Content Decay)</Text>
+-          <Text className="text-[#A79E96] text-[10px] mb-4">Gönderi sonrası etkileşimlerin dağılımı</Text>
++          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">{t('sosyalMedya.analytics.cards.contentDecay')}</Text>
++          <Text className="text-[#A79E96] text-[10px] mb-4">{t('sosyalMedya.analytics.cards.contentDecaySub')}</Text>
+           <View style={{marginLeft: -10}}>
+             <BarChart
+               data={[...zernioData.contentDecay].sort((a,b) => a.bucket_order - b.bucket_order).map(b => ({
+@@ -965,8 +965,8 @@ export default function AnalyticsScreen({ navigation }) {
+           yeniden üretildi. */}
+       {zernioData.postingFrequency && zernioData.postingFrequency.length > 0 && (
+         <AnimatedBorderCard marginBottom={16} colors={['rgba(255,255,255,0.2)', '#201D24']}>
+-          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">Paylaşım Sıklığı vs Etkileşim Oranı</Text>
+-          <Text className="text-[#A79E96] text-[10px] mb-4">Haftalık gönderi sayısının ortalama etkileşim oranına etkisi</Text>
++          <Text className="text-[#F6F1EC] text-[14px] font-bold mb-1">{t('sosyalMedya.analytics.cards.frequencyVsER')}</Text>
++          <Text className="text-[#A79E96] text-[10px] mb-4">{t('sosyalMedya.analytics.cards.frequencyVsERSub')}</Text>
+           {(() => {
+             const chartHeight = 220;
+             const chartWidth = Math.max(width - 40 - 32 - 36, 160); // ekran px-5 (40) + kart padding (32) + Y ekseni etiket alanı (36)
+diff --git a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+index 7850beb..928ca60 100644
+--- a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+@@ -315,7 +315,7 @@ export default function ChatScreen({ route, navigation }) {
+             <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedItems([]); }} className="mr-4">
+               <Ionicons name="close" size={24} color="#F6F1EC" />
+             </TouchableOpacity>
+-            <Text className="text-[#F6F1EC] font-bold text-[16px]">{selectedItems.length} Seçildi</Text>
++            <Text className="text-[#F6F1EC] font-bold text-[16px]">{t('sosyalMedya.inbox.selectedCount', { count: selectedItems.length })}</Text>
+           </View>
+           <TouchableOpacity 
+             onPress={handleDeleteSelected} 
+@@ -323,7 +323,7 @@ export default function ChatScreen({ route, navigation }) {
+             className={`flex-row items-center px-4 py-2 rounded-lg border ${selectedItems.length > 0 ? 'bg-[#EF4444]/20 border-[#EF4444]/40' : 'bg-white/5 border-white/10'}`}
+           >
+             <Feather name="trash-2" size={16} color={selectedItems.length > 0 ? "#EF4444" : "#A79E96"} />
+-            <Text className={`ml-2 text-[14px] font-bold ${selectedItems.length > 0 ? 'text-[#EF4444]' : 'text-[#A79E96]'}`}>Sil</Text>
++            <Text className={`ml-2 text-[14px] font-bold ${selectedItems.length > 0 ? 'text-[#EF4444]' : 'text-[#A79E96]'}`}>{t('sosyalMedya.inbox.delete')}</Text>
+           </TouchableOpacity>
+         </View>
+       )}
+diff --git a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+index 76d4b26..1319c11 100644
+--- a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+@@ -199,7 +199,7 @@ const MesajlarTab = ({ navigation }) => {
+           </View>
+           <View className="flex-row items-center">
+             <TouchableOpacity onPress={handleSelectAll} className="mr-4 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+-              <Text className="text-white text-[14px] font-bold">Tümünü Seç</Text>
++              <Text className="text-white text-[14px] font-bold">{t('sosyalMedya.inbox.selectAll')}</Text>
+             </TouchableOpacity>
+             <CustomButton 
+               onPress={handleDeleteSelected} 
+diff --git a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+index d460033..17047d9 100644
+--- a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+@@ -458,7 +458,7 @@ export default function SosyalMedyaScreen({ navigation }) {
+ 
+         {/* Add Account Panel */}
+         <View style={{ marginBottom: 32, marginTop: 12 }}>
+-          <Text className="text-[#F6F1EC] text-[18px] font-semibold mb-4">Yeni Hesap Bağla</Text>
++          <Text className="text-[#F6F1EC] text-[18px] font-semibold mb-4">{t('sosyalMedya.ui.connectNewAccount')}</Text>
+           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16, paddingRight: 20, paddingLeft: 4 }}>
+             {PLATFORMS_DATA.map((p) => {
+                return (
+-- 
+2.43.0
+
