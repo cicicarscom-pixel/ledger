@@ -1,0 +1,52 @@
+From ea1a1844273cde7c8498947a5e46a2b7cbbbdc70 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 02:46:19 +0000
+Subject: [PATCH] fix(persona-test): yinelenen serve import'u kaldirildi
+ (worker boot error); CI check-names TS2300 yakalar
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                | 1 +
+ scripts/ci/check-names.sh                | 2 +-
+ supabase/functions/persona-test/index.ts | 1 -
+ 3 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index 6b4ea5e..47d2c08 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,5 @@
+ ## 🆕 Son Güncellemeler (Ekim 2026)
++- 09.10.2026 — `persona-test` (AI Asistan "Canlı Test" simülasyonu) açılmıyordu ("Failed to send a request to the Edge Function"): kaynakta `serve` iki kez içe aktarılmıştı (`Identifier 'serve' has already been declared`, işçi açılışta çöküyordu). Yinelenen satır silindi; CI `check-names` artık yinelenen tanımı (TS2300) yakalıyor.
+ - 08.10.2026 — WhatsApp hatırlatma: metni işletme yazar ({name}, {business}, {date}, {time}, {doctor}, {service}); mesaj dili seçilir (tr/en/de/fr/es); unvanlar koda gömülü değildir.
+ 
+ - 08.10.2026 — WhatsApp randevu hatırlatma: onaylı randevulara 24 saat önce otomatik mesaj (işletme başına açılır/kapanır, varsayılan kapalı).
+diff --git a/scripts/ci/check-names.sh b/scripts/ci/check-names.sh
+index da2d395..40987f3 100644
+--- a/scripts/ci/check-names.sh
++++ b/scripts/ci/check-names.sh
+@@ -9,7 +9,7 @@ npx -y -p typescript@5.9.3 tsc --noEmit --allowJs --checkJs --jsx react-jsx --ta
+   --module esnext --moduleResolution bundler --skipLibCheck --lib es2022,dom,dom.iterable ${EXTRA_TSC_FLAGS:-} $FILES > /tmp/tsc-out.txt 2>&1
+ # Bilinmeyen seçenek / bulunamayan dosya = kontrol HİÇ çalışmadı (TS5023/5024/5025/6053)
+ if grep -qE "error TS(5023|5024|5025|6053)" /tmp/tsc-out.txt; then grep -E "error TS(5023|5024|5025|6053)" /tmp/tsc-out.txt; echo "HATA: tsc çalışmadı"; exit 2; fi
+-BAD=$(grep -E "error TS(2304|2552|18004|2451|1005|1109|1128|1161|17002|17008)" /tmp/tsc-out.txt | grep -vE "Cannot find name '(Deno|global)'" || true)
++BAD=$(grep -E "error TS(2300|2304|2552|18004|2451|1005|1109|1128|1161|17002|17008)" /tmp/tsc-out.txt | grep -vE "Cannot find name '(Deno|global)'" || true)
+ # Bulunamayan göreli KOD modülü (ör. yanlış '../../../lib/dates'). Görseller check-assets.mjs'de.
+ MOD=$(grep -E "error TS2307: Cannot find module '\.\.?/" /tmp/tsc-out.txt | grep -vE "\.(png|jpe?g|gif|webp|svg|mp4|mov|mp3|wav|ttf|otf|json|css)'" || true)
+ if [ -n "$BAD$MOD" ]; then printf '%s\n%s\n' "$BAD" "$MOD" | sed '/^$/d'; echo "HATA: tanımsız isim, sözdizimi ya da bulunamayan modül"; exit 1; fi
+diff --git a/supabase/functions/persona-test/index.ts b/supabase/functions/persona-test/index.ts
+index 29f05b9..e203af4 100644
+--- a/supabase/functions/persona-test/index.ts
++++ b/supabase/functions/persona-test/index.ts
+@@ -36,7 +36,6 @@
+ // web/mobile session, never from an external webhook.
+ // ==============================================================================
+ 
+-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
+ import { createPersonaTestPipeline } from "../shared/container.ts";
+-- 
+2.43.0
+
