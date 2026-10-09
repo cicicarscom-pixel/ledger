@@ -1,0 +1,629 @@
+From 8364c24a0370a9f846857f381500d3994e7fd7f8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 22:44:44 +0000
+Subject: [PATCH] fix(react): 13 efekt bagimlilik uyarisi giderildi, useLatest
+ ile kararli realtime abonelikleri (Kalite Faz 3c, web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ scripts/ci/eslint-baseline.json               |  2 +-
+ src/app/(dashboard)/ai-asistan/page.tsx       | 14 +--
+ .../ai-muhasebe/muhasebecim/page.tsx          | 36 ++++----
+ .../ai-muhasebe/odeme-takvimi/page.tsx        |  8 +-
+ src/app/(dashboard)/analiz/page.tsx           | 14 +--
+ src/app/(dashboard)/gelen-kutusu/page.tsx     | 33 ++++---
+ src/app/(dashboard)/page.tsx                  |  2 +-
+ .../(dashboard)/sosyal-medya/inbox/page.tsx   | 77 ++++++++--------
+ src/app/(dashboard)/sosyal-medya/page.tsx     | 91 ++++++++++---------
+ src/lib/useLatest.ts                          | 14 +++
+ 11 files changed, 160 insertions(+), 132 deletions(-)
+ create mode 100644 src/lib/useLatest.ts
+
+diff --git a/README.md b/README.md
+index 23ae8e1..c8a34e1 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Kalite Faz 3c (React efekt bağımlılıkları, web):** 13 `useEffect`/`useMemo` bağımlılık uyarısı giderildi (ESLint uyarısı 37 → 24; çıta tabanı 24). Veri çekme işlevleri `useCallback` ile sarıldı (AI Asistan, Muhasebecim, Ödeme Takvimi, Analiz, Gelen Kutusu/Mesajlar); uzun ömürlü realtime abonelikleri ve sayfa açılış senkronu (Gelen Kutusu, Sosyal Medya) yeni `lib/useLatest.ts` ile her zaman en güncel işlevi çağırır ama işlev kimliği değişince abonelik yeniden kurulmaz. Sosyal Medya Gelen Kutusu: seçili sohbet mesajları artık sohbet listesi her güncellendiğinde değil, yalnız seçili sohbet/sekme değişince çekilir (liste geç gelirse mesajlar da yüklenir). Doğrulandı: `useTranslations()` ve `useDialog()` işlevleri yeniden çizimlerde kararlı (efektler yeniden tetiklenmez).
+ - **[09.10.2026] Kalite Faz 8 (ortak uyarı/onay bileşeni, web):** Tarayıcının `alert()`/`confirm()` pencereleri (67 çağrı, 14 dosya) yerine çevirili, erişilebilir ortak bileşen (`components/ui/DialogProvider.tsx`, `useDialog()`): `dialog.alert(mesaj)` ve `await dialog.confirm(mesaj, { danger: true })`. Esc iptal, Enter onay, odak onay düğmesinde, birden çok uyarı sıraya girer, yıkıcı onaylar kırmızı. Sıfırlama paneli artık "tamamlandı" mesajını sayfa yenilenmeden önce gösterir. Yeni anahtarlar: `dialog.ok/confirm/cancel` (tr/en/de).
+ - **[09.10.2026] Eksik çeviri anahtarı:** Tüm `t("…")` çağrıları tr/en/de dosyalarıyla karşılaştırıldı; tek eksik `common.cancel` (Randevu rezervasyon penceresi "İptal" düğmesi) eklendi.
+ - **[09.10.2026] Kalite Faz 6B (i18n + e-posta doğrulama sayfası):** Doğrulama sayfası (`verify-email`), Onboarding formu, Müşteriler, Randevu (takvim yönetimi, rezervasyon penceresi), Gönderiler tablosu, Paylaşım uyarıları, Gelen Kutusu uyarıları, Çoklu Takvim anahtarı, Fatura kartı ve Kenar Çubuğu'ndaki sabit metinler tr/en/de anahtarlarına taşındı (78 yeni anahtar). Doğrulama sayfasında "Tekrar Gönder" artık 60 sn bekleme sayacı gösterir, hız sınırında anlaşılır uyarı verir ve hesap zaten doğrulanmışsa kullanıcıyı yanıltmaz (Supabase bu durumda e-posta göndermez ama başarılı döner); "Giriş sayfasına dön" bağlantısı eklendi. Kayıtta kullanıcının dili (`locale`) Supabase'e iletilir; e-posta şablonu bu dile göre seçilir. Kenar çubuğu ve doğrulama sayfasındaki `useEffect` bağımlılık uyarıları giderildi (38 → 37).
+diff --git a/scripts/ci/eslint-baseline.json b/scripts/ci/eslint-baseline.json
+index d77a4fa..b81d3cc 100644
+--- a/scripts/ci/eslint-baseline.json
++++ b/scripts/ci/eslint-baseline.json
+@@ -1 +1 @@
+-{ "errors": 0, "warnings": 37 }
++{ "errors": 0, "warnings": 24 }
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index 7a2c1a8..f6c823c 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import React, { useState, useEffect, useRef } from "react";
++import React, { useState, useEffect, useRef, useCallback } from "react";
+ import Link from "next/link";
+ import { useTranslations } from "next-intl";
+ import AiDataResetPanel from "@/components/settings/AiDataResetPanel";
+@@ -61,11 +61,7 @@ export default function BotScreen() {
+   const [wahaPairingCode, setWahaPairingCode] = useState<string | null>(null);
+   const [wahaLoading, setWahaLoading] = useState(false);
+ 
+-  useEffect(() => {
+-    fetchSettings();
+-  }, []);
+-
+-    const fetchSettings = async () => {
++  const fetchSettings = useCallback(async () => {
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+       if (!session) return;
+@@ -113,7 +109,11 @@ export default function BotScreen() {
+     } finally {
+       setPersonasLoading(false);
+     }
+-  };
++  }, [supabase]);
++
++  useEffect(() => {
++    fetchSettings();
++  }, [fetchSettings]);
+ 
+     const handleAppointmentToggle = async () => {
+     const newValue = !appointmentModuleEnabled;
+diff --git a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+index 54596a9..471a5f7 100644
+--- a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useCallback } from 'react';
+ import Link from 'next/link';
+ import { useTranslations } from 'next-intl';
+ import { createClient } from "@/lib/supabase/client";
+@@ -15,22 +15,7 @@ export default function MuhasebecimPage() {
+   const [isLoading, setIsLoading] = useState(true);
+   const supabase = createClient();
+ 
+-  useEffect(() => {
+-    checkConnection();
+-    // Müşavir isteği kabul/ret ettiğinde ya da bağlantıyı kestiğinde sayfa kendiliğinden güncellenir.
+-    // RLS: işletme yalnız kendi bağlantı olaylarını alır.
+-    const channel = supabase
+-      .channel('my-accountant-connection')
+-      .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_taxpayer_links' }, () => {
+-        checkConnection();
+-      })
+-      .subscribe();
+-    return () => {
+-      supabase.removeChannel(channel);
+-    };
+-  }, []);
+-
+-  const checkConnection = async () => {
++  const checkConnection = useCallback(async () => {
+     try {
+       const { data, error } = await supabase.rpc('get_my_accountant_connection');
+       if (error) throw error;
+@@ -50,7 +35,22 @@ export default function MuhasebecimPage() {
+     } finally {
+       setIsLoading(false);
+     }
+-  };
++  }, [supabase]);
++
++  useEffect(() => {
++    checkConnection();
++    // Müşavir isteği kabul/ret ettiğinde ya da bağlantıyı kestiğinde sayfa kendiliğinden güncellenir.
++    // RLS: işletme yalnız kendi bağlantı olaylarını alır.
++    const channel = supabase
++      .channel('my-accountant-connection')
++      .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_taxpayer_links' }, () => {
++        checkConnection();
++      })
++      .subscribe();
++    return () => {
++      supabase.removeChannel(channel);
++    };
++  }, [checkConnection, supabase]);
+ 
+   const handleVerify = async () => {
+     if (accountantCode.trim().length > 0) {
+diff --git a/src/app/(dashboard)/ai-muhasebe/odeme-takvimi/page.tsx b/src/app/(dashboard)/ai-muhasebe/odeme-takvimi/page.tsx
+index d56edfc..b6b1e8a 100644
+--- a/src/app/(dashboard)/ai-muhasebe/odeme-takvimi/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/odeme-takvimi/page.tsx
+@@ -1,7 +1,7 @@
+ "use client";
+ import { formatMoney } from '@/lib/money';
+ 
+-import React, { useState, useEffect, useRef } from "react";
++import React, { useState, useEffect, useRef, useCallback } from "react";
+ import { createClient } from "@/lib/supabase/client";
+ import { useTranslations } from "next-intl";
+ import Link from "next/link";
+@@ -42,7 +42,7 @@ export default function OdemeTakvimiScreen() {
+ 
+   const todayRowRef = useRef<HTMLDivElement>(null);
+ 
+-  const loadData = async () => {
++  const loadData = useCallback(async () => {
+     setIsLoading(true);
+     const y = currentDate.getFullYear();
+     const m = currentDate.getMonth();
+@@ -56,11 +56,11 @@ export default function OdemeTakvimiScreen() {
+       setTransactions([]);
+     }
+     setIsLoading(false);
+-  };
++  }, [currentDate, supabase]);
+ 
+   useEffect(() => {
+     loadData();
+-  }, [currentDate]);
++  }, [loadData]);
+ 
+   useEffect(() => {
+     if (!isLoading && todayRowRef.current) {
+diff --git a/src/app/(dashboard)/analiz/page.tsx b/src/app/(dashboard)/analiz/page.tsx
+index 4be8776..b626eb1 100644
+--- a/src/app/(dashboard)/analiz/page.tsx
++++ b/src/app/(dashboard)/analiz/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import React, { useState, useEffect, useRef } from "react";
++import React, { useState, useEffect, useRef, useCallback } from "react";
+ import {
+   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+@@ -115,7 +115,7 @@ export default function AnalyticsScreen() {
+   const [postTimelineMetrics, setPostTimelineMetrics] = useState<string[]>(['views', 'likes', 'comments']);
+   const requestRef = useRef(0);
+ 
+-  const fetchInternalStats = async () => {
++  const fetchInternalStats = useCallback(async () => {
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+       const userId = session?.user?.id;
+@@ -178,9 +178,9 @@ export default function AnalyticsScreen() {
+     } catch (err) {
+       console.warn('Error fetching internal stats:', err);
+     }
+-  };
++  }, [selectedPlatform.id, supabase]);
+ 
+-  const fetchZernioAnalytics = async () => {
++  const fetchZernioAnalytics = useCallback(async () => {
+     const currentRequestId = ++requestRef.current;
+     setIsLoading(true);
+ 
+@@ -450,17 +450,17 @@ export default function AnalyticsScreen() {
+         setIsLoading(false);
+       }
+     }
+-  };
++  }, [selectedPlatform.id, selectedTimeRange.days, socialAccounts, supabase]);
+ 
+   useEffect(() => {
+     fetchInternalStats();
+-  }, [selectedPlatform]);
++  }, [fetchInternalStats]);
+ 
+   useEffect(() => {
+     if (socialAccounts.length > 0) {
+       fetchZernioAnalytics();
+     }
+-  }, [selectedPlatform, selectedTimeRange, socialAccounts]);
++  }, [fetchZernioAnalytics, socialAccounts.length]);
+ 
+   const renderPostingAnalytics = () => (
+     <div style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 60 }}>
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index b058036..52ac4ad 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -6,12 +6,14 @@ import { appointmentSentence } from '@/lib/appointmentSentence';
+ import { useRouter, useSearchParams } from 'next/navigation';
+ import { createClient } from '@/lib/supabase/client';
+ import { useDialog } from "@/components/ui/DialogProvider";
++import { useLatest } from "@/lib/useLatest";
+ 
+ function GelenKutusuContent() {
+   const router = useRouter();
+   const t = useTranslations();
+   const dialog = useDialog();
+   const locale = useLocale();
++  const supabase = createClient();
+   const searchParams = useSearchParams();
+   const tabParam = searchParams.get('tab');
+   const [activeTab, setActiveTab] = useState<'mesajlar' | 'yorumlar' | 'degerlendirmeler' | 'bildirimler'>('mesajlar');
+@@ -52,7 +54,7 @@ function GelenKutusuContent() {
+         }
+      };
+      initOrg();
+-  }, []);
++  }, [supabase]);
+ 
+   const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
+ 
+@@ -69,7 +71,7 @@ function GelenKutusuContent() {
+         setConnectedPlatforms(new Set((data || []).map((r: any) => r.platform?.toLowerCase())));
+      };
+      fetchConnectedPlatforms();
+-  }, [organizationId]);
++  }, [organizationId, supabase]);
+ 
+   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+   const [replyText, setReplyText] = useState("");
+@@ -176,7 +178,7 @@ function GelenKutusuContent() {
+     });
+     
+     return Array.from(postMap.values()).sort((a, b) => new Date(b.latestCommentAt).getTime() - new Date(a.latestCommentAt).getTime());
+-  }, [comments, connectedPlatforms]);
++  }, [visibleComments, t]);
+ 
+   useEffect(() => {
+     if (activeTab === 'yorumlar' && postsWithComments.length > 0 && !selectedPostId) {
+@@ -184,8 +186,6 @@ function GelenKutusuContent() {
+     }
+   }, [activeTab, postsWithComments, selectedPostId]);
+ 
+-  const supabase = createClient();
+-
+   // Fetch Data
+   
+   const handleSendDM = async (conv: any) => {
+@@ -564,12 +564,17 @@ function GelenKutusuContent() {
+     }
+   };
+ 
++  const fetchConversationsRef = useLatest(fetchConversations);
++  const fetchCommentsRef = useLatest(fetchComments);
++  const fetchNotificationsRef = useLatest(fetchNotifications);
++  const fetchReviewsRef = useLatest(fetchReviews);
++
+   useEffect(() => {
+     const loadAll = async () => {
+       setIsLoading(true);
+-      const promises = [fetchNotifications()];
++      const promises = [fetchNotificationsRef.current()];
+       if (organizationId) {
+-        promises.push(fetchConversations(), fetchComments(1), fetchReviews());
++        promises.push(fetchConversationsRef.current(), fetchCommentsRef.current(1), fetchReviewsRef.current());
+       }
+       await Promise.all(promises);
+       setIsLoading(false);
+@@ -581,7 +586,7 @@ function GelenKutusuContent() {
+     // Realtime Subscriptions (Döngü Korumalı)
+     if (organizationId) {
+       const convChannel = supabase.channel('web_realtime_conversations')
+-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversations' }, fetchConversations)
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversations' }, () => fetchConversationsRef.current())
+         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
+            setConversations(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } : c));
+         })
+@@ -589,12 +594,12 @@ function GelenKutusuContent() {
+       channels.push(convChannel);
+ 
+       const msgChannel = supabase.channel('web_realtime_messages')
+-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, fetchConversations)
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchConversationsRef.current())
+         .subscribe();
+       channels.push(msgChannel);
+ 
+       const commentChannel = supabase.channel('web_realtime_comments')
+-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, () => fetchComments(1))
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, () => fetchCommentsRef.current(1))
+         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comments' }, (payload) => {
+            setComments(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } : c));
+         })
+@@ -605,7 +610,7 @@ function GelenKutusuContent() {
+       channels.push(commentChannel);
+ 
+       const reviewChannel = supabase.channel('web_realtime_reviews')
+-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reviews' }, fetchReviews)
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reviews' }, () => fetchReviewsRef.current())
+         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reviews' }, (payload) => {
+            setReviews(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
+         })
+@@ -614,15 +619,15 @@ function GelenKutusuContent() {
+     }
+ 
+     const notifChannel = supabase.channel('web_realtime_notifications')
+-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchNotifications)
+-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'broadcast_notifications' }, fetchNotifications)
++      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchNotificationsRef.current())
++      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'broadcast_notifications' }, () => fetchNotificationsRef.current())
+       .subscribe();
+     channels.push(notifChannel);
+ 
+     return () => {
+       channels.forEach(ch => supabase.removeChannel(ch));
+     };
+-  }, [organizationId]);
++  }, [organizationId, supabase, fetchCommentsRef, fetchConversationsRef, fetchNotificationsRef, fetchReviewsRef]);
+ 
+   useEffect(() => {
+     // Auto-read removed as per requirement
+diff --git a/src/app/(dashboard)/page.tsx b/src/app/(dashboard)/page.tsx
+index 5553f5a..a7fb829 100644
+--- a/src/app/(dashboard)/page.tsx
++++ b/src/app/(dashboard)/page.tsx
+@@ -218,7 +218,7 @@ export default function DashboardHomePage() {
+     };
+     
+     fetchData();
+-  }, []);
++  }, [locale, supabase, t]);
+ 
+   const toggleAiStatus = async () => {
+     const newStatus = !aiActive;
+diff --git a/src/app/(dashboard)/sosyal-medya/inbox/page.tsx b/src/app/(dashboard)/sosyal-medya/inbox/page.tsx
+index 5da1da1..f960497 100644
+--- a/src/app/(dashboard)/sosyal-medya/inbox/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/inbox/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import React, { useState, useEffect } from "react";
++import React, { useState, useEffect, useCallback } from "react";
+ import Link from "next/link";
+ import { useLocale, useTranslations } from "next-intl";
+ import AiChatInput from "@/components/chat/AiChatInput";
+@@ -41,31 +41,7 @@ export default function GelenKutusuPage() {
+ 
+   const supabase = createClient();
+ 
+-  useEffect(() => {
+-    fetchConversations();
+-    fetchComments();
+-
+-    const convChannel = supabase
+-      .channel("realtime_conversations")
+-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
+-        fetchConversations();
+-      })
+-      .subscribe();
+-
+-    const commentsChannel = supabase
+-      .channel("realtime_comments")
+-      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, () => {
+-        fetchComments();
+-      })
+-      .subscribe();
+-
+-    return () => {
+-      supabase.removeChannel(convChannel);
+-      supabase.removeChannel(commentsChannel);
+-    };
+-  }, []);
+-
+-  const fetchConversations = async () => {
++  const fetchConversations = useCallback(async () => {
+     const { data, error } = await supabase
+       .from("conversations")
+       .select(`
+@@ -91,9 +67,9 @@ export default function GelenKutusuPage() {
+       setConversations(enhancedData);
+     }
+     setIsLoading(false);
+-  };
++  }, [supabase, t]);
+ 
+-  const fetchComments = async () => {
++  const fetchComments = useCallback(async () => {
+     const { data, error } = await supabase
+       .from("comments")
+       .select("*")
+@@ -102,9 +78,9 @@ export default function GelenKutusuPage() {
+     if (!error && data) {
+       setComments(data);
+     }
+-  };
++  }, [supabase]);
+ 
+-  const fetchMessagesForConversation = async (zernioConvId: string) => {
++  const fetchMessagesForConversation = useCallback(async (zernioConvId: string) => {
+     const { data, error } = await supabase
+       .from("messages")
+       .select("*")
+@@ -114,16 +90,43 @@ export default function GelenKutusuPage() {
+     if (!error && data) {
+       setActiveMessages(data);
+     }
+-  };
++  }, [supabase]);
++
++  useEffect(() => {
++    fetchConversations();
++    fetchComments();
++
++    const convChannel = supabase
++      .channel("realtime_conversations")
++      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
++        fetchConversations();
++      })
++      .subscribe();
++
++    const commentsChannel = supabase
++      .channel("realtime_comments")
++      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, () => {
++        fetchComments();
++      })
++      .subscribe();
++
++    return () => {
++      supabase.removeChannel(convChannel);
++      supabase.removeChannel(commentsChannel);
++    };
++  }, [fetchConversations, fetchComments, supabase]);
++
++  // Seçili sohbetin Zernio kimliği: efekt yalnızca bu kimlik (ya da sekme) değişince çalışır;
++  // `conversations` listesi her güncellendiğinde mesajlar yeniden çekilmez.
++  const selectedZernioConvId = selectedConvId
++    ? conversations.find((c) => c.id === selectedConvId)?.zernio_conversation_id
++    : undefined;
+ 
+   useEffect(() => {
+-    if (selectedConvId && activeTab === "mesajlar") {
+-      const conv = conversations.find((c) => c.id === selectedConvId);
+-      if (conv) {
+-        fetchMessagesForConversation(conv.zernio_conversation_id);
+-      }
++    if (selectedZernioConvId && activeTab === "mesajlar") {
++      fetchMessagesForConversation(selectedZernioConvId);
+     }
+-  }, [selectedConvId, activeTab]);
++  }, [selectedZernioConvId, activeTab, fetchMessagesForConversation]);
+ 
+   const handleSendMessage = (text: string, file: File | null) => {
+     // API logic for sending message goes here
+diff --git a/src/app/(dashboard)/sosyal-medya/page.tsx b/src/app/(dashboard)/sosyal-medya/page.tsx
+index bbb40d8..b374a9f 100644
+--- a/src/app/(dashboard)/sosyal-medya/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/page.tsx
+@@ -5,6 +5,7 @@ import Link from "next/link";
+ import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
+ import { useDialog } from "@/components/ui/DialogProvider";
++import { useLatest } from "@/lib/useLatest";
+ 
+ const PLATFORMS_DATA = [
+   { id: "facebook", name: "Facebook", color: "#1877F2", glow: "rgba(24,119,242,0.3)", icon: "👥" },
+@@ -87,49 +88,6 @@ export default function SosyalMedyaPage() {
+   const shownConflictsRef = useRef<Set<string>>(new Set());
+   const supabase = createClient();
+ 
+-  useEffect(() => {
+-    const searchParams = new URLSearchParams(window.location.search);
+-    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+-    
+-    const accountId = searchParams.get('accountId') || hashParams.get('accountId');
+-    const errorParam = searchParams.get('error') || hashParams.get('error');
+-    const errorMessage = searchParams.get('error_message') || hashParams.get('error_message') || searchParams.get('error_description') || hashParams.get('error_description');
+-
+-    // Önce Zernio'ya hiç gitmeden, yerelde zaten bilinen hesapları anında göster —
+-    // aksi halde sayfaya her girişte hesaplar bir anlığına boşalıp Zernio
+-    // senkronizasyonu bitene kadar "dönüp duruyor" gibi görünüyordu (16.09.2026,
+-    // kullanıcı bildirdi). fetchAccounts(false) senkron olmayan hızlı bir yerel DB
+-    // okuması, Zernio'ya istek atmıyor. Ardından aşağıdaki gerçek Zernio
+-    // senkronizasyonu (fetchAccounts(true)) arka planda tetiklenmeye devam ediyor;
+-    // liste zaten doluyken bu ikinci çağrı sadece "Senkronize Et" butonundaki
+-    // ikonu döndürür, kartları boşaltmaz.
+-    fetchAccounts(false);
+-
+-    if (errorParam || errorMessage) {
+-       const displayError = errorMessage ? decodeURIComponent(errorMessage.replace(/\+/g, ' ')) : errorParam;
+-       dialog.alert(t("sosyalMedyaPage.errors.connectError") + ": " + displayError);
+-       window.history.replaceState({}, '', window.location.pathname);
+-    } else if (accountId) {
+-      fetchAccounts(true);
+-      window.history.replaceState({}, '', window.location.pathname);
+-    } else {
+-      // OAUTH geri dönüşlerinde URL'de parametre olmasa bile yeni eklenen hesabı çekmek için her zaman senkronize et
+-      fetchAccounts(true);
+-    }
+-
+-    // Web Focus Radar: Kullanıcı tarayıcı sekmesine döndüğünde Zernio hesaplarını anlık sync et
+-    const handleVisibilityChange = () => {
+-      if (document.visibilityState === 'visible') {
+-        fetchAccounts(true);
+-      }
+-    };
+-    
+-    document.addEventListener('visibilitychange', handleVisibilityChange);
+-    return () => {
+-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+-    };
+-  }, []);
+-
+   useEffect(() => {
+     // RLS yalnız oturumdaki işletmenin satırını döndürür; kimlik istemciden gönderilmez.
+     supabase.from('bot_settings').select('social_bot_active, is_active').limit(1).maybeSingle().then(({ data }) => {
+@@ -215,6 +173,53 @@ export default function SosyalMedyaPage() {
+     }
+   };
+ 
++  // Sayfa açılışında bir kez çalışan senkronizasyon/OAuth dönüş efekti; her zaman en güncel
++  // fetchAccounts/dialog/t çağrılır, ama bu işlevlerin kimliği değişince efekt yeniden çalışmaz.
++  const latest = useLatest({ fetchAccounts, dialog, t });
++
++  useEffect(() => {
++    const searchParams = new URLSearchParams(window.location.search);
++    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
++    
++    const accountId = searchParams.get('accountId') || hashParams.get('accountId');
++    const errorParam = searchParams.get('error') || hashParams.get('error');
++    const errorMessage = searchParams.get('error_message') || hashParams.get('error_message') || searchParams.get('error_description') || hashParams.get('error_description');
++
++    // Önce Zernio'ya hiç gitmeden, yerelde zaten bilinen hesapları anında göster —
++    // aksi halde sayfaya her girişte hesaplar bir anlığına boşalıp Zernio
++    // senkronizasyonu bitene kadar "dönüp duruyor" gibi görünüyordu (16.09.2026,
++    // kullanıcı bildirdi). fetchAccounts(false) senkron olmayan hızlı bir yerel DB
++    // okuması, Zernio'ya istek atmıyor. Ardından aşağıdaki gerçek Zernio
++    // senkronizasyonu (fetchAccounts(true)) arka planda tetiklenmeye devam ediyor;
++    // liste zaten doluyken bu ikinci çağrı sadece "Senkronize Et" butonundaki
++    // ikonu döndürür, kartları boşaltmaz.
++    latest.current.fetchAccounts(false);
++
++    if (errorParam || errorMessage) {
++       const displayError = errorMessage ? decodeURIComponent(errorMessage.replace(/\+/g, ' ')) : errorParam;
++       latest.current.dialog.alert(latest.current.t("sosyalMedyaPage.errors.connectError") + ": " + displayError);
++       window.history.replaceState({}, '', window.location.pathname);
++    } else if (accountId) {
++      latest.current.fetchAccounts(true);
++      window.history.replaceState({}, '', window.location.pathname);
++    } else {
++      // OAUTH geri dönüşlerinde URL'de parametre olmasa bile yeni eklenen hesabı çekmek için her zaman senkronize et
++      latest.current.fetchAccounts(true);
++    }
++
++    // Web Focus Radar: Kullanıcı tarayıcı sekmesine döndüğünde Zernio hesaplarını anlık sync et
++    const handleVisibilityChange = () => {
++      if (document.visibilityState === 'visible') {
++        latest.current.fetchAccounts(true);
++      }
++    };
++    
++    document.addEventListener('visibilitychange', handleVisibilityChange);
++    return () => {
++      document.removeEventListener('visibilitychange', handleVisibilityChange);
++    };
++  }, [latest]);
++
+   const handleConnectZernio = async (platformId: string) => {
+     setIsConnecting(platformId);
+     try {
+diff --git a/src/lib/useLatest.ts b/src/lib/useLatest.ts
+new file mode 100644
+index 0000000..8735728
+--- /dev/null
++++ b/src/lib/useLatest.ts
+@@ -0,0 +1,14 @@
++import { useEffect, useRef } from "react";
++
++/**
++ * Her render'da güncellenen "en son değer" referansı.
++ * Uzun ömürlü efektlerde (ör. realtime aboneliği) en güncel işlevi çağırmak için kullanılır;
++ * işlev kimliği değiştiğinde efekti yeniden kurmaya (abonelikleri sökmeye) gerek kalmaz.
++ */
++export function useLatest<T>(value: T) {
++  const ref = useRef(value);
++  useEffect(() => {
++    ref.current = value;
++  });
++  return ref;
++}
+-- 
+2.43.0
+
