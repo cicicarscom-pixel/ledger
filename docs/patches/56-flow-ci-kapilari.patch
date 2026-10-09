@@ -1,0 +1,131 @@
+From 64f148bcd6464a32432aa8953d0f9933e1416f90 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 15:40:36 +0000
+Subject: [PATCH] ci(quality): tsc ve ESLint citasi CI'ya eklendi - mobil
+ (Kalite Faz 5)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ .github/workflows/ci.yml        |  7 +++++
+ AGENTS.md                       |  3 +++
+ README.md                       |  1 +
+ scripts/ci/eslint-baseline.json |  1 +
+ scripts/ci/eslint-ratchet.mjs   | 48 +++++++++++++++++++++++++++++++++
+ 5 files changed, 60 insertions(+)
+ create mode 100644 scripts/ci/eslint-baseline.json
+ create mode 100644 scripts/ci/eslint-ratchet.mjs
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 6731e2e..7c30535 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -8,6 +8,7 @@ jobs:
+       - uses: actions/setup-node@v4
+         with:
+           node-version: 20
++          cache: npm
+       - name: BOM yok
+         run: bash scripts/ci/check-bom.sh
+       - name: Kök dizin haritası (STRUCTURE.md)
+@@ -20,3 +21,9 @@ jobs:
+         run: node scripts/ci/i18n-parity.mjs src/core/i18n/locales scripts/ci/i18n-parity-ignore.json tr en de
+       - name: JSON geçerli
+         run: for f in src/core/i18n/locales/*.json app.json package.json; do node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1; done
++      - name: Bağımlılıklar (npm ci)
++        run: npm ci --ignore-scripts --no-audit --no-fund
++      - name: Tip denetimi (tsc)
++        run: npx tsc --noEmit -p .
++      - name: ESLint çıtası (hata/uyarı sayısı tabanı aşamaz)
++        run: node scripts/ci/eslint-ratchet.mjs scripts/ci/eslint-baseline.json src App.js
+diff --git a/AGENTS.md b/AGENTS.md
+index 9a4e1e7..f92c982 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -110,7 +110,10 @@ bash scripts/ci/check-names.sh src App.js
+ node scripts/ci/check-assets.mjs src App.js
+ node scripts/ci/i18n-parity.mjs src/core/i18n/locales scripts/ci/i18n-parity-ignore.json tr en de
+ node scripts/ci/check-root-map.mjs
++npx tsc --noEmit -p .
++node scripts/ci/eslint-ratchet.mjs scripts/ci/eslint-baseline.json src App.js
+ ```
++`tsc` çıktısı boş olmalı. ESLint çıtası: hata/uyarı sayısı `scripts/ci/eslint-baseline.json` tabanını AŞAMAZ; sayı düşerse taban düşürülür (yükseltmek yasak). Yerel çalıştırma için önce `npm ci`.
+ 
+ ## 6. Açık işler (özet)
+ 
+diff --git a/README.md b/README.md
+index cc2e961..46a7c0b 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Kalite Faz 5 (CI kapıları): CI artık `npm ci` + `tsc --noEmit` (hata olursa kırmızı) + ESLint çıtası çalıştırıyor. Çıta (`scripts/ci/eslint-ratchet.mjs`): hata/uyarı sayısı kayıtlı tabanı (211 hata, 122 uyarı; çoğu React Compiler kuralları ve i18n sabit metinleri) AŞAMAZ; temizlik yapıldıkça taban düşürülür. Yeni kod mevcut borcu artıramaz.
+ - 09.10.2026 — Kalite Faz 4 (mobil): `tsc --noEmit` 20 hata → 0. Gerçek hata düzeltildi: iptal edilen randevunun "iptal nedeni" varlığa hiç aktarılmıyordu, Randevular ekranındaki neden rozeti hiç görünmüyordu (`Appointment.cancelReason`). Ödeme Takvimi ekranı: ay sınırları `toISOString().split('T')` yerine `monthRangeYmd` ile, "bugün" işaretçisi cihazın değil işletmenin saat dilimine göre (`todayInTimezone`). 19 tekrarlı `import` birleştirildi; kullanılmayan import ve `catch` bağlayıcıları temizlendi (`no-unused-vars` 127 → 61). React Compiler kuralları ve i18n sabit metinleri sonraki fazlarda.
+ - 09.10.2026 — E-posta doğrulama akışı (mobil): doğrulama bağlantısı uygulamayı açınca kullanıcı GİRİŞ ekranına yönlendirilir ve "E-postanız doğrulandı" bildirimi görür (süresi dolmuş/kullanılmış bağlantı için ayrı mesaj); doğrulanmamış hesapla girişte ham İngilizce hata yerine Doğrulama ekranı açılır; Doğrulama ekranı tr/en/de çevrildi; kayıtta `locale` gönderilir (e-posta şablonu dile göre seçilir). Yeni: `src/shared/lib/authLink.js`.
+ - 09.10.2026 — Temizlik (Kalite Faz 2): kullanılmayan ve hatalı `CommunicationLogsTable.js` (tüm konuşma kayıtlarını silen eski "Raporları Temizle"), `useCommunicationLogs.ts`, `CustomerMapper.ts` ve kullanılmayan `toDateString` (UTC gün kayması) silindi; bu dosyalardaki 2 tip hatası da ortadan kalktı.
+diff --git a/scripts/ci/eslint-baseline.json b/scripts/ci/eslint-baseline.json
+new file mode 100644
+index 0000000..f3d4f5e
+--- /dev/null
++++ b/scripts/ci/eslint-baseline.json
+@@ -0,0 +1 @@
++{ "errors": 211, "warnings": 122 }
+diff --git a/scripts/ci/eslint-ratchet.mjs b/scripts/ci/eslint-ratchet.mjs
+new file mode 100644
+index 0000000..fd68aeb
+--- /dev/null
++++ b/scripts/ci/eslint-ratchet.mjs
+@@ -0,0 +1,48 @@
++// ESLint "çıta" kontrolü: hata/uyarı sayısı kayıtlı tabanı (baseline) AŞAMAZ.
++// Kullanım: node scripts/ci/eslint-ratchet.mjs <baseline.json> <eslint argümanları...>
++// Sayı tabanın altına inerse CI geçer ve tabanın düşürülmesi istenir (iyileşme kaybolmasın).
++import { spawnSync } from 'node:child_process';
++import { readFileSync } from 'node:fs';
++
++const [baselinePath, ...eslintArgs] = process.argv.slice(2);
++if (!baselinePath || eslintArgs.length === 0) {
++  console.error('Kullanım: node scripts/ci/eslint-ratchet.mjs <baseline.json> <eslint argümanları...>');
++  process.exit(2);
++}
++
++const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
++const run = spawnSync('npx', ['eslint', ...eslintArgs, '-f', 'json'], {
++  encoding: 'utf8',
++  maxBuffer: 256 * 1024 * 1024,
++  shell: process.platform === 'win32',
++});
++
++let results;
++try {
++  results = JSON.parse(run.stdout);
++} catch {
++  console.error('ESLint çıktısı okunamadı (yapılandırma/çalışma hatası):');
++  console.error((run.stderr || run.stdout || '').slice(0, 2000));
++  process.exit(2);
++}
++
++let errors = 0;
++let warnings = 0;
++for (const f of results) {
++  errors += f.errorCount;
++  warnings += f.warningCount;
++}
++
++console.log(`ESLint: ${errors} hata, ${warnings} uyarı (taban: ${baseline.errors} hata, ${baseline.warnings} uyarı)`);
++
++if (errors > baseline.errors || warnings > baseline.warnings) {
++  console.error('HATA: ESLint sayıları tabanı AŞTI. Yeni sorun eklendi; düzeltin (tabanı yükseltmek yasak).');
++  const byRule = {};
++  for (const f of results) for (const m of f.messages) byRule[m.ruleId] = (byRule[m.ruleId] || 0) + 1;
++  console.error('Kural başına sayılar:', JSON.stringify(byRule));
++  process.exit(1);
++}
++if (errors < baseline.errors || warnings < baseline.warnings) {
++  console.log('İYİLEŞME: sayılar tabanın altında. scripts/ci/eslint-baseline.json değerlerini yeni sayılara düşürün.');
++}
++console.log('OK: ESLint çıtası korundu');
+-- 
+2.43.0
+
