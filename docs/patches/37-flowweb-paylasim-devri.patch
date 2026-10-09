@@ -1,0 +1,230 @@
+From 3e35d13dfc8617bca6ca99ab0cae105e4f6bfb9a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 01:46:38 +0000
+Subject: [PATCH] fix(flow-ai): paylasim devri sayfa aciksa da calisir, panel
+ Paylas hazir degilse sayfayi acar, erken cikislar panele bildirilir
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ .../(dashboard)/sosyal-medya/share/page.tsx   | 95 ++++++++++++-------
+ src/components/flow-ai/FlowAiPanel.tsx        | 11 +++
+ src/lib/flowAiShareHandoff.ts                 |  8 ++
+ 4 files changed, 81 insertions(+), 34 deletions(-)
+
+diff --git a/README.md b/README.md
+index 1b228fb..ad8a7bb 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Flow AI → Paylaşım Merkezi devri:** video ve paylaşım işi artık Paylaşım Merkezi zaten açıkken de alınır (yalnız sayfa açılışında alınıyordu); panelde "Paylaş"a basınca sayfa hazır değilse Paylaşım Merkezi açılır ve hazır olunca paylaşım başlatılır. Paylaşım Merkezi'nde metin/platform eksikliği gibi erken çıkışlar panele hata olarak bildirilir (panel "paylaşılıyor"da takılı kalmaz).
+ - **[09.10.2026] Flow AI web — sesli sohbet:** panelde mikrofon düğmesi eklendi (tarayıcının Web Speech API'si; ek paket yok). Basınca eller serbest döngü: dinle → cümle bitince gönder → yanıtı sesli oku → yeniden dinle. "bitir/kapat/stop" ya da düğme ile kapanır; 3 sessiz tur sonra kendiliğinden durur. Desteklemeyen tarayıcıda (ör. Firefox) düğme görünmez. tr/en/de.
+ - **[08.10.2026] WhatsApp hatırlatma metni:** AI Asistan sayfasında işletme kendi hatırlatma metnini yazar ve mesaj dilini seçer (tr/en/de/fr/es); yer tutucular ({name}, {business}, {date}, {time}, {doctor}, {service}) ve örnek önizleme vardır. Hitap (Sayın/Mr./Herr…) metne işletme tarafından yazılır, kodda sabit değildir.
+ - **[08.10.2026] Profil:** "Profili Kaydet" düğmesi yalnız değişiklik varken etkin; kaydedince "Kaydedildi" yazıp pasif kalır, bir alan değişince yeniden etkinleşir. Profil kaydı artık hatayı sessizce yutmaz.
+diff --git a/src/app/(dashboard)/sosyal-medya/share/page.tsx b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+index 34f4a24..3d80e54 100644
+--- a/src/app/(dashboard)/sosyal-medya/share/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+@@ -104,6 +104,9 @@ export default function SharePage() {
+   const [isCropperOpen, setIsCropperOpen] = useState(false);
+   const [isImageCropped, setIsImageCropped] = useState(false);
+   
++  const accountsRef = useRef<any[] | null>(null);
++  const applyHandoffRef = useRef<(() => Promise<void>) | null>(null);
++
+   const needsInstagramCrop = !!(localImage && !localImage.startsWith('data:video') && selectedPlatforms['instagram'] && !isImageCropped);
+ 
+   useEffect(() => {
+@@ -132,36 +135,9 @@ export default function SharePage() {
+         });
+         setSelectedPlatforms(initialSelected);
+ 
+-        // Handoff check
+-        const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
+-        const job = flowAiShareHandoff.takeJob();
+-        const file = flowAiShareHandoff.getFile();
+-        if (job && file) {
+-          loadMediaFile(file, { skipDurationFilter: true });
+-          setLocalText(job.caption || '');
+-          
+-          const newSelected: Record<string, boolean> = {};
+-          accounts.forEach((acc: any) => {
+-            const p = acc.platform.toLowerCase();
+-            newSelected[p] = job.platforms.includes(p);
+-          });
+-          setSelectedPlatforms(newSelected);
+-
+-          if (job.scheduledLocal) {
+-            setPublishMode('schedule');
+-            // convert YYYY-MM-DD HH:mm to DD.MM.YYYY HH:mm
+-            const [dateStr, timeStr] = job.scheduledLocal.split(' ');
+-            if (dateStr && timeStr) {
+-              const [y, m, d] = dateStr.split('-');
+-              setScheduleDate(`${d}.${m}.${y} ${timeStr}`);
+-            }
+-            if (job.timezone) {
+-              setTimezone(job.timezone);
+-            }
+-          } else {
+-            setPublishMode('now');
+-          }
+-        }
++        // Flow AI'dan gelen video/paylaşım işi varsa uygula (hesaplar yüklendikten sonra)
++        accountsRef.current = accounts;
++        await applyHandoffRef.current?.();
+ 
+       } catch(e) {
+         console.warn("Failed to fetch accounts", e);
+@@ -258,6 +234,49 @@ export default function SharePage() {
+     reader.readAsDataURL(file);
+   };
+ 
++  // Flow AI → Paylaşım Merkezi devri: sayfa açılırken VE sayfa açıkken yeni iş gelirse çalışır.
++  applyHandoffRef.current = async () => {
++    const accounts = accountsRef.current;
++    if (!accounts) return; // hesaplar yüklenince fetchAccounts tekrar çağırır
++    const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
++    const job = flowAiShareHandoff.takeJob();
++    const file = flowAiShareHandoff.getFile();
++    if (!job || !file) return;
++    loadMediaFile(file, { skipDurationFilter: true });
++    setLocalText(job.caption || '');
++
++    const newSelected: Record<string, boolean> = {};
++    accounts.forEach((acc: any) => {
++      const p = acc.platform.toLowerCase();
++      newSelected[p] = job.platforms.includes(p);
++    });
++    setSelectedPlatforms(newSelected);
++
++    if (job.scheduledLocal) {
++      setPublishMode('schedule');
++      // convert YYYY-MM-DD HH:mm to DD.MM.YYYY HH:mm
++      const [dateStr, timeStr] = job.scheduledLocal.split(' ');
++      if (dateStr && timeStr) {
++        const [y, m, d] = dateStr.split('-');
++        setScheduleDate(`${d}.${m}.${y} ${timeStr}`);
++      }
++      if (job.timezone) {
++        setTimezone(job.timezone);
++      }
++    } else {
++      setPublishMode('now');
++    }
++  };
++
++  useEffect(() => {
++    let off: (() => void) | null = null;
++    let alive = true;
++    import('@/lib/flowAiShareHandoff').then(({ flowAiShareHandoff }) => {
++      if (alive) off = flowAiShareHandoff.subscribe(() => { applyHandoffRef.current?.(); });
++    });
++    return () => { alive = false; off?.(); };
++  }, []);
++
+   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (file) {
+@@ -285,11 +304,19 @@ export default function SharePage() {
+ 
+ 
+   const handleShare = async () => {
++    // Erken çıkışlarda Flow AI panelinin "paylaşılıyor" durumunda takılı kalmaması için sonucu panele bildir.
++    const bail = async (message: string) => {
++      alert(message);
++      const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
++      if (flowAiShareHandoff.takeConfirmedRun()) {
++        window.dispatchEvent(new CustomEvent('flowai:share-result', { detail: { ok: false, message } }));
++      }
++    };
+     if (needsInstagramCrop) {
+-      return alert(t("sharePage.imageContainer.cropWarning"));
++      return bail(t("sharePage.imageContainer.cropWarning"));
+     }
+     if (!localText.trim()) {
+-      return alert(t("sharePage.errors.noText"));
++      return bail(t("sharePage.errors.noText"));
+     }
+     
+     const platformsToShare = Object.keys(selectedPlatforms).filter(p => selectedPlatforms[p]).map(p => {
+@@ -353,7 +380,7 @@ export default function SharePage() {
+     }).filter(Boolean);
+ 
+     if (platformsToShare.length === 0) {
+-      return alert(t("sharePage.errors.noPlatform"));
++      return bail(t("sharePage.errors.noPlatform"));
+     }
+ 
+     let finalScheduledFor: string | undefined = undefined;
+@@ -367,7 +394,7 @@ export default function SharePage() {
+         // Zernio schedule format: YYYY-MM-DDTHH:mm:00 
+         finalScheduledFor = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}T${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
+       } catch (err) {
+-        return alert(t("sharePage.errors.invalidDateFormat"));
++        return bail(t("sharePage.errors.invalidDateFormat"));
+       }
+     }
+ 
+diff --git a/src/components/flow-ai/FlowAiPanel.tsx b/src/components/flow-ai/FlowAiPanel.tsx
+index b0f2abf..c8bf483 100644
+--- a/src/components/flow-ai/FlowAiPanel.tsx
++++ b/src/components/flow-ai/FlowAiPanel.tsx
+@@ -146,7 +146,9 @@ export default function FlowAiPanel() {
+   const [shareJobPending, setShareJobPending] = useState<any | null>(null);
+   const [attachmentMeta, setAttachmentMeta] = useState<{ kind: "video"; mimeType: string; durationSec: number; width: number; height: number; sizeBytes: number; fileName: string } | null>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
++  const sharePendingRef = useRef<any>(null);
+   const [shareConfirmState, setShareConfirmState] = useState<'IDLE' | 'NOT_READY' | 'STARTED'>('IDLE');
++  sharePendingRef.current = shareJobPending;
+   const [platformPick, setPlatformPick] = useState<null | { platform: string; handle: string; eligible: boolean; reason?: string }[]>(null);
+   const [pickSel, setPickSel] = useState<Record<string, boolean>>({});
+   const voiceRef = useRef<ReturnType<typeof useWebVoice> | null>(null);
+@@ -495,6 +497,15 @@ export default function FlowAiPanel() {
+               <button type="button" disabled={shareConfirmState === 'STARTED'} onClick={async () => {
+                 const state = await flowAiShareHandoff.confirm();
+                 setShareConfirmState(state);
++                if (state === 'NOT_READY') {
++                  // Paylaşım Merkezi açık değilse aç; sayfa videoyu alıp hazır olunca (en çok ~10 sn) paylaşımı kendimiz başlat.
++                  router.push(SCREEN_ROUTES.ai_uretim);
++                  for (let i = 0; i < 20 && sharePendingRef.current; i++) {
++                    await new Promise((r) => setTimeout(r, 500));
++                    if (!sharePendingRef.current) break;
++                    if ((await flowAiShareHandoff.confirm()) === 'STARTED') { setShareConfirmState('STARTED'); break; }
++                  }
++                }
+               }} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: "#22B573", color: "#000", fontWeight: 700, cursor: shareConfirmState === 'STARTED' ? "not-allowed" : "pointer", opacity: shareConfirmState === 'STARTED' ? 0.6 : 1 }}>
+                 {shareConfirmState === 'STARTED' ? t("share.sharing") : t("share.confirm")}
+               </button>
+diff --git a/src/lib/flowAiShareHandoff.ts b/src/lib/flowAiShareHandoff.ts
+index 217629b..5d41666 100644
+--- a/src/lib/flowAiShareHandoff.ts
++++ b/src/lib/flowAiShareHandoff.ts
+@@ -17,6 +17,7 @@ class FlowAiShareHandoff {
+   private page: SharePageRegistration | null = null;
+   private taken = false;
+   private confirmedRun = false;
++  private listeners = new Set<() => void>();
+ 
+   attach(file: File) {
+     this.file = file;
+@@ -37,6 +38,13 @@ class FlowAiShareHandoff {
+   setJob(job: ShareJob) {
+     this.job = job;
+     this.taken = false;
++    // Paylaşım sayfası zaten açıksa (yeniden bağlanmaz) işi hemen alsın.
++    this.listeners.forEach((cb) => { try { cb(); } catch { /* dinleyici hatası akışı bozmaz */ } });
++  }
++
++  subscribe(cb: () => void): () => void {
++    this.listeners.add(cb);
++    return () => { this.listeners.delete(cb); };
+   }
+ 
+   takeJob(): ShareJob | null {
+-- 
+2.43.0
+
