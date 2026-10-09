@@ -46,6 +46,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 42 | `TALIMAT_42_canli_test_bilgi_duzeltme.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 43 | `TALIMAT_43_canli_test_hafiza_dugmesi_kaldir.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 44 | `TALIMAT_44_randevu_hafiza_dugmesi_kaldir.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
+| 45 | `TALIMAT_45_raporlari_temizle.md` (hazır yama ×3) | ledger (SQL: kullanıcı) + flowweb + flow | yok (SQL editörü / Vercel / EAS) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

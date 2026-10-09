@@ -1,0 +1,58 @@
+From b4c48cd60116e7621f19543de08a394c0754cf6c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 05:43:33 +0000
+Subject: [PATCH] feat(db): clear_appointment_notifications (Anasayfa Raporlari
+ Temizle)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ ...000001_clear_appointment_notifications.sql | 25 +++++++++++++++++++
+ 2 files changed, 26 insertions(+)
+ create mode 100644 supabase/migrations/20261009000001_clear_appointment_notifications.sql
+
+diff --git a/README.md b/README.md
+index 47d2c08..70e6742 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,5 @@
+ ## 🆕 Son Güncellemeler (Ekim 2026)
++- 09.10.2026 — `clear_appointment_notifications()` (Anasayfa "Raporları Temizle"): işletmenin randevu bildirimlerini siler; randevular ve konuşma kayıtları silinmez.
+ - 09.10.2026 — `persona-test` (AI Asistan "Canlı Test" simülasyonu) açılmıyordu ("Failed to send a request to the Edge Function"): kaynakta `serve` iki kez içe aktarılmıştı (`Identifier 'serve' has already been declared`, işçi açılışta çöküyordu). Yinelenen satır silindi; CI `check-names` artık yinelenen tanımı (TS2300) yakalıyor.
+ - 08.10.2026 — WhatsApp hatırlatma: metni işletme yazar ({name}, {business}, {date}, {time}, {doctor}, {service}); mesaj dili seçilir (tr/en/de/fr/es); unvanlar koda gömülü değildir.
+ 
+diff --git a/supabase/migrations/20261009000001_clear_appointment_notifications.sql b/supabase/migrations/20261009000001_clear_appointment_notifications.sql
+new file mode 100644
+index 0000000..69be3e1
+--- /dev/null
++++ b/supabase/migrations/20261009000001_clear_appointment_notifications.sql
+@@ -0,0 +1,25 @@
++-- Anasayfa "Randevu Bildirimleri" > "Raporları Temizle": işletmenin randevu bildirimlerini siler.
++-- Yalnız `notifications` (type = 'appointment_created'); randevular ve müşteri konuşmaları (ai_communication_logs) SİLİNMEZ.
++-- Kimlik istemciden gelmez: current_org_id() çözer (AGENTS §3). Yalnız işletme sahibi çalıştırır (notifications okuma/güncelleme politikasıyla aynı).
++-- notifications tablosunda istemci için DELETE politikası yok; bu yüzden silme yalnız bu fonksiyonla yapılır.
++
++create or replace function public.clear_appointment_notifications()
++ returns jsonb
++ language plpgsql security definer set search_path to 'public'
++as $function$
++declare
++  v_org uuid := public.current_org_id();
++  v_n integer;
++begin
++  if v_org is null then return jsonb_build_object('status', 'UNAUTHORIZED'); end if;
++  if not exists (select 1 from public.organizations where id = v_org and owner_id = auth.uid()) then
++    return jsonb_build_object('status', 'FORBIDDEN');
++  end if;
++  delete from public.notifications where profile_id = v_org and type = 'appointment_created';
++  get diagnostics v_n = row_count;
++  return jsonb_build_object('status', 'SUCCESS', 'deleted', v_n);
++end;
++$function$;
++
++revoke all on function public.clear_appointment_notifications() from public, anon;
++grant execute on function public.clear_appointment_notifications() to authenticated, service_role;
+-- 
+2.43.0
+
