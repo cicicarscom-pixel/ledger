@@ -1,4 +1,5 @@
 ## 🆕 Son Güncellemeler (Ekim 2026)
+- 09.10.2026 — `clear_appointment_notifications()` (Anasayfa "Raporları Temizle"): işletmenin randevu bildirimlerini siler; randevular ve konuşma kayıtları silinmez.
 - 09.10.2026 — `persona-test` (AI Asistan "Canlı Test" simülasyonu) açılmıyordu ("Failed to send a request to the Edge Function"): kaynakta `serve` iki kez içe aktarılmıştı (`Identifier 'serve' has already been declared`, işçi açılışta çöküyordu). Yinelenen satır silindi; CI `check-names` artık yinelenen tanımı (TS2300) yakalıyor.
 - 08.10.2026 — WhatsApp hatırlatma: metni işletme yazar ({name}, {business}, {date}, {time}, {doctor}, {service}); mesaj dili seçilir (tr/en/de/fr/es); unvanlar koda gömülü değildir.
 
