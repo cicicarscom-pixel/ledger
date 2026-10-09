@@ -1,0 +1,1048 @@
+From 07c719d2281f4bdad1b1772c373b3526d13ae1a5 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 22:26:36 +0000
+Subject: [PATCH] feat(ui): alert/confirm yerine cevirili ortak uyari-onay
+ bileseni (DialogProvider/useDialog), 67 cagri tasindi (Kalite Faz 8, web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ messages/de.json                              |   5 +
+ messages/en.json                              |   5 +
+ messages/tr.json                              |   5 +
+ .../HizmetAyarlariClient.tsx                  |   8 +-
+ src/app/(dashboard)/ai-asistan/page.tsx       |  16 +-
+ .../ai-asistan/randevu/RandevuClient.tsx      |  26 +--
+ .../ai-muhasebe/muhasebecim/page.tsx          |  24 +--
+ src/app/(dashboard)/gelen-kutusu/page.tsx     |  12 +-
+ src/app/(dashboard)/sosyal-medya/page.tsx     |  16 +-
+ .../(dashboard)/sosyal-medya/posts/page.tsx   |  16 +-
+ .../(dashboard)/sosyal-medya/share/page.tsx   |  16 +-
+ src/app/layout.tsx                            |   3 +-
+ src/app/login/page.tsx                        |   4 +-
+ src/components/CropperModal.tsx               |   4 +-
+ .../ai-asistan/AICharacterPanel.tsx           |   4 +-
+ .../dashboard/AppointmentNotifications.tsx    |   6 +-
+ src/components/settings/AiDataResetPanel.tsx  |   6 +-
+ .../settings/MultiCalendarToggle.tsx          |   4 +-
+ src/components/ui/DialogProvider.tsx          | 166 ++++++++++++++++++
+ 20 files changed, 279 insertions(+), 68 deletions(-)
+ create mode 100644 src/components/ui/DialogProvider.tsx
+
+diff --git a/README.md b/README.md
+index d22ddc4..23ae8e1 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Kalite Faz 8 (ortak uyarı/onay bileşeni, web):** Tarayıcının `alert()`/`confirm()` pencereleri (67 çağrı, 14 dosya) yerine çevirili, erişilebilir ortak bileşen (`components/ui/DialogProvider.tsx`, `useDialog()`): `dialog.alert(mesaj)` ve `await dialog.confirm(mesaj, { danger: true })`. Esc iptal, Enter onay, odak onay düğmesinde, birden çok uyarı sıraya girer, yıkıcı onaylar kırmızı. Sıfırlama paneli artık "tamamlandı" mesajını sayfa yenilenmeden önce gösterir. Yeni anahtarlar: `dialog.ok/confirm/cancel` (tr/en/de).
+ - **[09.10.2026] Eksik çeviri anahtarı:** Tüm `t("…")` çağrıları tr/en/de dosyalarıyla karşılaştırıldı; tek eksik `common.cancel` (Randevu rezervasyon penceresi "İptal" düğmesi) eklendi.
+ - **[09.10.2026] Kalite Faz 6B (i18n + e-posta doğrulama sayfası):** Doğrulama sayfası (`verify-email`), Onboarding formu, Müşteriler, Randevu (takvim yönetimi, rezervasyon penceresi), Gönderiler tablosu, Paylaşım uyarıları, Gelen Kutusu uyarıları, Çoklu Takvim anahtarı, Fatura kartı ve Kenar Çubuğu'ndaki sabit metinler tr/en/de anahtarlarına taşındı (78 yeni anahtar). Doğrulama sayfasında "Tekrar Gönder" artık 60 sn bekleme sayacı gösterir, hız sınırında anlaşılır uyarı verir ve hesap zaten doğrulanmışsa kullanıcıyı yanıltmaz (Supabase bu durumda e-posta göndermez ama başarılı döner); "Giriş sayfasına dön" bağlantısı eklendi. Kayıtta kullanıcının dili (`locale`) Supabase'e iletilir; e-posta şablonu bu dile göre seçilir. Kenar çubuğu ve doğrulama sayfasındaki `useEffect` bağımlılık uyarıları giderildi (38 → 37).
+ - **[09.10.2026] Kalite Faz 6A (i18n, Analiz sayfası):** `analiz/page.tsx` içindeki ~100 sabit Türkçe/İngilizce metin (kart başlıkları, tablo sütunları, grafik etiketleri, gün kısaltmaları, ısı haritası ipucu, Gelen Kutusu analizleri) `analizPage.*` anahtarlarına taşındı; tr/en/de 76 yeni anahtar. Ekran dili artık seçilen dille değişir; "Best times" ve saat ipucu da çevrilir (12 saat "am/pm" yerine 24 saat biçimi).
+diff --git a/messages/de.json b/messages/de.json
+index 764cbf8..a2dec08 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -1531,5 +1531,10 @@
+   },
+   "sidebar": {
+     "profileAlt": "Benutzerprofil"
++  },
++  "dialog": {
++    "ok": "OK",
++    "confirm": "Bestätigen",
++    "cancel": "Abbrechen"
+   }
+ }
+diff --git a/messages/en.json b/messages/en.json
+index 93948db..22a1236 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -1531,5 +1531,10 @@
+   },
+   "sidebar": {
+     "profileAlt": "User profile"
++  },
++  "dialog": {
++    "ok": "OK",
++    "confirm": "Confirm",
++    "cancel": "Cancel"
+   }
+ }
+diff --git a/messages/tr.json b/messages/tr.json
+index 18264a8..7945e8a 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -1525,5 +1525,10 @@
+   },
+   "sidebar": {
+     "profileAlt": "Kullanıcı profili"
++  },
++  "dialog": {
++    "ok": "Tamam",
++    "confirm": "Onayla",
++    "cancel": "İptal"
+   }
+ }
+diff --git a/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx b/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
+index 284ac53..f4f66da 100644
+--- a/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
+@@ -3,9 +3,11 @@
+ import { useState, useTransition } from 'react';
+ import { useTranslations } from 'next-intl';
+ import { createBusinessService, updateBusinessService, deleteBusinessService } from '@/actions/businessServices';
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ export default function HizmetAyarlarıiClient({ initialServices }: { initialServices: any[] }) {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const [services] = useState(initialServices);
+   const [selectedService, setSelectedService] = useState<any>(null);
+   const [isPending, startTransition] = useTransition();
+@@ -23,7 +25,7 @@ export default function HizmetAyarlarıiClient({ initialServices }: { initialSer
+         window.location.reload();
+       } catch (err) {
+         console.error(err);
+-        alert(t("hizmetAyarlari.alerts.saveError"));
++        dialog.alert(t("hizmetAyarlari.alerts.saveError"));
+       }
+     });
+   };
+@@ -31,7 +33,7 @@ export default function HizmetAyarlarıiClient({ initialServices }: { initialSer
+   const handleDelete = async (id: string, e: React.MouseEvent) => {
+     e.preventDefault();
+     e.stopPropagation();
+-    if (!confirm(t("hizmetAyarlari.alerts.confirmDelete"))) return;
++    if (!(await dialog.confirm(t("hizmetAyarlari.alerts.confirmDelete"), { danger: true }))) return;
+ 
+     startTransition(async () => {
+       try {
+@@ -39,7 +41,7 @@ export default function HizmetAyarlarıiClient({ initialServices }: { initialSer
+         window.location.reload();
+       } catch (err) {
+         console.error(err);
+-        alert(t("hizmetAyarlari.alerts.deleteError"));
++        dialog.alert(t("hizmetAyarlari.alerts.deleteError"));
+       }
+     });
+   };
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index 9d7830d..7a2c1a8 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -11,6 +11,7 @@ import { saveAiPersonaSettings, getAiPersonaSettings } from "@/actions/aiPersona
+ import { getWahaStatus, startWahaSession, getWahaQrCode, getWahaPairingCode } from "@/actions/waha";
+ import { getPublishedPersonas, PublicPersona } from "@/actions/personas";
+ import AICharacterPanel from "@/components/ai-asistan/AICharacterPanel";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ // Persona Engine (Phase 5): today's UI still shows a fixed 3-character list
+ // Persona Engine Phase 6: Removed hardcoded CHARACTER_SLUGS.
+@@ -41,6 +42,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
+ 
+ export default function BotScreen() {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const supabase = createClient();
+   const [botConfig, setBotConfig] = useState({
+     whatsapp: false,
+@@ -155,14 +157,14 @@ export default function BotScreen() {
+       });
+ 
+       if (!result.success) {
+-        alert(t("aiAsistanPage.alerts.saveFailed", { error: result.error ?? t("aiAsistanPage.alerts.unknownError") }));
++        dialog.alert(t("aiAsistanPage.alerts.saveFailed", { error: result.error ?? t("aiAsistanPage.alerts.unknownError") }));
+         return;
+       }
+ 
+-      alert(t("aiAsistanPage.alerts.saveSuccess"));
++      dialog.alert(t("aiAsistanPage.alerts.saveSuccess"));
+     } catch (error) {
+       console.error(error);
+-      alert(t("aiAsistanPage.alerts.saveError"));
++      dialog.alert(t("aiAsistanPage.alerts.saveError"));
+     } finally {
+       setIsSaving(false);
+     }
+@@ -225,7 +227,7 @@ export default function BotScreen() {
+     
+     const startRes = await startWahaSession();
+     if (!startRes.success) {
+-      alert(startRes.error);
++      dialog.alert(startRes.error);
+       setWahaLoading(false);
+       return;
+     }
+@@ -235,7 +237,7 @@ export default function BotScreen() {
+       if (qrRes.success && qrRes.data) {
+         setWahaQrCode(qrRes.data.data || qrRes.data);
+       } else {
+-        alert(t("aiAsistanPage.alerts.qrFailed", { error: qrRes.error || "" }));
++        dialog.alert(t("aiAsistanPage.alerts.qrFailed", { error: qrRes.error || "" }));
+       }
+       setWahaLoading(false);
+     }, 2000);
+@@ -243,7 +245,7 @@ export default function BotScreen() {
+ 
+   const handleGetPairingCode = async () => {
+     if (!wahaPhone.trim()) {
+-      alert(t("aiAsistanPage.alerts.enterPhone"));
++      dialog.alert(t("aiAsistanPage.alerts.enterPhone"));
+       return;
+     }
+     setWahaLoading(true);
+@@ -253,7 +255,7 @@ export default function BotScreen() {
+     if (pairingRes.success && pairingRes.data) {
+       setWahaPairingCode(pairingRes.data.code);
+     } else {
+-      alert(t("aiAsistanPage.alerts.codeFailed", { error: pairingRes.error || "" }));
++      dialog.alert(t("aiAsistanPage.alerts.codeFailed", { error: pairingRes.error || "" }));
+     }
+     setWahaLoading(false);
+   };
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+index d0eb451..8686a47 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
+ import { createClient } from '@/lib/supabase/client';
+ import { getAppointmentsByDate, getAvailableSlots, createAppointment, cancelAppointment, deleteAppointment, getDaySchedule, createCalendarBlock, deleteCalendarBlock } from '@/actions/appointments';
+ import { dateFromYmd } from '@/lib/dates';
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ const CARD_COLORS = [
+   { bg: 'rgba(34,181,115,0.1)', border: 'rgba(34,181,115,0.3)', text: '#22B573', icon: '✂️' },
+@@ -75,6 +76,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+   const [promptConfig, setPromptConfig] = useState<{ visible: boolean; title: string; placeholder: string; value: string; onSave: (val: string) => void }>({ visible: false, title: "", placeholder: "", value: "", onSave: () => {} });
+   const t = useTranslations();
++  const dialog = useDialog();
+   const supabase = createClient();
+   const searchParams = useSearchParams();
+ 
+@@ -191,16 +193,16 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+     setIsActionLoading(false);
+     
+     if (error || data?.status === 'UNAUTHORIZED') {
+-      alert(t('randevuPage.actions.genericError'));
++      dialog.alert(t('randevuPage.actions.genericError'));
+     } else if (data?.status === 'ALREADY_CANCELLED') {
+-      alert(t('randevuPage.actions.alreadyCancelled'));
++      dialog.alert(t('randevuPage.actions.alreadyCancelled'));
+     } else if (data?.status === 'NOT_FOUND') {
+-      alert(t('randevuPage.actions.notFound'));
++      dialog.alert(t('randevuPage.actions.notFound'));
+     }
+     
+     setCancelModalId(null);
+     setCancelReason("");
+-    if (data?.status === 'SUCCESS') alert(t('randevuPage.actions.cancelSuccess'));
++    if (data?.status === 'SUCCESS') dialog.alert(t('randevuPage.actions.cancelSuccess'));
+     
+     const refresh = await getAppointmentsByDate(selectedDate, activeCalendarId || undefined);
+     setAppointments(refresh.data);
+@@ -212,13 +214,13 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+     setIsActionLoading(false);
+     
+     if (error || data?.status === 'UNAUTHORIZED') {
+-      alert(t('randevuPage.actions.genericError'));
++      dialog.alert(t('randevuPage.actions.genericError'));
+     } else if (data?.status === 'NOT_FOUND') {
+-      alert(t('randevuPage.actions.notFound'));
++      dialog.alert(t('randevuPage.actions.notFound'));
+     }
+     
+     setDeleteModalId(null);
+-    if (data?.status === 'SUCCESS') alert(t('randevuPage.actions.deleteSuccess'));
++    if (data?.status === 'SUCCESS') dialog.alert(t('randevuPage.actions.deleteSuccess'));
+     
+     const refresh = await getAppointmentsByDate(selectedDate, activeCalendarId || undefined);
+     setAppointments(refresh.data);
+@@ -323,7 +325,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+ 
+   const handleSave = async () => {
+     if (!newAppt.time || !newAppt.phone) {
+-      alert(t('randevuPage.alerts.missingFields'));
++      dialog.alert(t('randevuPage.alerts.missingFields'));
+       return;
+     }
+     setIsSaving(true);
+@@ -337,7 +339,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+     });
+     
+     if (res.error) {
+-      alert(t('randevuPage.alerts.saveFailed', { error: res.error }));
++      dialog.alert(t('randevuPage.alerts.saveFailed', { error: res.error }));
+       setIsSaving(false);
+       return;
+     }
+@@ -590,7 +592,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                                       { label: `${bReason}${bNote ? ' - ' + bNote : ''}`, onClick: () => {} },
+                                       { label: t('randevu.block.removeReservation'), onClick: async () => {
+                                           const res = await deleteCalendarBlock(bId);
+-                                            if (res.error || res.data?.status !== 'SUCCESS') alert(t('musteriler.error'));
++                                            if (res.error || res.data?.status !== 'SUCCESS') dialog.alert(t('musteriler.error'));
+                                             else {
+                                               const refreshed = await getDaySchedule(selectedDate, activeCalendarId || undefined);
+                                               setDaySchedule(refreshed.data || []);
+@@ -1054,11 +1056,11 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                     <button 
+                       style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#EF4444" }}
+                       onClick={async () => {
+-                        if (confirm(t("randevuPage.extra.confirmDelete", { name: cal.name }))) {
++                        if ((await dialog.confirm(t("randevuPage.extra.confirmDelete", { name: cal.name }), { danger: true }))) {
+                           const { createClient } = await import("@/lib/supabase/client");
+                           const client = createClient();
+                           const { data } = await client.from("calendars").update({ is_active: false }).eq("id", cal.id).select();
+-                          if (!data || data.length === 0) alert(t("randevuPage.extra.noDeletePermission"));
++                          if (!data || data.length === 0) dialog.alert(t("randevuPage.extra.noDeletePermission"));
+                           const { getCalendars } = await import("@/actions/calendars");
+                           const updated = await getCalendars();
+                           setCalendars(updated);
+diff --git a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+index 42f6a37..54596a9 100644
+--- a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
+ import Link from 'next/link';
+ import { useTranslations } from 'next-intl';
+ import { createClient } from "@/lib/supabase/client";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ export default function MuhasebecimPage() {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const [step, setStep] = useState<'initial' | 'verified' | 'connected' | 'pending_confirmation'>('initial');
+   const [accountantCode, setAccountantCode] = useState('');
+   const [firm, setFirm] = useState<any>(null);
+@@ -61,17 +63,17 @@ export default function MuhasebecimPage() {
+           setFirm({ name: data.firm_name });
+           setStep('verified');
+         } else if (data?.status === 'CODE_NOT_FOUND') {
+-          alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
++          dialog.alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
+         } else {
+-          alert(t("aiMuhasebePage.muhasebecim.actionError"));
++          dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+         }
+       } catch {
+-        alert(t("aiMuhasebePage.muhasebecim.actionError"));
++        dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       } finally {
+         setIsLoading(false);
+       }
+     } else {
+-      alert(t("aiMuhasebePage.muhasebecim.enterValidCodeAlert"));
++      dialog.alert(t("aiMuhasebePage.muhasebecim.enterValidCodeAlert"));
+     }
+   };
+ 
+@@ -84,15 +86,15 @@ export default function MuhasebecimPage() {
+       if (data?.status === 'SUCCESS' || data?.status === 'REQUEST_PENDING') {
+         setStep('pending_confirmation');
+       } else if (data?.status === 'ALREADY_CONNECTED') {
+-        alert(t("aiMuhasebePage.muhasebecim.alreadyConnected"));
++        dialog.alert(t("aiMuhasebePage.muhasebecim.alreadyConnected"));
+         checkConnection();
+       } else if (data?.status === 'CODE_NOT_FOUND') {
+-        alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
++        dialog.alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
+       } else {
+-        alert(t("aiMuhasebePage.muhasebecim.actionError"));
++        dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       }
+     } catch {
+-      alert(t("aiMuhasebePage.muhasebecim.actionError"));
++      dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+     } finally {
+       setIsLoading(false);
+     }
+@@ -105,20 +107,20 @@ export default function MuhasebecimPage() {
+       if (error) throw error;
+       checkConnection();
+     } catch {
+-      alert(t("aiMuhasebePage.muhasebecim.actionError"));
++      dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       setIsLoading(false);
+     }
+   };
+ 
+   const handleDisconnect = async () => {
+-    if (window.confirm(t("aiMuhasebePage.muhasebecim.disconnectConfirm", { firm: firm?.name }))) {
++    if ((await dialog.confirm(t("aiMuhasebePage.muhasebecim.disconnectConfirm", { firm: firm?.name }), { danger: true }))) {
+       setIsLoading(true);
+       try {
+         const { error } = await supabase.rpc('disconnect_current_accountant', { p_reason: 'User request' });
+         if (error) throw error;
+         checkConnection();
+       } catch {
+-        alert(t("aiMuhasebePage.muhasebecim.actionError"));
++        dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+         setIsLoading(false);
+       }
+     }
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index 416ee90..b058036 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -5,10 +5,12 @@ import { useTranslations, useLocale } from "next-intl";
+ import { appointmentSentence } from '@/lib/appointmentSentence';
+ import { useRouter, useSearchParams } from 'next/navigation';
+ import { createClient } from '@/lib/supabase/client';
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ function GelenKutusuContent() {
+   const router = useRouter();
+   const t = useTranslations();
++  const dialog = useDialog();
+   const locale = useLocale();
+   const searchParams = useSearchParams();
+   const tabParam = searchParams.get('tab');
+@@ -259,7 +261,7 @@ function GelenKutusuContent() {
+       
+       setPrivateReplyModal(null);
+       setPrivateReplyText("");
+-      alert(t("gelenKutusuPage.privateReply.successAlert"));
++      dialog.alert(t("gelenKutusuPage.privateReply.successAlert"));
+     } catch (e: any) {
+       console.error(e);
+       let errorMsg = e.message;
+@@ -273,7 +275,7 @@ function GelenKutusuContent() {
+            }
+         }
+       } catch {}
+-      alert(t("gelenKutusuPage.privateReply.errorAlertPrefix") + errorMsg);
++      dialog.alert(t("gelenKutusuPage.privateReply.errorAlertPrefix") + errorMsg);
+     } finally {
+       setIsSendingPrivateReply(false);
+     }
+@@ -339,9 +341,9 @@ function GelenKutusuContent() {
+     } catch (err: any) {
+       console.error(err);
+       if (err.message?.includes('Missing accountId for reply-comment')) {
+-        alert(t("gelenKutusuPage.alerts.replyNoAccount", { platform: comment.platform }));
++        dialog.alert(t("gelenKutusuPage.alerts.replyNoAccount", { platform: comment.platform }));
+       } else {
+-        alert(t("gelenKutusuPage.alerts.replyFailed", { message: err.message }));
++        dialog.alert(t("gelenKutusuPage.alerts.replyFailed", { message: err.message }));
+       }
+     } finally {
+       setIsSendingReply(false);
+@@ -634,7 +636,7 @@ function GelenKutusuContent() {
+ 
+   const handleDeleteSelected = async () => {
+     if (selectedItems.length === 0) return;
+-    if (confirm(t("gelenKutusuPage.messages.confirmDeleteSelected", { count: selectedItems.length }))) {
++    if ((await dialog.confirm(t("gelenKutusuPage.messages.confirmDeleteSelected", { count: selectedItems.length }), { danger: true }))) {
+       try {
+         if (activeTab === 'mesajlar') {
+           const uuids = selectedItems.filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+diff --git a/src/app/(dashboard)/sosyal-medya/page.tsx b/src/app/(dashboard)/sosyal-medya/page.tsx
+index bc3c2d5..bbb40d8 100644
+--- a/src/app/(dashboard)/sosyal-medya/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/page.tsx
+@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
+ import Link from "next/link";
+ import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ const PLATFORMS_DATA = [
+   { id: "facebook", name: "Facebook", color: "#1877F2", glow: "rgba(24,119,242,0.3)", icon: "👥" },
+@@ -75,6 +76,7 @@ function ScrollableContainer({ children }: { children: React.ReactNode }) {
+ 
+ export default function SosyalMedyaPage() {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const [accounts, setAccounts] = useState<any[]>([]);
+   const [isLoading, setIsLoading] = useState(true);
+   const [isConnecting, setIsConnecting] = useState<string | null>(null);
+@@ -105,7 +107,7 @@ export default function SosyalMedyaPage() {
+ 
+     if (errorParam || errorMessage) {
+        const displayError = errorMessage ? decodeURIComponent(errorMessage.replace(/\+/g, ' ')) : errorParam;
+-       alert(t("sosyalMedyaPage.errors.connectError") + ": " + displayError);
++       dialog.alert(t("sosyalMedyaPage.errors.connectError") + ": " + displayError);
+        window.history.replaceState({}, '', window.location.pathname);
+     } else if (accountId) {
+       fetchAccounts(true);
+@@ -148,7 +150,7 @@ export default function SosyalMedyaPage() {
+     } catch (err) {
+       console.error('Bot ayarı güncellenemedi:', err);
+       setSocialBotActive(!value);
+-      alert(t("sosyalMedyaPage.assistant.updateError"));
++      dialog.alert(t("sosyalMedyaPage.assistant.updateError"));
+     } finally {
+       setIsUpdatingBot(false);
+     }
+@@ -190,7 +192,7 @@ export default function SosyalMedyaPage() {
+           });
+           if (newConflicts.length > 0) {
+             const list = newConflicts.map((c: any) => `${c.platform}: ${c.username}`).join('\n');
+-            setTimeout(() => alert(t("sosyalMedyaPage.errors.accountAlreadyLinkedElsewhere") + "\n\n" + list), 50);
++            setTimeout(() => dialog.alert(t("sosyalMedyaPage.errors.accountAlreadyLinkedElsewhere") + "\n\n" + list), 50);
+           }
+         }
+       }
+@@ -236,14 +238,14 @@ export default function SosyalMedyaPage() {
+       }
+     } catch (err: any) {
+       console.warn("Error connecting account:", err);
+-      alert(`${t("sosyalMedyaPage.errors.connectLinkError")}: ${err.message || err}`);
++      dialog.alert(`${t("sosyalMedyaPage.errors.connectLinkError")}: ${err.message || err}`);
+     } finally {
+       setIsConnecting(null);
+     }
+   };
+ 
+   const handleDisconnect = async (accountId: string) => {
+-    if (!confirm(t("sosyalMedyaPage.confirmDisconnect"))) return;
++    if (!(await dialog.confirm(t("sosyalMedyaPage.confirmDisconnect"), { danger: true }))) return;
+     
+     // Zernio tarafındaki bağlantı gerçekten kesilene kadar hesabı iyimser
+     // (optimistic) şekilde listeden kaldırmıyoruz — aksi halde Zernio'da hâlâ
+@@ -256,7 +258,7 @@ export default function SosyalMedyaPage() {
+       if (invokeError || data?.success === false) {
+         const message = data?.error || invokeError?.message || 'Unknown error';
+         console.error("Zernio disconnect error:", message);
+-        alert(t("sosyalMedyaPage.errors.disconnectError") + (message ? `: ${message}` : ''));
++        dialog.alert(t("sosyalMedyaPage.errors.disconnectError") + (message ? `: ${message}` : ''));
+         return;
+       }
+ 
+@@ -273,7 +275,7 @@ export default function SosyalMedyaPage() {
+       fetchAccounts();
+     } catch (err) {
+       console.warn("Error disconnecting account:", err);
+-      alert(t("sosyalMedyaPage.errors.disconnectError"));
++      dialog.alert(t("sosyalMedyaPage.errors.disconnectError"));
+     }
+   };
+ 
+diff --git a/src/app/(dashboard)/sosyal-medya/posts/page.tsx b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+index 7d6afe7..7fb5703 100644
+--- a/src/app/(dashboard)/sosyal-medya/posts/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
+ import Link from "next/link";
+ import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ const FILTER_IDS = ['all', 'scheduled', 'published', 'failed'] as const;
+ 
+@@ -17,6 +18,7 @@ const UNPUBLISH_SUPPORTED_PLATFORMS = new Set([
+ ]);
+ export default function TumGonderilerPage() {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const FILTERS = FILTER_IDS.map((id) => ({ id, label: t(`postsPage.filters.${id}`) }));
+   const [activeFilter, setActiveFilter] = useState('all');
+   const [posts, setPosts] = useState<any[]>([]);
+@@ -173,7 +175,7 @@ export default function TumGonderilerPage() {
+ 
+           if (error) {
+             console.error("Bulk delete error:", error);
+-            alert(t("postsPage.errors.bulkDeleteFailed", { message: error.message }));
++            dialog.alert(t("postsPage.errors.bulkDeleteFailed", { message: error.message }));
+           } else {
+             setPosts(prev => prev.map(p => idsToMarkDeleted.includes(p.id) ? { ...p, status: 'deleted' } : p));
+           }
+@@ -182,9 +184,9 @@ export default function TumGonderilerPage() {
+         setSelectedPostIds(prev => prev.filter(id => failedIds.has(id)));
+ 
+         if (failedIds.size > 0) {
+-          alert(t("postsPage.errors.bulkDeleteFailed", { message: failedMessages.join('\n') }));
++          dialog.alert(t("postsPage.errors.bulkDeleteFailed", { message: failedMessages.join('\n') }));
+         } else if (warnings.length > 0) {
+-          alert(warnings.join('\n'));
++          dialog.alert(warnings.join('\n'));
+         }
+       } else if (deleteModal.postId) {
+         const post = posts.find(p => p.id === deleteModal.postId);
+@@ -198,7 +200,7 @@ export default function TumGonderilerPage() {
+         }
+ 
+         if (!zernioResult.removed) {
+-          alert(t("postsPage.errors.deleteFailed", { message: zernioResult.warning || 'Unknown error' }));
++          dialog.alert(t("postsPage.errors.deleteFailed", { message: zernioResult.warning || 'Unknown error' }));
+         } else {
+           const { error } = await supabase
+             .from('posts')
+@@ -207,19 +209,19 @@ export default function TumGonderilerPage() {
+ 
+           if (error) {
+             console.error("Delete error:", error);
+-            alert(t("postsPage.errors.deleteFailed", { message: error.message }));
++            dialog.alert(t("postsPage.errors.deleteFailed", { message: error.message }));
+           } else {
+             setPosts(prev => prev.map(p => p.id === deleteModal.postId ? { ...p, status: 'deleted' } : p));
+             setSelectedPostIds(prev => prev.filter(pId => pId !== deleteModal.postId));
+             if (zernioResult.warning) {
+-              alert(zernioResult.warning);
++              dialog.alert(zernioResult.warning);
+             }
+           }
+         }
+       }
+     } catch (err) {
+       console.error("Delete exception:", err);
+-      alert(t("postsPage.errors.genericError"));
++      dialog.alert(t("postsPage.errors.genericError"));
+     } finally {
+       setIsDeleting(false);
+       setDeleteModal({ isOpen: false, postId: null, isBulk: false });
+diff --git a/src/app/(dashboard)/sosyal-medya/share/page.tsx b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+index 0b741e5..963216f 100644
+--- a/src/app/(dashboard)/sosyal-medya/share/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
+ import CropperModal from '@/components/CropperModal';
+ import { PLATFORM_MEDIA_RULES } from '@/lib/platformRules';
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ const PLATFORMS_DATA = [
+   { id: "instagram", name: "Instagram", color: "#E1306C", icon: "fa-instagram" },
+@@ -22,6 +23,7 @@ const PLATFORMS_DATA = [
+ 
+ export default function SharePage() {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const [localImage, setLocalImage] = useState<string | null>(null);
+   const [localText, setLocalText] = useState("");
+   const [isEditingCaption, setIsEditingCaption] = useState(false);
+@@ -172,7 +174,7 @@ export default function SharePage() {
+           try { code = (await (error as any).context?.json?.())?.error; } catch { /* gövde okunamadı */ }
+         }
+         if (code === 'DAILY_LIMIT') {
+-          alert(t("sharePage.errors.captionLimit"));
++          dialog.alert(t("sharePage.errors.captionLimit"));
+           return;
+         }
+         throw new Error(error?.message || data?.error);
+@@ -183,7 +185,7 @@ export default function SharePage() {
+         setIsEditingCaption(true);
+       }
+     } catch (err: any) {
+-      alert(t("sharePage.errors.captionGenerationFailed", { message: err.message }));
++      dialog.alert(t("sharePage.errors.captionGenerationFailed", { message: err.message }));
+     } finally {
+       setIsGeneratingText(false);
+     }
+@@ -218,7 +220,7 @@ export default function SharePage() {
+         }
+         if (uncheckedPlatforms.length > 0) {
+           setSelectedPlatforms(updatedPlatforms);
+-          alert(t("sharePage.errors.videoRemovedIntro", { seconds: Math.round(duration) }) + "\n\n" +
++          dialog.alert(t("sharePage.errors.videoRemovedIntro", { seconds: Math.round(duration) }) + "\n\n" +
+             uncheckedPlatforms.map(p => t("sharePage.errors.videoRemovedItem", { platform: p.charAt(0).toUpperCase() + p.slice(1), max: PLATFORM_MEDIA_RULES[p.toLowerCase()].maxDurationSec })).join('\n'));
+         }
+       };
+@@ -294,7 +296,7 @@ export default function SharePage() {
+     if (!isCurrentlySelected && localImage?.startsWith('data:video') && mediaDurationSec > 0) {
+       const rule = PLATFORM_MEDIA_RULES[id.toLowerCase()];
+       if (rule && rule.maxDurationSec && mediaDurationSec > rule.maxDurationSec) {
+-        alert(t("sharePage.errors.platformMaxDuration", { platform: id.charAt(0).toUpperCase() + id.slice(1), max: rule.maxDurationSec, actual: Math.round(mediaDurationSec) }));
++        dialog.alert(t("sharePage.errors.platformMaxDuration", { platform: id.charAt(0).toUpperCase() + id.slice(1), max: rule.maxDurationSec, actual: Math.round(mediaDurationSec) }));
+         return;
+       }
+     }
+@@ -306,7 +308,7 @@ export default function SharePage() {
+   const handleShare = async () => {
+     // Erken çıkışlarda Flow AI panelinin "paylaşılıyor" durumunda takılı kalmaması için sonucu panele bildir.
+     const bail = async (message: string) => {
+-      alert(message);
++      dialog.alert(message);
+       const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
+       if (flowAiShareHandoff.takeConfirmedRun()) {
+         window.dispatchEvent(new CustomEvent('flowai:share-result', { detail: { ok: false, message } }));
+@@ -474,7 +476,7 @@ export default function SharePage() {
+       
+       setTimeout(async () => {
+         const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
+-        alert(t("sharePage.success.published"));
++        dialog.alert(t("sharePage.success.published"));
+         if (flowAiShareHandoff.takeConfirmedRun()) {
+           window.dispatchEvent(new CustomEvent('flowai:share-result', { detail: { ok: true, message: t("sharePage.success.published") } }));
+         }
+@@ -486,7 +488,7 @@ export default function SharePage() {
+       clearInterval(progressInterval);
+       setIsSharing(false);
+       setUploadProgress(0);
+-      alert(t("sharePage.errors.publishFailed", { message: e.message }));
++      dialog.alert(t("sharePage.errors.publishFailed", { message: e.message }));
+       const { flowAiShareHandoff } = await import('@/lib/flowAiShareHandoff');
+       if (flowAiShareHandoff.takeConfirmedRun()) {
+         window.dispatchEvent(new CustomEvent('flowai:share-result', { detail: { ok: false, message: e.message } }));
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 532c340..c34a024 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -1,5 +1,6 @@
+ import "./globals.css";
+ import { NextIntlClientProvider } from "next-intl";
++import { DialogProvider } from "@/components/ui/DialogProvider";
+ import { getLocale, getMessages } from "next-intl/server";
+ 
+ export const dynamic = 'force-dynamic';
+@@ -53,7 +54,7 @@ export default async function RootLayout({
+       </head>
+       <body className="font-body-md text-body-md min-h-screen w-full flex bg-background text-on-background overflow-hidden">
+         <NextIntlClientProvider locale={locale} messages={messages}>
+-          {children}
++          <DialogProvider>{children}</DialogProvider>
+         </NextIntlClientProvider>
+       </body>
+     </html>
+diff --git a/src/app/login/page.tsx b/src/app/login/page.tsx
+index 0e427f7..f784920 100644
+--- a/src/app/login/page.tsx
++++ b/src/app/login/page.tsx
+@@ -4,9 +4,11 @@ import { useActionState, useState } from 'react'
+ import { useTranslations } from 'next-intl'
+ import { authenticate } from '@/actions/auth'
+ import { createClient } from '@/lib/supabase/client'
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ export default function LoginPage() {
+   const t = useTranslations()
++  const dialog = useDialog();
+   const [mode, setMode] = useState<'login' | 'signup'>('login')
+   const [googleLoading, setGoogleLoading] = useState(false)
+   
+@@ -34,7 +36,7 @@ export default function LoginPage() {
+       if (error) throw error
+     } catch (error: any) {
+       console.error('Google login error:', error)
+-      alert(t('loginPage.alerts.googleLoginError', { error: error.message || t('loginPage.alerts.unknownError') }))
++      dialog.alert(t('loginPage.alerts.googleLoginError', { error: error.message || t('loginPage.alerts.unknownError') }))
+       setGoogleLoading(false)
+     }
+   }
+diff --git a/src/components/CropperModal.tsx b/src/components/CropperModal.tsx
+index 70e7ff7..89f042a 100644
+--- a/src/components/CropperModal.tsx
++++ b/src/components/CropperModal.tsx
+@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
+ import Cropper from 'react-easy-crop';
+ import { useTranslations } from 'next-intl';
+ import { getCroppedImg } from '@/lib/cropImage';
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ interface CropperModalProps {
+   imageSrc: string;
+@@ -14,6 +15,7 @@ interface CropperModalProps {
+ 
+ export default function CropperModal({ imageSrc, onCropComplete, onCancel, aspectRatio }: CropperModalProps) {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const [crop, setCrop] = useState({ x: 0, y: 0 });
+   const [zoom, setZoom] = useState(1);
+   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+@@ -31,7 +33,7 @@ export default function CropperModal({ imageSrc, onCropComplete, onCancel, aspec
+       onCropComplete(croppedImage);
+     } catch (e) {
+       console.error(e);
+-      alert(t("cropperModal.errors.cropFailed"));
++      dialog.alert(t("cropperModal.errors.cropFailed"));
+     } finally {
+       setIsProcessing(false);
+     }
+diff --git a/src/components/ai-asistan/AICharacterPanel.tsx b/src/components/ai-asistan/AICharacterPanel.tsx
+index 901506f..49720c0 100644
+--- a/src/components/ai-asistan/AICharacterPanel.tsx
++++ b/src/components/ai-asistan/AICharacterPanel.tsx
+@@ -20,6 +20,7 @@ import ToneCarousel from "./ToneCarousel";
+ import PersonaCarousel from "./PersonaCarousel";
+ import PersonaSlider from "./PersonaSlider";
+ import type { PublicPersona } from "@/actions/personas";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ // id/label ayrımı (i18n Faz 2): `id` değerleri organization_ai_settings.business_role
+ // / .tone kayıtlarıyla birebir eşleştiği ve mobil (flow-repo) tarafında da aynen
+@@ -124,6 +125,7 @@ interface AICharacterPanelProps {
+ 
+ export default function AICharacterPanel(props: AICharacterPanelProps) {
+   const t = useTranslations();
++  const dialog = useDialog();
+   const showDials = props.selectedPersonaSlug !== null;
+ 
+   // `id` sabit kalır (DB'ye yazılan değer); yalnızca render için çevrilmiş
+@@ -164,7 +166,7 @@ export default function AICharacterPanel(props: AICharacterPanelProps) {
+ 
+   const removeRole = async (id: string) => {
+     const role = customRoles.find((r) => r.id === id);
+-    if (role && !window.confirm(t("personas.addRole.confirm", { name: role.label }))) return;
++    if (role && !(await dialog.confirm(t("personas.addRole.confirm", { name: role.label })))) return;
+     const { error } = await supabase.from("custom_business_roles").delete().eq("id", id);
+     if (error) return;
+     setCustomRoles((r) => r.filter((x) => x.id !== id));
+diff --git a/src/components/dashboard/AppointmentNotifications.tsx b/src/components/dashboard/AppointmentNotifications.tsx
+index daf4f1c..63b7bae 100644
+--- a/src/components/dashboard/AppointmentNotifications.tsx
++++ b/src/components/dashboard/AppointmentNotifications.tsx
+@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
+ import { useRouter } from "next/navigation";
+ import { appointmentSentence } from "@/lib/appointmentSentence";
+ import { createClient } from "@/lib/supabase/client";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ type Locale = "tr" | "en" | "de";
+ 
+@@ -236,6 +237,7 @@ export function useUnreadAppointmentCount() {
+ /* ------------------------------------------------------------------ */
+ 
+ export default function AppointmentNotifications({ locale = "tr", limit = 5 }: { locale?: Locale; limit?: number }) {
++  const dialog = useDialog();
+   const s = STRINGS[locale];
+   const router = useRouter();
+   const { items, loading, error, refresh, markRead, clearAll } = useAppointmentNotifications(limit);
+@@ -247,8 +249,8 @@ export default function AppointmentNotifications({ locale = "tr", limit = 5 }: {
+   };
+ 
+   const clear = async () => {
+-    if (!window.confirm(s.clearConfirm)) return;
+-    if (!(await clearAll())) alert(s.clearFailed);
++    if (!(await dialog.confirm(s.clearConfirm, { danger: true }))) return;
++    if (!(await clearAll())) dialog.alert(s.clearFailed);
+   };
+ 
+   return (
+diff --git a/src/components/settings/AiDataResetPanel.tsx b/src/components/settings/AiDataResetPanel.tsx
+index 52bc81d..f3a4bea 100644
+--- a/src/components/settings/AiDataResetPanel.tsx
++++ b/src/components/settings/AiDataResetPanel.tsx
+@@ -2,6 +2,7 @@
+ import { useState } from 'react'
+ import { useTranslations } from 'next-intl'
+ import { resetAiData } from '@/actions/resetAiData'
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ // Not: 'SIFIRLA' onay kelimesi iş mantığında (aşağıdaki === 'SIFIRLA' kontrolü)
+ // sabit bir değer olarak kullanıldığından KASITLI OLARAK çevrilmez — teknik bir
+@@ -36,15 +37,16 @@ function ConfirmModal({ title, warning, onConfirm, onClose }: { title: string; w
+ 
+ export default function AiDataResetPanel() {
+   const t = useTranslations()
++  const dialog = useDialog();
+   const [modal, setModal] = useState<'soft' | 'hard' | null>(null)
+ 
+   const handleReset = async (mode: 'soft' | 'hard') => {
+     const res = await resetAiData(mode)
+     if (res.success) {
+-      alert(mode === 'soft' ? t('aiDataResetPanel.softReset.doneAlert') : t('aiDataResetPanel.hardReset.doneAlert'))
++      await dialog.alert(mode === 'soft' ? t('aiDataResetPanel.softReset.doneAlert') : t('aiDataResetPanel.hardReset.doneAlert'))
+       window.location.reload()
+     } else {
+-      alert(t('aiDataResetPanel.alerts.errorPrefix', { error: res.error }))
++      await dialog.alert(t('aiDataResetPanel.alerts.errorPrefix', { error: res.error }))
+     }
+     setModal(null)
+   }
+diff --git a/src/components/settings/MultiCalendarToggle.tsx b/src/components/settings/MultiCalendarToggle.tsx
+index 444a569..5ac78c7 100644
+--- a/src/components/settings/MultiCalendarToggle.tsx
++++ b/src/components/settings/MultiCalendarToggle.tsx
+@@ -4,11 +4,13 @@ import React, { useState, useEffect } from "react";
+ import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
+ import { toggleMultiCalendarMode } from "@/actions/toggleCalendar";
++import { useDialog } from "@/components/ui/DialogProvider";
+ 
+ export default function MultiCalendarToggle() {
+   const [isEnabled, setIsEnabled] = useState(false);
+   const [loading, setLoading] = useState(true);
+   const t = useTranslations("multiCalendarToggle");
++  const dialog = useDialog();
+   const supabase = createClient();
+ 
+   useEffect(() => {
+@@ -58,7 +60,7 @@ export default function MultiCalendarToggle() {
+     
+     const res = await toggleMultiCalendarMode(newVal);
+     if (res.error) {
+-      alert(t("errorPrefix", { message: res.error }));
++      dialog.alert(t("errorPrefix", { message: res.error }));
+       setIsEnabled(!newVal); // Revert
+     }
+   };
+diff --git a/src/components/ui/DialogProvider.tsx b/src/components/ui/DialogProvider.tsx
+new file mode 100644
+index 0000000..19dcab0
+--- /dev/null
++++ b/src/components/ui/DialogProvider.tsx
+@@ -0,0 +1,166 @@
++"use client";
++
++/**
++ * Tarayıcının alert()/confirm() pencerelerinin yerine geçen, çevirili ve erişilebilir iletişim bileşeni.
++ *
++ * Kullanım (istemci bileşeni içinde):
++ *   const dialog = useDialog();
++ *   dialog.alert(t("..."));                              // bildirim; beklenmesi gerekmez
++ *   if (!(await dialog.confirm(t("..."), { danger: true }))) return;   // onay
++ *
++ * Aynı anda birden fazla çağrı gelirse sıraya alınır, sırayla gösterilir.
++ */
++
++import {
++  createContext,
++  useCallback,
++  useContext,
++  useEffect,
++  useMemo,
++  useRef,
++  useState,
++  type ReactNode,
++} from "react";
++import { useTranslations } from "next-intl";
++
++export type DialogOptions = {
++  title?: string;
++  confirmText?: string;
++  cancelText?: string;
++  /** Yıkıcı işlemler (silme, bağlantı kesme) için onay düğmesi kırmızı olur. */
++  danger?: boolean;
++};
++
++type DialogRequest = {
++  id: number;
++  kind: "alert" | "confirm";
++  message: string;
++  options: DialogOptions;
++  resolve: (value: boolean) => void;
++};
++
++export type DialogApi = {
++  alert: (message: unknown, options?: DialogOptions) => Promise<void>;
++  confirm: (message: unknown, options?: DialogOptions) => Promise<boolean>;
++};
++
++// Sağlayıcı yoksa (ör. izole test) tarayıcı pencerelerine düşer; uygulama çökmez.
++const fallbackApi: DialogApi = {
++  alert: async (message) => {
++    if (typeof window !== "undefined") window.alert(String(message ?? ""));
++  },
++  confirm: async (message) =>
++    typeof window !== "undefined" ? window.confirm(String(message ?? "")) : false,
++};
++
++const DialogContext = createContext<DialogApi>(fallbackApi);
++
++export function useDialog(): DialogApi {
++  return useContext(DialogContext);
++}
++
++export function DialogProvider({ children }: { children: ReactNode }) {
++  const t = useTranslations("dialog");
++  const [queue, setQueue] = useState<DialogRequest[]>([]);
++  const nextId = useRef(1);
++  const confirmButtonRef = useRef<HTMLButtonElement>(null);
++
++  const enqueue = useCallback(
++    (kind: DialogRequest["kind"], message: unknown, options: DialogOptions = {}) =>
++      new Promise<boolean>((resolve) => {
++        const id = nextId.current++;
++        setQueue((q) => [...q, { id, kind, message: String(message ?? ""), options, resolve }]);
++      }),
++    []
++  );
++
++  const api = useMemo<DialogApi>(
++    () => ({
++      alert: async (message, options) => {
++        await enqueue("alert", message, options);
++      },
++      confirm: (message, options) => enqueue("confirm", message, options),
++    }),
++    [enqueue]
++  );
++
++  const current = queue[0];
++
++  const close = useCallback(
++    (value: boolean) => {
++      if (!current) return;
++      current.resolve(value);
++      setQueue((q) => q.slice(1));
++    },
++    [current]
++  );
++
++  useEffect(() => {
++    if (!current) return;
++    confirmButtonRef.current?.focus();
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === "Escape") {
++        e.preventDefault();
++        close(current.kind === "alert");
++      }
++    };
++    document.addEventListener("keydown", onKey);
++    return () => document.removeEventListener("keydown", onKey);
++  }, [current, close]);
++
++  const isConfirm = current?.kind === "confirm";
++  const confirmLabel = current?.options.confirmText ?? (isConfirm ? t("confirm") : t("ok"));
++  const confirmClass = current?.options.danger
++    ? "bg-red-600 hover:bg-red-700"
++    : "bg-blue-600 hover:bg-blue-700";
++
++  return (
++    <DialogContext.Provider value={api}>
++      {children}
++      {current && (
++        <div
++          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
++          onMouseDown={(e) => {
++            if (e.target === e.currentTarget && isConfirm) close(false);
++          }}
++        >
++          <div
++            role={isConfirm ? "alertdialog" : "dialog"}
++            aria-modal="true"
++            aria-labelledby={current.options.title ? "app-dialog-title" : undefined}
++            aria-describedby="app-dialog-message"
++            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1E293B] p-6 text-white shadow-2xl"
++          >
++            {current.options.title && (
++              <h2 id="app-dialog-title" className="mb-2 text-lg font-bold">
++                {current.options.title}
++              </h2>
++            )}
++            <p id="app-dialog-message" className="whitespace-pre-line break-words text-sm leading-relaxed text-gray-200">
++              {current.message}
++            </p>
++            <div className="mt-6 flex justify-end gap-3">
++              {isConfirm && (
++                <button
++                  type="button"
++                  onClick={() => close(false)}
++                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/10"
++                >
++                  {current.options.cancelText ?? t("cancel")}
++                </button>
++              )}
++              <button
++                ref={confirmButtonRef}
++                type="button"
++                onClick={() => close(true)}
++                className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors ${confirmClass}`}
++              >
++                {confirmLabel}
++              </button>
++            </div>
++          </div>
++        </div>
++      )}
++    </DialogContext.Provider>
++  );
++}
+-- 
+2.43.0
+
