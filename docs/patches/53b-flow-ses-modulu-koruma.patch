@@ -1,0 +1,71 @@
+From d2f115f8779a77cf70f37c2f2a5485db42ab1db1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 12:22:50 +0000
+Subject: [PATCH] fix(flow-ai): ses tanima native modulu yoksa uygulama
+ acilista cokmesin, sesli komut devre disi kalsin (mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ src/modules/flow_ai/useFlowVoice.js | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/modules/flow_ai/useFlowVoice.js b/src/modules/flow_ai/useFlowVoice.js
+index d9c307a..a6a0d8e 100644
+--- a/src/modules/flow_ai/useFlowVoice.js
++++ b/src/modules/flow_ai/useFlowVoice.js
+@@ -1,7 +1,18 @@
+ import { useState, useEffect, useRef } from 'react';
+ import { useTranslation } from 'react-i18next';
+ import * as Speech from 'expo-speech';
+-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
++
++// Native modul APK'da yoksa (eski/farkli derleme) uygulama acilista cokmesin:
++// sesli komut devre disi kalir, geri kalan uygulama calisir.
++let ExpoSpeechRecognitionModule = null;
++let useSpeechRecognitionEvent = () => {};
++try {
++  const speechRecognition = require('expo-speech-recognition');
++  ExpoSpeechRecognitionModule = speechRecognition.ExpoSpeechRecognitionModule;
++  useSpeechRecognitionEvent = speechRecognition.useSpeechRecognitionEvent;
++} catch (e) {
++  console.warn('[FlowAI voice] expo-speech-recognition native modulu yok', e?.message);
++}
+ 
+ function cleanForSpeech(text) {
+   if (!text) return '';
+@@ -111,6 +122,11 @@ export function useFlowVoice() {
+     lastTranscriptRef.current = '';
+     finalDeliveredRef.current = false;
+ 
++    if (!ExpoSpeechRecognitionModule) {
++      if (onError) onError({ code: 'unavailable' });
++      return;
++    }
++
+     try {
+       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+       if (!granted) {
+@@ -150,7 +166,7 @@ export function useFlowVoice() {
+ 
+   const stop = () => {
+     finalDeliveredRef.current = true;
+-    ExpoSpeechRecognitionModule.abort();
++    ExpoSpeechRecognitionModule?.abort();
+     setListening(false);
+   };
+ 
+@@ -188,6 +204,10 @@ export function useFlowVoice() {
+   const servicesRef = useRef(null);
+ 
+   useEffect(() => {
++    if (!ExpoSpeechRecognitionModule) {
++      setSupported(false);
++      return () => Speech.stop();
++    }
+     (async () => {
+       try {
+         const available = await ExpoSpeechRecognitionModule.isRecognitionAvailable();
+-- 
+2.43.0
+
