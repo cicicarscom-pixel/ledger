@@ -1,0 +1,930 @@
+From fcf6c6b4563906f8945087ba1f65a0d6f0db2a28 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 14:37:28 +0000
+Subject: [PATCH] chore(quality): tsc hatasi 20->0, iptal nedeni varliga
+ aktarilir, Odeme Takvimi isletme saat dilimi, tekrarli import ve
+ kullanilmayan import temizligi (Kalite Faz 4, mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/core/i18n/index.ts                        |  6 ++---
+ src/modules/flow_ai/FlowAiHost.js             |  6 ++---
+ src/modules/flow_ai/FlowAiSuggestions.js      |  4 +--
+ .../presentation/screens/AiMuhasebeScreen.js  |  2 +-
+ .../presentation/screens/IsletmemScreen.js    |  4 +--
+ .../presentation/screens/MuhasebecimScreen.js | 23 +++++-----------
+ .../screens/OdemeTakvimiScreen.js             | 22 ++++++++++++----
+ .../musteriler/domain/entities/Customer.ts    |  2 +-
+ .../screens/MusteriDetayScreen.js             |  2 +-
+ .../presentation/screens/MusterilerScreen.js  |  2 +-
+ .../randevu/domain/entities/Appointment.ts    |  5 +++-
+ .../presentation/hooks/useAppointments.ts     |  1 -
+ .../screens/HizmetAyarlariScreen.js           |  5 +---
+ .../infrastructure/services/WahaService.ts    |  2 +-
+ .../components/ReminderTemplateEditor.js      |  2 +-
+ .../presentation/screens/AiUretimScreen.js    |  5 ++--
+ .../presentation/screens/AnalyticsScreen.js   |  3 +--
+ .../presentation/screens/BotYonetimiScreen.js | 21 ++-------------
+ .../presentation/screens/ChatScreen.js        | 17 ++----------
+ .../presentation/screens/InboxScreen.js       | 23 +++-------------
+ .../presentation/screens/SosyalMedyaScreen.js | 26 +++----------------
+ src/screens/AiAssistantScreen.js              |  1 -
+ src/screens/AiChatScreen.js                   |  3 +--
+ src/screens/AuthScreen.js                     |  2 +-
+ src/screens/BildirimlerScreen.js              |  1 -
+ src/screens/DashboardScreen.js                | 19 ++------------
+ src/screens/PostCommentsScreen.js             | 25 ++++--------------
+ src/screens/PostsScreen.js                    | 19 ++------------
+ src/screens/ProfilScreen.js                   |  7 ++---
+ src/shared/lib/authLink.js                    |  2 +-
+ src/shared/ui/AddressSelector.js              |  2 +-
+ src/shared/ui/ChatInputBar.js                 |  2 +-
+ src/shared/ui/CustomButton.js                 |  2 +-
+ src/shared/ui/DeleteAccountSection.js         |  2 +-
+ src/shared/ui/GlobalAppBar.js                 |  4 +--
+ src/shared/ui/Header.js                       |  2 +-
+ src/shared/ui/InvoiceSummaryCard.js           |  2 +-
+ 38 files changed, 82 insertions(+), 197 deletions(-)
+
+diff --git a/README.md b/README.md
+index 050910c..cc2e961 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Kalite Faz 4 (mobil): `tsc --noEmit` 20 hata → 0. Gerçek hata düzeltildi: iptal edilen randevunun "iptal nedeni" varlığa hiç aktarılmıyordu, Randevular ekranındaki neden rozeti hiç görünmüyordu (`Appointment.cancelReason`). Ödeme Takvimi ekranı: ay sınırları `toISOString().split('T')` yerine `monthRangeYmd` ile, "bugün" işaretçisi cihazın değil işletmenin saat dilimine göre (`todayInTimezone`). 19 tekrarlı `import` birleştirildi; kullanılmayan import ve `catch` bağlayıcıları temizlendi (`no-unused-vars` 127 → 61). React Compiler kuralları ve i18n sabit metinleri sonraki fazlarda.
+ - 09.10.2026 — E-posta doğrulama akışı (mobil): doğrulama bağlantısı uygulamayı açınca kullanıcı GİRİŞ ekranına yönlendirilir ve "E-postanız doğrulandı" bildirimi görür (süresi dolmuş/kullanılmış bağlantı için ayrı mesaj); doğrulanmamış hesapla girişte ham İngilizce hata yerine Doğrulama ekranı açılır; Doğrulama ekranı tr/en/de çevrildi; kayıtta `locale` gönderilir (e-posta şablonu dile göre seçilir). Yeni: `src/shared/lib/authLink.js`.
+ - 09.10.2026 — Temizlik (Kalite Faz 2): kullanılmayan ve hatalı `CommunicationLogsTable.js` (tüm konuşma kayıtlarını silen eski "Raporları Temizle"), `useCommunicationLogs.ts`, `CustomerMapper.ts` ve kullanılmayan `toDateString` (UTC gün kayması) silindi; bu dosyalardaki 2 tip hatası da ortadan kalktı.
+ - 09.10.2026 — Anasayfa Randevu Bildirimleri randevularla senkron: silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications`).
+diff --git a/src/core/i18n/index.ts b/src/core/i18n/index.ts
+index 5d9c30a..fe3f1ba 100644
+--- a/src/core/i18n/index.ts
++++ b/src/core/i18n/index.ts
+@@ -49,7 +49,7 @@ i18n
+ //   2. Kullanıcı Profil ekranından manuel olarak bir dil seçerse → o seçim
+ //      hem anında uygulanır hem de kalıcı olarak hatırlanır, sonraki
+ //      açılışlarda cihaz dili ne olursa olsun kullanıcının seçimi geçerlidir.
+-let languageReadyResolve;
++let languageReadyResolve: ((value?: unknown) => void) | undefined;
+ export const languageReady = new Promise((resolve) => {
+   languageReadyResolve = resolve;
+ });
+@@ -63,7 +63,7 @@ export const languageReady = new Promise((resolve) => {
+   } catch (e) {
+     console.warn('Kaydedilmiş dil tercihi okunamadı:', e);
+   } finally {
+-    languageReadyResolve();
++    languageReadyResolve?.();
+   }
+ })();
+ 
+@@ -71,7 +71,7 @@ export const languageReady = new Promise((resolve) => {
+ // kullanılır. `useTranslation()` kullanan tüm bileşenler `i18n.changeLanguage`
+ // çağrıldığında otomatik olarak yeniden render olur (react-i18next context'i
+ // üzerinden) — ekstra bir state/refresh mantığına gerek yoktur.
+-export const setAppLanguage = async (languageCode) => {
++export const setAppLanguage = async (languageCode: string) => {
+   if (!SUPPORTED_LANGUAGES.includes(languageCode)) return;
+   await i18n.changeLanguage(languageCode);
+   try {
+diff --git a/src/modules/flow_ai/FlowAiHost.js b/src/modules/flow_ai/FlowAiHost.js
+index acb3274..e8fd9b3 100644
+--- a/src/modules/flow_ai/FlowAiHost.js
++++ b/src/modules/flow_ai/FlowAiHost.js
+@@ -35,7 +35,7 @@ const PUBLISH_ERRORS = {
+ function formatWhen(preview) {
+   try {
+     return new Date(preview.scheduledFor).toLocaleString(undefined, { timeZone: preview.timezone, dateStyle: 'medium', timeStyle: 'short' });
+-  } catch (e) {
++  } catch {
+     return String(preview.scheduledFor || '');
+   }
+ }
+@@ -202,7 +202,7 @@ export default function FlowAiHost({ navigationRef }) {
+         setAttachmentMeta(meta);
+         flowAiShareHandoff.attach(meta);
+       }
+-    } catch (e) {
++    } catch {
+       push('error', t('flowAi.share.unreadable'));
+     } finally {
+       pickingRef.current = false;
+@@ -364,7 +364,7 @@ export default function FlowAiHost({ navigationRef }) {
+         const ok = res.status === 'EXECUTED' || res.status === 'REJECTED';
+         push(ok ? 'assistant' : 'error', t(ok ? (approve ? 'flowAi.approved' : 'flowAi.rejected') : 'flowAi.notApplied'));
+       }
+-    } catch (e) {
++    } catch {
+       push('error', t('flowAi.error'));
+     } finally {
+       setBusy(false);
+diff --git a/src/modules/flow_ai/FlowAiSuggestions.js b/src/modules/flow_ai/FlowAiSuggestions.js
+index 9f836be..32d35a2 100644
+--- a/src/modules/flow_ai/FlowAiSuggestions.js
++++ b/src/modules/flow_ai/FlowAiSuggestions.js
+@@ -15,7 +15,7 @@ function weekdayName(dayIndex, lng) {
+   // 2023-01-01 bir Pazar'dır → dayIndex 0 = Pazar.
+   try {
+     return new Date(Date.UTC(2023, 0, 1 + Number(dayIndex))).toLocaleDateString(lng, { weekday: 'long', timeZone: 'UTC' });
+-  } catch (e) {
++  } catch {
+     return '';
+   }
+ }
+@@ -24,7 +24,7 @@ function dateLabel(ymd, lng) {
+   try {
+     const [y, m, d] = String(ymd).split('-').map(Number);
+     return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(lng, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+-  } catch (e) {
++  } catch {
+     return String(ymd);
+   }
+ }
+diff --git a/src/modules/muhasebe/presentation/screens/AiMuhasebeScreen.js b/src/modules/muhasebe/presentation/screens/AiMuhasebeScreen.js
+index 39811d2..9a4e82d 100644
+--- a/src/modules/muhasebe/presentation/screens/AiMuhasebeScreen.js
++++ b/src/modules/muhasebe/presentation/screens/AiMuhasebeScreen.js
+@@ -1,6 +1,6 @@
+ import { formatAmount } from '../../../../lib/money';
+ /* eslint-disable react-hooks/refs */
+-import React, { useRef, useEffect, useCallback, useState } from 'react';
++import React, { useEffect, useCallback, useState } from 'react';
+ import { View, Text, ScrollView, TouchableOpacity, Image, ImageBackground, StyleSheet, Animated, Easing } from 'react-native';
+ import { useFocusEffect } from '@react-navigation/native';
+ import { MaterialIcons } from '@expo/vector-icons';
+diff --git a/src/modules/muhasebe/presentation/screens/IsletmemScreen.js b/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
+index 88b588d..1e4696e 100644
+--- a/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
++++ b/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
+@@ -126,7 +126,7 @@ export default function IsletmemScreen({ navigation }) {
+         } else {
+           setMonthSummaries(prev => ({ ...prev, [selectedMonth]: { income: 0, expense: 0, balance: 0 } }));
+         }
+-      } catch (err) {
++      } catch {
+         setMonthSummaries(prev => ({ ...prev, [selectedMonth]: { income: 0, expense: 0, balance: 0 } }));
+       }
+     };
+@@ -166,7 +166,7 @@ export default function IsletmemScreen({ navigation }) {
+         } else {
+           setInsight(t('isletmemScreen.insights.unavailable'));
+         }
+-      } catch (e) {
++      } catch {
+         setInsight(t('isletmemScreen.insights.error'));
+       } finally {
+         setIsInsightLoading(false);
+diff --git a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+index c528349..a999a83 100644
+--- a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
++++ b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+@@ -1,16 +1,7 @@
+ import React, { useState } from 'react';
+-import {
+-  View,
+-  Text,
+-  StyleSheet,
+-  TextInput,
+-  TouchableOpacity,
+-  ScrollView,
+-  Platform,
+-  Alert,
+-} from 'react-native';
+-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
++import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
++import { MaterialIcons } from '@expo/vector-icons';
+ import { GlobalAppBar } from '../../../../shared';
+ import { useTranslation } from 'react-i18next';
+ 
+@@ -94,7 +85,7 @@ export default function MuhasebecimScreen({ navigation }) {
+         } else {
+           Alert.alert('', t('muhasebecimScreen.actionError'));
+         }
+-      } catch (err) {
++      } catch {
+         Alert.alert('', t('muhasebecimScreen.actionError'));
+       } finally {
+         setIsLoading(false);
+@@ -121,7 +112,7 @@ export default function MuhasebecimScreen({ navigation }) {
+       } else {
+         Alert.alert('', t('muhasebecimScreen.actionError'));
+       }
+-    } catch (err) {
++    } catch {
+       Alert.alert('', t('muhasebecimScreen.actionError'));
+     } finally {
+       setIsLoading(false);
+@@ -135,7 +126,7 @@ export default function MuhasebecimScreen({ navigation }) {
+       const { data, error } = await supabase.rpc('cancel_accountant_request');
+       if (error) throw error;
+       checkConnection();
+-    } catch (err) {
++    } catch {
+       Alert.alert('', t('muhasebecimScreen.actionError'));
+       setIsLoading(false);
+     }
+@@ -157,7 +148,7 @@ export default function MuhasebecimScreen({ navigation }) {
+               const { error } = await supabase.rpc('disconnect_current_accountant', { p_reason: 'User request' });
+               if (error) throw error;
+               checkConnection();
+-            } catch (err) {
++            } catch {
+               Alert.alert('', t('muhasebecimScreen.actionError'));
+               setIsLoading(false);
+             }
+diff --git a/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js b/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
+index 1e605d3..1537b22 100644
+--- a/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
++++ b/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
+@@ -1,7 +1,9 @@
+ import { formatMoney } from '../../../../lib/money';
++import { todayInTimezone, monthRangeYmd } from '../../../../lib/dates';
++import { getCurrentOrgId } from '../../../../lib/org';
+ import React, { useState, useEffect, useRef } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, TouchableOpacity, ScrollView, ImageBackground, StyleSheet, FlatList, ActivityIndicator, Dimensions } from 'react-native';
++import { View, Text, TouchableOpacity, ImageBackground, StyleSheet, FlatList, ActivityIndicator, Dimensions } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { MaterialIcons } from '@expo/vector-icons';
+ import { useActionSheet } from '@expo/react-native-action-sheet';
+@@ -18,6 +20,7 @@ export default function OdemeTakvimiScreen({ navigation }) {
+   const [transactions, setTransactions] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [expandedDays, setExpandedDays] = useState({});
++  const [orgTimezone, setOrgTimezone] = useState('Europe/Istanbul');
+ 
+   const flatListRef = useRef(null);
+   
+@@ -26,9 +29,8 @@ export default function OdemeTakvimiScreen({ navigation }) {
+     const y = currentDate.getFullYear();
+     const m = currentDate.getMonth();
+     
+-    // adjust for timezone safely to get YYYY-MM-DD
+-    const p_from = new Date(Date.UTC(y, m, 1)).toISOString().split("T")[0];
+-    const p_to = new Date(Date.UTC(y, m + 1, 0)).toISOString().split("T")[0];
++    // Ay sınırları saat diliminden bağımsız düz metin olarak üretilir (src/lib/dates.ts)
++    const { from: p_from, to: p_to } = monthRangeYmd(`${y}-${String(m + 1).padStart(2, '0')}-01`);
+ 
+     const { data, error } = await supabase.rpc("get_payment_calendar", { p_from, p_to });
+     if (!error && data) {
+@@ -43,6 +45,16 @@ export default function OdemeTakvimiScreen({ navigation }) {
+     loadData();
+   }, [currentDate]);
+ 
++  // "Bugün" işaretçisi cihazın değil işletmenin saat dilimine göre hesaplanır
++  useEffect(() => {
++    (async () => {
++      const orgId = await getCurrentOrgId(supabase);
++      if (!orgId) return;
++      const { data: org } = await supabase.from('organizations').select('timezone').eq('id', orgId).maybeSingle();
++      if (org?.timezone) setOrgTimezone(org.timezone);
++    })();
++  }, []);
++
+   const setStatus = async (id, status) => {
+     const { error } = await supabase.rpc("set_transaction_payment_status", { p_id: id, p_status: status });
+     if (!error) {
+@@ -67,7 +79,7 @@ export default function OdemeTakvimiScreen({ navigation }) {
+   const m = currentDate.getMonth();
+   const daysInMonth = new Date(y, m + 1, 0).getDate();
+   const monthName = currentDate.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' });
+-  const todayStr = new Date(todayDate.getTime() - (todayDate.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
++  const todayStr = todayInTimezone(orgTimezone);
+ 
+   const grouped = transactions.reduce((acc, t) => {
+     if (!acc[t.day]) acc[t.day] = [];
+diff --git a/src/modules/musteriler/domain/entities/Customer.ts b/src/modules/musteriler/domain/entities/Customer.ts
+index 738fbfe..582e8e6 100644
+--- a/src/modules/musteriler/domain/entities/Customer.ts
++++ b/src/modules/musteriler/domain/entities/Customer.ts
+@@ -1,4 +1,4 @@
+-export class Customer {
++export interface Customer {
+   id: string;
+   name: string;
+   phone: string;
+diff --git a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+index f6a87db..a33fd23 100644
+--- a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
++++ b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+@@ -61,7 +61,7 @@ export default function MusteriDetayScreen({ route, navigation }) {
+         timeZone: tz || 'Europe/Istanbul', 
+         day: 'numeric', month: 'short', weekday: 'short', hour: '2-digit', minute: '2-digit' 
+       }).format(d);
+-    } catch(e) {
++    } catch {
+       return new Date(isoStr).toLocaleString(i18n.language || 'tr-TR');
+     }
+   };
+diff --git a/src/modules/musteriler/presentation/screens/MusterilerScreen.js b/src/modules/musteriler/presentation/screens/MusterilerScreen.js
+index d754ec1..81e37d4 100644
+--- a/src/modules/musteriler/presentation/screens/MusterilerScreen.js
++++ b/src/modules/musteriler/presentation/screens/MusterilerScreen.js
+@@ -45,7 +45,7 @@ export default function MusterilerScreen({ navigation }) {
+         timeZone: tz || 'Europe/Istanbul', 
+         day: 'numeric', month: 'short', weekday: 'short', hour: '2-digit', minute: '2-digit' 
+       }).format(d);
+-    } catch(e) {
++    } catch {
+       return new Date(isoStr).toLocaleString(i18n.language || 'tr-TR');
+     }
+   };
+diff --git a/src/modules/randevu/domain/entities/Appointment.ts b/src/modules/randevu/domain/entities/Appointment.ts
+index 3d91b0b..1873933 100644
+--- a/src/modules/randevu/domain/entities/Appointment.ts
++++ b/src/modules/randevu/domain/entities/Appointment.ts
+@@ -16,6 +16,7 @@ export class Appointment {
+   private readonly _bookingToken: string;
+   private readonly _calendarId: string | null;
+   private readonly _customerRequestRaw: string | null;
++  private readonly _cancelReason: string | null;
+   private _services?: string[];
+   private _calendarName?: string | null;
+ 
+@@ -54,6 +55,7 @@ export class Appointment {
+     this._bookingToken = data.bookingToken;
+     this._calendarId = data.calendarId || null;
+     this._customerRequestRaw = data.customerRequestRaw || null;
++    this._cancelReason = data.cancelReason || null;
+     this._services = data.services;
+     this._calendarName = data.calendarName || null;
+   }
+@@ -75,6 +77,7 @@ export class Appointment {
+   get customerRequestRaw(): string | null { return this._customerRequestRaw; }
+   get services(): string[] | undefined { return this._services; }
+   set services(val: string[] | undefined) { this._services = val; }
+-  get calendarName(): string | null { return this._calendarName; }
++  get cancelReason(): string | null { return this._cancelReason; }
++  get calendarName(): string | null { return this._calendarName ?? null; }
+   set calendarName(val: string | null | undefined) { this._calendarName = val; }
+ }
+diff --git a/src/modules/randevu/presentation/hooks/useAppointments.ts b/src/modules/randevu/presentation/hooks/useAppointments.ts
+index 9ac69d8..1008598 100644
+--- a/src/modules/randevu/presentation/hooks/useAppointments.ts
++++ b/src/modules/randevu/presentation/hooks/useAppointments.ts
+@@ -3,7 +3,6 @@ import { todayInTimezone } from "../../../../lib/dates";
+ import { container } from "../../../../core/container";
+ import { SupabaseAppointmentRepository } from "@infrastructure/repositories/SupabaseAppointmentRepository";
+ import { Appointment } from "@domain/entities/Appointment";
+-import { AppointmentStatus } from "@domain/enums/AppointmentStatus";
+ 
+ export function extractTime(dateStr: string): string {
+   if (!dateStr) return "";
+diff --git a/src/modules/randevu/presentation/screens/HizmetAyarlariScreen.js b/src/modules/randevu/presentation/screens/HizmetAyarlariScreen.js
+index 87bd7c6..8a70748 100644
+--- a/src/modules/randevu/presentation/screens/HizmetAyarlariScreen.js
++++ b/src/modules/randevu/presentation/screens/HizmetAyarlariScreen.js
+@@ -1,8 +1,5 @@
+ import React, { useState, useEffect } from 'react';
+-import {
+-  View, Text, ScrollView, TouchableOpacity,
+-  StyleSheet, Switch, TextInput, ActivityIndicator, Alert
+-} from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useNavigation } from '@react-navigation/native';
+diff --git a/src/modules/sosyal_medya/infrastructure/services/WahaService.ts b/src/modules/sosyal_medya/infrastructure/services/WahaService.ts
+index 1b63879..30b14ac 100644
+--- a/src/modules/sosyal_medya/infrastructure/services/WahaService.ts
++++ b/src/modules/sosyal_medya/infrastructure/services/WahaService.ts
+@@ -112,7 +112,7 @@ export class WahaService implements IWahaService {
+       const { data, error } = await supabase.functions.invoke('waha-session', { body });
+       if (error) {
+         let code = 'WAHA_ERROR';
+-        try { code = (await (error as any).context?.json?.())?.error || code; } catch (_) { /* gövde okunamadı */ }
++        try { code = (await (error as any).context?.json?.())?.error || code; } catch { /* gövde okunamadı */ }
+         if (code === 'BOT_NOT_SETUP' && body.action === 'status') {
+           return { data: null, error: null };
+         }
+diff --git a/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js b/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
+index fe92cb9..c3c605d 100644
+--- a/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
++++ b/src/modules/sosyal_medya/presentation/components/ReminderTemplateEditor.js
+@@ -102,7 +102,7 @@ export default function ReminderTemplateEditor() {
+       } else {
+         setError(t('reminders.saveFailed'));
+       }
+-    } catch (e) {
++    } catch {
+       setError(t('reminders.saveFailed'));
+     } finally {
+       setSaving(false);
+diff --git a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+index 1800c1f..b4dab44 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+@@ -31,7 +31,6 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { supabase , GlobalAppBar } from '../../../../shared';
+-import { CustomButton } from '../../../../shared';
+ import { PLATFORM_MEDIA_RULES } from '../../domain/platformRules';
+ import { FlowHighlight, useAiUretimFlowEvents } from '../../../flow_ai';
+ 
+@@ -463,7 +462,7 @@ export default function AiUretimScreen({ route, navigation }) {
+         const dateParts = parts[0].split('.');
+         const timeParts = parts[1].split(':');
+         finalScheduledFor = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}T${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
+-      } catch (err) {
++      } catch {
+         Alert.alert("Hata", "Tarih formatı hatalı. Lütfen 'GÜN.AY.YIL SAAT:DAKİKA' (örn: 16.08.2026 16:26) şeklinde girin.");
+         setIsSharing(false);
+         return false;
+@@ -586,7 +585,7 @@ export default function AiUretimScreen({ route, navigation }) {
+            try {
+               const errJson = await postError.context.json();
+               actualError = errJson.error || actualError;
+-           } catch(e) {}
++           } catch {}
+         }
+         throw new Error(actualError);
+       }
+diff --git a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+index 3538409..4ae3677 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+@@ -18,9 +18,8 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { useFocusEffect } from '@react-navigation/native';
+-import { supabase , GlobalAppBar } from '../../../../shared';
++import { supabase , GlobalAppBar , CustomButton } from '../../../../shared';
+ import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
+-import { CustomButton } from '../../../../shared';
+ import { todayInTimezone, addDaysYmd } from '../../../../lib/dates';
+ 
+ 
+diff --git a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+index 4e7d685..b4c8f65 100644
+--- a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+@@ -2,24 +2,7 @@
+ /* eslint-disable i18next/no-literal-string */
+ import React, { useState, useEffect, useRef, useCallback } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { 
+-  View, 
+-  Text, 
+-  ScrollView, 
+-  TouchableOpacity, 
+-  TextInput, 
+-  Switch,
+-  ImageBackground, 
+-  Image,
+-  StyleSheet, 
+-  ActivityIndicator, 
+-  Alert,
+-  KeyboardAvoidingView,
+-  Platform,
+-  Modal,
+-  Animated,
+-  Easing
+-} from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, ImageBackground, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Animated, Easing } from 'react-native';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useNavigation, useFocusEffect } from '@react-navigation/native';
+@@ -351,7 +334,7 @@ export default function BotYonetimiScreen() {
+         setReminderEnabled(!newValue);
+         Alert.alert(t('sosyalMedya.alerts.error'), data?.status === 'FORBIDDEN' ? t('reminders.ownerOnly') : t('reminders.saveFailed'));
+       }
+-    } catch (e) {
++    } catch {
+       setReminderEnabled(!newValue);
+       Alert.alert(t('sosyalMedya.alerts.error'), t('reminders.saveFailed'));
+     }
+diff --git a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+index dc685cb..7850beb 100644
+--- a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+@@ -1,20 +1,7 @@
+ import React, { useState, useRef, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { 
+-  View, 
+-  Text, 
+-  TextInput, 
+-  TouchableOpacity, 
+-  StyleSheet, 
+-  FlatList, 
+-  ImageBackground,
+-  KeyboardAvoidingView,
+-  Platform,
+-  Modal,
+-  TouchableWithoutFeedback,
+-  Alert
+-} from 'react-native';
+-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
++import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, KeyboardAvoidingView, Platform, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
++import { Ionicons, Feather } from '@expo/vector-icons';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { supabase , ChatInputBar , GlobalAppBar } from '../../../../shared';
+ 
+diff --git a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+index c39f549..76d4b26 100644
+--- a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+@@ -1,30 +1,13 @@
+ import React, { useRef, useCallback, useEffect, useState } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { 
+-  View, 
+-  Text, 
+-  TouchableOpacity, 
+-  StyleSheet, 
+-  FlatList, 
+-  ImageBackground, 
+-  Image,
+-  Animated,
+-  Easing,
+-  ActivityIndicator,
+-  Alert,
+-  RefreshControl,
+-  DeviceEventEmitter,
+-  TextInput
+-} from 'react-native';
++import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, Image, Animated, Easing, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter } from 'react-native';
+ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { useFocusEffect } from '@react-navigation/native';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+-import { supabase , GlobalAppBar } from '../../../../shared';
+-import { CustomButton } from '../../../../shared';
+-import { CustomInput } from '../../../../shared';
++import { supabase , GlobalAppBar , CustomButton } from '../../../../shared';
+ import BildirimlerScreen from '../../../../screens/BildirimlerScreen';
+ 
+ 
+@@ -620,7 +603,7 @@ const YorumlarTab = ({ navigation }) => {
+       });
+       
+       setLoading(false);
+-    } catch (e) {
++    } catch {
+       setLoading(false);
+     }
+ 
+diff --git a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+index a5fecb9..d460033 100644
+--- a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+@@ -1,32 +1,14 @@
+-import React, { useState, useEffect, useRef, useCallback } from 'react';
++import React, { useState, useEffect, useCallback } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { 
+-  View, 
+-  Text, 
+-  TouchableOpacity, 
+-  Image, 
+-  TextInput, 
+-  ScrollView,
+-  StyleSheet,
+-  Platform,
+-  Dimensions,
+-  ImageBackground,
+-  Animated,
+-  Easing,
+-  Alert, 
+-  ActivityIndicator,
+-  Share,
+-  Switch
+-} from 'react-native';
++import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, ImageBackground, Animated, Alert, ActivityIndicator, Switch } from 'react-native';
+ import { useFocusEffect } from '@react-navigation/native';
+ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+-import { supabase , AnimatedBorderCard , GlobalAppBar } from '../../../../shared';
++import { supabase , AnimatedBorderCard , GlobalAppBar , CustomButton } from '../../../../shared';
+ import * as Linking from 'expo-linking';
+ import * as WebBrowser from 'expo-web-browser';
+ 
+-import { CustomButton } from '../../../../shared';
+ import { getCurrentOrgId } from '../../../../lib/org';
+ const { width } = Dimensions.get('window');
+ 
+@@ -324,7 +306,7 @@ export default function SosyalMedyaScreen({ navigation }) {
+                await fetchAccountsFromZernio();
+                
+                Alert.alert(t('sosyalMedya.alerts.success', 'Başarılı'), t('sosyalMedya.alerts.disconnected', 'Hesap bağlantısı kesildi.'));
+-            } catch (err) {
++            } catch {
+                Alert.alert(t('sosyalMedya.alerts.error', 'Hata'), t('sosyalMedya.alerts.disconnectError', 'Bağlantı kesilirken bir sorun oluştu.'));
+             } finally {
+                setIsLoadingAccounts(false);
+diff --git a/src/screens/AiAssistantScreen.js b/src/screens/AiAssistantScreen.js
+index 4706494..2fcc234 100644
+--- a/src/screens/AiAssistantScreen.js
++++ b/src/screens/AiAssistantScreen.js
+@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+ import { View, Text, ScrollView, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+-import { MaterialIcons } from '@expo/vector-icons';
+ import * as Print from 'expo-print';
+ import * as Sharing from 'expo-sharing';
+ import * as FileSystem from 'expo-file-system/legacy';
+diff --git a/src/screens/AiChatScreen.js b/src/screens/AiChatScreen.js
+index 1c462ae..40886b5 100644
+--- a/src/screens/AiChatScreen.js
++++ b/src/screens/AiChatScreen.js
+@@ -1,8 +1,7 @@
+ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, ImageBackground, StyleSheet , KeyboardAvoidingView, Platform } from 'react-native';
++import { View, Text, ScrollView, Image, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+-import { MaterialIcons } from '@expo/vector-icons';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as DocumentPicker from 'expo-document-picker';
+ import * as FileSystem from 'expo-file-system/legacy';
+diff --git a/src/screens/AuthScreen.js b/src/screens/AuthScreen.js
+index e185b23..924f90a 100644
+--- a/src/screens/AuthScreen.js
++++ b/src/screens/AuthScreen.js
+@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, Alert, Image, StyleSheet, Dimensions, Scr
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { supabase } from '../shared/lib/supabase';
+ import { LinearGradient } from 'expo-linear-gradient';
+-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
++import { FontAwesome5 } from '@expo/vector-icons';
+ import { CustomButton, CustomInput } from '../shared';
+ import * as WebBrowser from 'expo-web-browser';
+ import { PRIVACY_POLICY_URL } from '../shared/lib/legalUrls';
+diff --git a/src/screens/BildirimlerScreen.js b/src/screens/BildirimlerScreen.js
+index 12ee572..18b26c9 100644
+--- a/src/screens/BildirimlerScreen.js
++++ b/src/screens/BildirimlerScreen.js
+@@ -12,7 +12,6 @@ import {
+ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { GlobalAppBar, supabase } from '../shared';
+-import { appointmentSentence } from '../lib/appointmentSentence';
+ 
+ const COLORS = {
+   background: '#17151A',
+diff --git a/src/screens/DashboardScreen.js b/src/screens/DashboardScreen.js
+index ee4b759..8250db8 100644
+--- a/src/screens/DashboardScreen.js
++++ b/src/screens/DashboardScreen.js
+@@ -1,32 +1,17 @@
+ import { formatMoney } from '../lib/money';
+ import React, { useState, useEffect, useRef } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import {
+-  View, 
+-  Text, 
+-  ScrollView, 
+-  TouchableOpacity, 
+-  Image,
+-  ImageBackground,
+-  StyleSheet, 
+-  Switch,
+-  Animated,
+-  Dimensions, Platform, TouchableWithoutFeedback, Alert, ActivityIndicator, Modal
+-} from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Switch, Animated, Dimensions, Platform, TouchableWithoutFeedback, Alert, ActivityIndicator , AppState } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+-import { MaterialIcons } from '@expo/vector-icons';
+-import CustomButton from '../shared/ui/CustomButton';
+-import { LinearGradient } from 'expo-linear-gradient';
++import { MaterialIcons , Ionicons } from '@expo/vector-icons';
+ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+ 
+-import { AppState } from 'react-native';
+ import { todayInTimezone, addDaysYmd, monthRangeYmd } from '../lib/dates';
+ import { appointmentSentence } from '../lib/appointmentSentence';
+ import { supabase } from '../shared/lib/supabase';
+ import { container } from '../core/container';
+ import { AppointmentStatus } from '../modules/randevu/domain/enums/AppointmentStatus';
+ import { extractTime } from '../modules/randevu/presentation/hooks/useAppointments';
+-import { Ionicons } from '@expo/vector-icons';
+ import { useActionSheet } from '@expo/react-native-action-sheet';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as ImageManipulator from 'expo-image-manipulator';
+diff --git a/src/screens/PostCommentsScreen.js b/src/screens/PostCommentsScreen.js
+index b7a9fbe..395719d 100644
+--- a/src/screens/PostCommentsScreen.js
++++ b/src/screens/PostCommentsScreen.js
+@@ -1,22 +1,7 @@
+ import React, { useState, useRef, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import {
+-  View, 
+-  Text, 
+-  TouchableOpacity, 
+-  StyleSheet, 
+-  FlatList, 
+-  ImageBackground, 
+-  Image,
+-  TextInput,
+-  KeyboardAvoidingView,
+-  Platform,
+-  Modal,
+-  TouchableWithoutFeedback,
+-  Pressable,
+-  Alert
+-} from 'react-native';
+-import { Ionicons, MaterialIcons, Feather, AntDesign } from '@expo/vector-icons';
++import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, Image, TextInput, KeyboardAvoidingView, Modal, TouchableWithoutFeedback, Pressable, Alert } from 'react-native';
++import { Ionicons, Feather } from '@expo/vector-icons';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import { supabase , GlobalAppBar } from '../shared';
+@@ -213,7 +198,7 @@ export default function PostCommentsScreen({ route, navigation }) {
+               const deletedIds = deletedStr ? JSON.parse(deletedStr) : [];
+               if (!deletedIds.includes(commentId)) deletedIds.push(commentId);
+               await AsyncStorage.setItem('deleted_comments', JSON.stringify(deletedIds));
+-            } catch (e) {}
++            } catch {}
+             
+             if (isUuid) {
+               const { error } = await supabase.from('comments').delete().eq('id', commentId);
+@@ -262,7 +247,7 @@ export default function PostCommentsScreen({ route, navigation }) {
+               const deletedIds = deletedStr ? JSON.parse(deletedStr) : [];
+               const newDeleted = [...new Set([...deletedIds, ...selectedItems])];
+               await AsyncStorage.setItem('deleted_comments', JSON.stringify(newDeleted));
+-            } catch (e) {}
++            } catch {}
+ 
+             let hasError = false;
+             if (uuids.length > 0) {
+@@ -411,7 +396,7 @@ export default function PostCommentsScreen({ route, navigation }) {
+                errorMsg = t("postCommentsScreen.alerts.alreadyRepliedError") || "Bu yoruma zaten bir DM gönderilmiş.";
+            }
+         }
+-      } catch (err) {}
++      } catch {}
+       alert((t('postCommentsScreen.alerts.errorSendingPrivateReply') || 'DM gönderilirken hata oluştu: ') + errorMsg);
+     }
+   };
+diff --git a/src/screens/PostsScreen.js b/src/screens/PostsScreen.js
+index 4551f67..be3734e 100644
+--- a/src/screens/PostsScreen.js
++++ b/src/screens/PostsScreen.js
+@@ -1,28 +1,13 @@
+ /* eslint-disable i18next/no-literal-string */
+ import React, { useState, useRef, useCallback } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import {
+-  View,
+-  Text, 
+-  TouchableOpacity, 
+-  StyleSheet, 
+-  FlatList, 
+-  ScrollView,
+-  ImageBackground,
+-  Animated,
+-  Easing,
+-  Image,
+-  Modal,
+-  Alert
+-} from 'react-native';
++import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, Animated, Easing, Image, Modal, Alert } from 'react-native';
+ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { useFocusEffect } from '@react-navigation/native';
+ import { useVideoPlayer, VideoView } from 'expo-video';
+-import { supabase , GlobalAppBar } from '../shared';
+-import { CustomButton } from '../shared';
+-import { CustomInput } from '../shared';
++import { supabase , GlobalAppBar , CustomButton } from '../shared';
+ 
+ // Glassmorphism Card Wrapper
+ const GlassCard = ({ children, style }) => (
+diff --git a/src/screens/ProfilScreen.js b/src/screens/ProfilScreen.js
+index de6eeea..a12e24f 100644
+--- a/src/screens/ProfilScreen.js
++++ b/src/screens/ProfilScreen.js
+@@ -1,16 +1,13 @@
+ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { LinearGradient } from 'expo-linear-gradient';
+-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, ImageBackground, StyleSheet, Alert, ActivityIndicator } from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, Image, ImageBackground, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as ImageManipulator from 'expo-image-manipulator';
+ import { useActionSheet } from '@expo/react-native-action-sheet';
+ import { decode } from 'base64-arraybuffer';
+-import { GlobalAppBar , supabase } from '../shared';
++import { GlobalAppBar , supabase , CustomButton , CustomInput } from '../shared';
+ 
+-import { CustomButton } from '../shared';
+-import { CustomInput } from '../shared';
+ import AddressSelector from '../shared/ui/AddressSelector';
+ import DeleteAccountSection from '../shared/ui/DeleteAccountSection';
+ import { setAppLanguage, getSavedLanguageOverride } from '../core/i18n';
+diff --git a/src/shared/lib/authLink.js b/src/shared/lib/authLink.js
+index 7c5a75d..144343d 100644
+--- a/src/shared/lib/authLink.js
++++ b/src/shared/lib/authLink.js
+@@ -28,7 +28,7 @@ function readParams(url) {
+ export function parseAuthLink(url) {
+   if (!url) return null;
+   let p;
+-  try { p = readParams(url); } catch (e) { return null; }
++  try { p = readParams(url); } catch { return null; }
+   if (p.error || p.error_code) return { kind: 'error', code: p.error_code || p.error || 'unknown' };
+   if (p.type === 'signup') return { kind: 'verified' };
+   return null;
+diff --git a/src/shared/ui/AddressSelector.js b/src/shared/ui/AddressSelector.js
+index 28c0af5..e30e674 100644
+--- a/src/shared/ui/AddressSelector.js
++++ b/src/shared/ui/AddressSelector.js
+@@ -1,4 +1,4 @@
+-import React, { useState, useRef, useEffect } from 'react';
++import React, { useState, useEffect } from 'react';
+ import { 
+   View, Text, TouchableOpacity, Modal, Animated, StyleSheet, 
+   Dimensions, TextInput, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback
+diff --git a/src/shared/ui/ChatInputBar.js b/src/shared/ui/ChatInputBar.js
+index 499f93b..e1a7792 100644
+--- a/src/shared/ui/ChatInputBar.js
++++ b/src/shared/ui/ChatInputBar.js
+@@ -1,7 +1,7 @@
+ /* eslint-disable react-hooks/refs */
+ import React, { useState, useRef, useEffect } from 'react';
+ import { View, TextInput, TouchableOpacity, Text, Animated, StyleSheet, Keyboard, Platform } from 'react-native';
+-import { MaterialIcons, Feather } from '@expo/vector-icons';
++import { MaterialIcons } from '@expo/vector-icons';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
+ export default function ChatInputBar({
+diff --git a/src/shared/ui/CustomButton.js b/src/shared/ui/CustomButton.js
+index 2e31d69..2133f9d 100644
+--- a/src/shared/ui/CustomButton.js
++++ b/src/shared/ui/CustomButton.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
++import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+ 
+ export default function CustomButton({ 
+   onPress, 
+diff --git a/src/shared/ui/DeleteAccountSection.js b/src/shared/ui/DeleteAccountSection.js
+index 3e2a1b7..e6b5c23 100644
+--- a/src/shared/ui/DeleteAccountSection.js
++++ b/src/shared/ui/DeleteAccountSection.js
+@@ -29,7 +29,7 @@ export default function DeleteAccountSection({ email }) {
+       }
+       // Kullanıcı sunucuda artık yok: global çıkış 403 verir, yalnız yerel oturumu kapat.
+       await supabase.auth.signOut({ scope: 'local' });
+-    } catch (e) {
++    } catch {
+       Alert.alert(t('accountDelete.title'), t('accountDelete.error'));
+     } finally {
+       setBusy(false);
+diff --git a/src/shared/ui/GlobalAppBar.js b/src/shared/ui/GlobalAppBar.js
+index abf86d6..41b0e24 100644
+--- a/src/shared/ui/GlobalAppBar.js
++++ b/src/shared/ui/GlobalAppBar.js
+@@ -1,8 +1,8 @@
+ import React from 'react';
+-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
++import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { useNavigation } from '@react-navigation/native';
+-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
++import { MaterialIcons } from '@expo/vector-icons';
+ import { Colors, ModuleAccent, Radius } from '@/core/theme/designSystem';
+ 
+ export default function GlobalAppBar({
+diff --git a/src/shared/ui/Header.js b/src/shared/ui/Header.js
+index 4ce72db..921885c 100644
+--- a/src/shared/ui/Header.js
++++ b/src/shared/ui/Header.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { View, Text, TouchableOpacity, Image } from 'react-native';
++import { View, Text, TouchableOpacity } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { useNavigation } from '@react-navigation/native';
+diff --git a/src/shared/ui/InvoiceSummaryCard.js b/src/shared/ui/InvoiceSummaryCard.js
+index 8a4af59..5cc625a 100644
+--- a/src/shared/ui/InvoiceSummaryCard.js
++++ b/src/shared/ui/InvoiceSummaryCard.js
+@@ -88,7 +88,7 @@ export default function InvoiceSummaryCard({ invoice, todayYmd, onScan }) {
+     const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
+     try {
+       return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)));
+-    } catch (e) {
++    } catch {
+       return String(ymd).slice(0, 10);
+     }
+   };
+-- 
+2.43.0
+
