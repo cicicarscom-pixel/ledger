@@ -1,0 +1,180 @@
+From 67e77d0b08f9181e4e37af04de8b0299762804b9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 02:01:54 +0000
+Subject: [PATCH] fix(flow-ai): web sesli sohbet yanit beklerken de dinler,
+ soylenenler sohbete dusup siraya girer
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                              |  1 +
+ src/components/flow-ai/FlowAiPanel.tsx | 35 +++++++++++++++++++-------
+ src/lib/useWebVoice.ts                 | 13 +++++++++-
+ 3 files changed, 39 insertions(+), 10 deletions(-)
+
+diff --git a/README.md b/README.md
+index ad8a7bb..73a6467 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Flow AI web sesli sohbet:** yanıt beklenirken ("Düşünüyor…") de mikrofon dinlemeye devam eder; o sırada söylenenler hemen sohbette görünür ve yanıt gelince otomatik gönderilir. Yanıt okunurken mikrofon yankıyı duymasın diye kapalıdır; okuma bitince yeniden açılır. Yanıt beklerken sessizlik sayılıp sohbet kapanmaz.
+ - **[09.10.2026] Flow AI → Paylaşım Merkezi devri:** video ve paylaşım işi artık Paylaşım Merkezi zaten açıkken de alınır (yalnız sayfa açılışında alınıyordu); panelde "Paylaş"a basınca sayfa hazır değilse Paylaşım Merkezi açılır ve hazır olunca paylaşım başlatılır. Paylaşım Merkezi'nde metin/platform eksikliği gibi erken çıkışlar panele hata olarak bildirilir (panel "paylaşılıyor"da takılı kalmaz).
+ - **[09.10.2026] Flow AI web — sesli sohbet:** panelde mikrofon düğmesi eklendi (tarayıcının Web Speech API'si; ek paket yok). Basınca eller serbest döngü: dinle → cümle bitince gönder → yanıtı sesli oku → yeniden dinle. "bitir/kapat/stop" ya da düğme ile kapanır; 3 sessiz tur sonra kendiliğinden durur. Desteklemeyen tarayıcıda (ör. Firefox) düğme görünmez. tr/en/de.
+ - **[08.10.2026] WhatsApp hatırlatma metni:** AI Asistan sayfasında işletme kendi hatırlatma metnini yazar ve mesaj dilini seçer (tr/en/de/fr/es); yer tutucular ({name}, {business}, {date}, {time}, {doctor}, {service}) ve örnek önizleme vardır. Hitap (Sayın/Mr./Herr…) metne işletme tarafından yazılır, kodda sabit değildir.
+diff --git a/src/components/flow-ai/FlowAiPanel.tsx b/src/components/flow-ai/FlowAiPanel.tsx
+index c8bf483..d3950ef 100644
+--- a/src/components/flow-ai/FlowAiPanel.tsx
++++ b/src/components/flow-ai/FlowAiPanel.tsx
+@@ -152,6 +152,9 @@ export default function FlowAiPanel() {
+   const [platformPick, setPlatformPick] = useState<null | { platform: string; handle: string; eligible: boolean; reason?: string }[]>(null);
+   const [pickSel, setPickSel] = useState<Record<string, boolean>>({});
+   const voiceRef = useRef<ReturnType<typeof useWebVoice> | null>(null);
++  const busyRef = useRef(false);
++  const queuedRef = useRef<string | null>(null); // yanıt beklenirken söylenen (sesli) cümleler
++  const sendRef = useRef<((override?: string, opts?: { shown?: boolean }) => Promise<void>) | null>(null);
+ 
+   const push = useCallback((role: Msg["role"], text: string) => {
+     setMessages((m) => [...m, { id: ++seq.current, role, text }]);
+@@ -199,12 +202,13 @@ export default function FlowAiPanel() {
+     }
+   }, [router]);
+ 
+-  const send = useCallback(async (override?: string) => {
++  const send = useCallback(async (override?: string, opts?: { shown?: boolean }) => {
+     setPlatformPick(null);
+     const text = (typeof override === "string" ? override : input).trim();
+-    if (!text || busy) return;
++    if (!text || busyRef.current) return;
+     setInput("");
+-    push("user", text);
++    if (!opts?.shown) push("user", text);
++    busyRef.current = true;
+     setBusy(true);
+     try {
+       const res = await call({ action: "chat", message: text, conversationId: conversationId.current || undefined, attachment: attachmentMeta || undefined });
+@@ -212,14 +216,19 @@ export default function FlowAiPanel() {
+       push("assistant", res.reply);
+       setPending(res.pendingActions || []);
+       (res.clientActions || []).forEach(dispatch);
+-      voiceRef.current?.speak(res.reply);
++      if (!queuedRef.current) voiceRef.current?.speak(res.reply); // sırada söylenmiş cümle varsa yanıtı okumadan ona geç
+     } catch (e: any) {
+       push("error", e.code === "DAILY_LIMIT" ? t("dailyLimit", { limit: e.limit ?? "" }) : t("error"));
+-      if (e.code === "DAILY_LIMIT") voiceRef.current?.stop(); else voiceRef.current?.resume();
++      if (e.code === "DAILY_LIMIT") { queuedRef.current = null; voiceRef.current?.stop(); } else if (!queuedRef.current) voiceRef.current?.resume();
+     } finally {
++      busyRef.current = false;
+       setBusy(false);
++      const q = queuedRef.current;
++      if (q) { queuedRef.current = null; sendRef.current?.(q, { shown: true }); }
+     }
+-  }, [input, busy, call, dispatch, push, t, attachmentMeta]);
++  }, [input, call, dispatch, push, t, attachmentMeta]);
++
++  sendRef.current = send;
+ 
+   const decide = useCallback(async (action: Pending, approve: boolean) => {
+     setBusy(true);
+@@ -252,11 +261,19 @@ export default function FlowAiPanel() {
+       setInput("");
+       const words = txt.toLocaleLowerCase(locale).replace(/[.,!?]/g, "").trim();
+       if (words.split(/\s+/).length <= 4 && VOICE_END_WORDS.some((w) => words.includes(w))) { voiceRef.current?.stop(); return; }
+-      if (busy) { voiceRef.current?.resume(); return; }
+-      send(txt);
++      if (busyRef.current) {
++        // Yanıt beklenirken söylenen: hemen sohbette göster, yanıt gelince gönderilir.
++        push("user", txt);
++        queuedRef.current = queuedRef.current ? `${queuedRef.current} ${txt}` : txt;
++      } else {
++        send(txt);
++      }
++      voiceRef.current?.resume(); // yanıt beklerken de dinlemeye devam
+     },
++    isBusy: () => busyRef.current,
+     onExit: (reason: VoiceExit) => {
+       setInput("");
++      queuedRef.current = null;
+       if (reason === "permission") push("error", t("voice.denied"));
+       else if (reason === "error") push("error", t("voice.error"));
+     },
+@@ -620,7 +637,7 @@ export default function FlowAiPanel() {
+           onChange={(e) => setInput(e.target.value)}
+           disabled={busy || voice.active}
+           maxLength={4000}
+-          placeholder={voice.active ? t(`voice.${voice.phase.toLowerCase()}` as any) : t("placeholder")}
++          placeholder={voice.active ? t(`voice.${busy && voice.phase !== "SPEAKING" ? "thinking" : voice.phase.toLowerCase()}` as any) : t("placeholder")}
+           style={{ flex: 1, color: "#fff", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 12px", outline: "none" }}
+         />
+         <button type="submit" disabled={busy || !input.trim()} aria-label={t("title")} style={{ width: 42, height: 42, borderRadius: 12, border: "none", background: "linear-gradient(135deg,#3B82F6,#9D5CFF)", color: "#fff", cursor: "pointer", opacity: busy || !input.trim() ? 0.5 : 1 }}>
+diff --git a/src/lib/useWebVoice.ts b/src/lib/useWebVoice.ts
+index 83e2c99..b27ff52 100644
+--- a/src/lib/useWebVoice.ts
++++ b/src/lib/useWebVoice.ts
+@@ -27,7 +27,7 @@ function chunkText(text: string): string[] {
+   return out;
+ }
+ 
+-export function useWebVoice(opts: { lang: string; onFinal: (text: string) => void; onPartial?: (text: string) => void; onExit?: (reason: VoiceExit) => void }) {
++export function useWebVoice(opts: { lang: string; onFinal: (text: string) => void; onPartial?: (text: string) => void; onExit?: (reason: VoiceExit) => void; isBusy?: () => boolean }) {
+   const [supported, setSupported] = useState(false);
+   const [phase, setPhase] = useState<VoicePhase>("OFF");
+   const optsRef = useRef(opts);
+@@ -35,6 +35,7 @@ export function useWebVoice(opts: { lang: string; onFinal: (text: string) => voi
+   const activeRef = useRef(false);
+   const recRef = useRef<any>(null);
+   const silentRef = useRef(0);
++  const genRef = useRef(0); // her dinleme turu bir nesil; eski turun geç gelen olayları yok sayılır
+ 
+   useEffect(() => {
+     const w = window as any;
+@@ -56,6 +57,8 @@ export function useWebVoice(opts: { lang: string; onFinal: (text: string) => voi
+     const w = window as any;
+     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+     if (!Ctor) return;
++    const gen = ++genRef.current;
++    try { recRef.current?.abort(); } catch { /* zaten durmuş */ }
+     const rec = new Ctor();
+     rec.lang = optsRef.current.lang;
+     rec.interimResults = true;
+@@ -70,20 +73,25 @@ export function useWebVoice(opts: { lang: string; onFinal: (text: string) => voi
+       optsRef.current.onFinal(txt);
+     };
+     rec.onresult = (e: any) => {
++      if (gen !== genRef.current) return;
+       const r = e.results[e.results.length - 1];
+       const txt = String(r?.[0]?.transcript || "");
+       last = txt;
+       if (r.isFinal) { if (!delivered && txt.trim()) deliver(txt.trim()); } else { optsRef.current.onPartial?.(txt); }
+     };
+     rec.onerror = (e: any) => {
++      if (gen !== genRef.current) return;
+       if (e.error === "no-speech" || e.error === "aborted") return;
+       if (e.error === "not-allowed" || e.error === "service-not-allowed") { halt("permission"); return; }
+       halt("error");
+     };
+     rec.onend = () => {
++      if (gen !== genRef.current) return;
+       if (recRef.current === rec) recRef.current = null;
+       if (!activeRef.current || delivered) return;
+       if (last.trim()) { deliver(last.trim()); return; }
++      // Yanıt beklenirken (düşünüyor) sessizlik sayılmaz; dinleme sürer, söylenenler kuyruğa girer.
++      if (optsRef.current.isBusy?.()) { listen(); return; }
+       silentRef.current += 1;
+       if (silentRef.current >= MAX_SILENT_ROUNDS) { halt("silence"); return; }
+       listen();
+@@ -109,6 +117,9 @@ export function useWebVoice(opts: { lang: string; onFinal: (text: string) => voi
+     const synth = window.speechSynthesis;
+     if (!clean || !synth) { listen(); return; }
+     const chunks = chunkText(clean);
++    genRef.current += 1; // okurken mikrofon kapalı: yankıyı dinlemeyelim
++    try { recRef.current?.abort(); } catch { /* */ }
++    recRef.current = null;
+     const voices = synth.getVoices();
+     const base = optsRef.current.lang.split("-")[0];
+     const voice = voices.find((v) => v.lang === optsRef.current.lang) || voices.find((v) => v.lang.startsWith(base));
+-- 
+2.43.0
+

@@ -39,6 +39,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 35 | `TALIMAT_35_hatirlatma_metin_ekranlari.md` (hazır yama ×2) | flow + flowweb | yok (EAS derlemesi / Vercel) | GEREKLİ |
 | 36 | `TALIMAT_36_web_sesli_sohbet.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 37 | `TALIMAT_37_web_paylasim_devri.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
+| 38 | `TALIMAT_38_web_sesli_bekleme_dinleme.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
