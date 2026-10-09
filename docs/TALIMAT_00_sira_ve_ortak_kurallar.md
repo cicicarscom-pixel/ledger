@@ -66,6 +66,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 61 | `TALIMAT_61_kalite_faz7_veritabani.md` (Kalite Faz 7; SQL, kullanıcı çalıştırır) | Supabase | yok | GEREKLİ |
 | 62 | `TALIMAT_62_kalite_faz8_dialog_flowweb.md` (Kalite Faz 8; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 63 | `TALIMAT_63_kalite_faz3c_efektler_flowweb.md` (Kalite Faz 3c; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
+| 64 | `TALIMAT_64_kalite_faz10_bagimliliklar.md` (Kalite Faz 10; iki hazır yama) | flowweb + flow | yok | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
