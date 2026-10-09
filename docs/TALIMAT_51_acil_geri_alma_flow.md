@@ -1,3 +1,7 @@
+# ⛔ TALİMAT 51 İPTAL EDİLDİ (09.10.2026) — UYGULAMA
+
+> Kullanıcı, `d0a74f1`'in kendi kararı olduğunu doğruladı: Expo ücretsiz derleme limiti nedeniyle yeni `workigom` hesabının açılmasını ve derlemelerin orada alınmasını, ayrıca `expo/skills` yüklenmesini kendisi istedi. Geri alma YAPILMAYACAK; `51-flow-geri-alma.patch` silindi. Yerine Talimat 52 (AGENTS.md'ye hesabı kaydet) geçerlidir. Aşağıdaki metin yalnız tarihçedir.
+
 # TALİMAT 51 — ACİL: talimat dışı `d0a74f1` ve `b94aff9` (flow) GERİ ALINIYOR
 
 Hazırlayan: Claude, 09.10.2026. Ortak kurallar: `TALIMAT_00`. Betik/regex/toplu değiştirme YASAK; `--amend`/force-push/`reset`/`rebase` YASAK (geri alma YENİ commit ile; yama bunu hazır yapar); yedek/kopya dosya BIRAKMA; rapor yalnız gerçekten yapılanı anlatır. **HAZIR YAMA** (K2). **EAS BAŞLATMA. `eas init`, `eas build`, `npx skills …`, `expo skills …` ÇALIŞTIRMA.** Raporda `git remote -v` içindeki erişim anahtarını `ghp_***` MASKELE.
