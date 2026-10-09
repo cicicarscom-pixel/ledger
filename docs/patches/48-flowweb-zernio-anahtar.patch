@@ -1,42 +1,215 @@
-From a5a5a0ba36a028b381f859f293041b6ba5bf6ea7 Mon Sep 17 00:00:00 2001
+From a5cc7c295c0151a2d1accccacf59ac4e06b684e3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
-Date: Fri, 9 Oct 2026 08:24:12 +0000
-Subject: [PATCH] fix(security): Zernio API anahtari NEXT_PUBLIC yedegi
- kaldirildi (Kalite Faz 1A)
+Date: Fri, 9 Oct 2026 08:52:29 +0000
+Subject: [PATCH] fix(security): kullanilmayan actions/zernio.ts silindi
+ (NEXT_PUBLIC anahtar yedegi riski kokunden kalkti) (Kalite Faz 1A)
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
 ---
- README.md             | 1 +
- src/actions/zernio.ts | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ README.md             |   1 +
+ src/actions/zernio.ts | 180 ------------------------------------------
+ 2 files changed, 1 insertion(+), 180 deletions(-)
+ delete mode 100644 src/actions/zernio.ts
 
 diff --git a/README.md b/README.md
-index ac2bcf2..4ef66ab 100644
+index ac2bcf2..fbee009 100644
 --- a/README.md
 +++ b/README.md
 @@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
  
  ## 📌 Son Güncellemeler
  
-+- **[09.10.2026] Güvenlik (Kalite Faz 1A):** `actions/zernio.ts` Zernio API anahtarını artık yalnız sunucu değişkeni `ZERNIO_API_KEY`'den okur; tarayıcıya gömülen `NEXT_PUBLIC_ZERNIO_API_KEY` yedeği kaldırıldı.
++- **[09.10.2026] Güvenlik (Kalite Faz 1A):** hiçbir yerden çağrılmayan `src/actions/zernio.ts` silindi (Zernio ile tüm iletişim Supabase `zernio-client` Edge Function'ı üzerinden; anahtar yalnız Supabase Secrets'ta). Dosya, tarayıcıya gömülen `NEXT_PUBLIC_ZERNIO_API_KEY` adını da okuyordu; bu risk kökünden kalktı. Vercel'de Zernio anahtarına gerek yoktur.
  - **[09.10.2026] Anasayfa "Yaklaşan Randevular":** boş durumda "Bugün için planlı randevu yok" yazıyordu (Bugünkü Randevular ile çelişiyordu); artık "Yaklaşan randevu veya rezervasyon bulunmuyor" (tr/en/de). Mobil zaten doğruydu.
  - **[09.10.2026] Anasayfa Randevu Bildirimleri randevularla senkron:** silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications` RPC'leri; web + mobil aynı kaynak).
  - **[09.10.2026] Anasayfa Randevu Bildirimleri:** "Raporları Temizle" düğmesi eklendi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez; tr/en/de). Veritabanı: `clear_appointment_notifications()`.
 diff --git a/src/actions/zernio.ts b/src/actions/zernio.ts
-index 4450067..aea452a 100644
+deleted file mode 100644
+index 4450067..0000000
 --- a/src/actions/zernio.ts
-+++ b/src/actions/zernio.ts
-@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
- import { revalidatePath } from 'next/cache'
- import { getTranslations } from 'next-intl/server'
- 
++++ /dev/null
+@@ -1,180 +0,0 @@
+-'use server'
+-
+-import { createClient } from '@/lib/supabase/server'
+-import { revalidatePath } from 'next/cache'
+-import { getTranslations } from 'next-intl/server'
+-
 -const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY || ''
-+// Yalnız sunucu değişkeni: `NEXT_PUBLIC_*` adları tarayıcı paketine gömülür, gizli anahtar için KULLANILMAZ.
-+const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY || ''
- const ZERNIO_API_URL = 'https://api.zernio.com/v1'
- 
- export async function getZernioConnectUrl(platform: string, redirectUrl: string) {
+-const ZERNIO_API_URL = 'https://api.zernio.com/v1'
+-
+-export async function getZernioConnectUrl(platform: string, redirectUrl: string) {
+-  try {
+-    const t = await getTranslations()
+-    const supabase = await createClient()
+-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+-    if (authError || !user) throw new Error("Unauthorized")
+-
+-    const { data: orgMember } = await supabase.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+-    if (!orgMember?.organization_id) throw new Error(t('common.serverErrors.noOrganization'))
+-
+-    const orgId = orgMember.organization_id
+-
+-    // 1. Resolve Profile Slot
+-    const { data: resolved, error: rpcError } = await supabase.rpc('resolve_zernio_profile_for_platform', {
+-      p_org_id: orgId,
+-      p_platform: platform
+-    })
+-
+-    if (rpcError || !resolved) {
+-      console.error("RPC Error:", rpcError)
+-      throw new Error(t('common.serverErrors.zernioProfileSlotFailed'))
+-    }
+-
+-    let finalZernioProfileId = resolved.zernio_profile_id
+-
+-    // 2. Create if new
+-    if (resolved.is_new) {
+-      const profileName = `wg_${orgId}_${resolved.profile_slot}`
+-      const idempotencyKey = `zernio-profile:${orgId}:${resolved.profile_slot}`
+-
+-      const zernioRes = await fetch(`${ZERNIO_API_URL}/profiles`, {
+-        method: 'POST',
+-        headers: {
+-          'Authorization': `Bearer ${ZERNIO_API_KEY}`,
+-          'Content-Type': 'application/json',
+-          'Idempotency-Key': idempotencyKey
+-        },
+-        body: JSON.stringify({ name: profileName })
+-      })
+-
+-      if (!zernioRes.ok) {
+-        throw new Error(`Zernio API Error: ${await zernioRes.text()}`)
+-      }
+-
+-      const zernioData = await zernioRes.json()
+-      finalZernioProfileId = zernioData.profile?.id || zernioData.profile?._id || zernioData.id || zernioData._id
+-      
+-      // Update DB with the created profile ID
+-      if (finalZernioProfileId) {
+-        await supabase.schema('integration').from('zernio_profiles').update({
+-          zernio_profile_id: finalZernioProfileId,
+-          status: 'active'
+-        }).eq('id', resolved.mapping_id)
+-      }
+-    }
+-
+-    if (!finalZernioProfileId) {
+-      throw new Error("Created profile ID is missing")
+-    }
+-
+-    // 3. Get Connect URL
+-    const urlRes = await fetch(`${ZERNIO_API_URL}/connect/url?platform=${platform}&profileId=${finalZernioProfileId}&redirect_url=${encodeURIComponent(redirectUrl)}`, {
+-      method: 'GET',
+-      headers: {
+-        'Authorization': `Bearer ${ZERNIO_API_KEY}`,
+-        'Content-Type': 'application/json'
+-      }
+-    })
+-
+-    if (!urlRes.ok) {
+-      throw new Error(`Zernio URL Fetch Error: ${await urlRes.text()}`)
+-    }
+-
+-    const urlData = await urlRes.json()
+-    const authUrl = urlData.data?.authUrl || urlData.data?.url || urlData.authUrl || urlData.url
+-
+-    return { success: true, authUrl }
+-  } catch (error: any) {
+-    console.error("Zernio Connect Error:", error)
+-    return { success: false, error: error.message }
+-  }
+-}
+-
+-export async function disconnectZernioAccount(accountId: string) {
+-  try {
+-    const supabase = await createClient()
+-    
+-    await fetch(`${ZERNIO_API_URL}/accounts/${accountId}`, {
+-      method: 'DELETE',
+-      headers: {
+-        'Authorization': `Bearer ${ZERNIO_API_KEY}`,
+-        'Content-Type': 'application/json'
+-      }
+-    })
+-
+-    await supabase.schema('integration').from('social_accounts').update({ is_active: false }).eq('zernio_account_id', accountId)
+-    
+-    revalidatePath('/sosyal-medya')
+-    return { success: true }
+-  } catch (error: any) {
+-    console.error("Zernio Disconnect Error:", error)
+-    return { success: false, error: error.message }
+-  }
+-}
+-
+-export async function syncZernioAccounts() {
+-  try {
+-    const t = await getTranslations()
+-    const supabase = await createClient()
+-    const { data: { user } } = await supabase.auth.getUser()
+-    if (!user) throw new Error("Unauthorized")
+-
+-    const { data: orgMember } = await supabase.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+-    if (!orgMember?.organization_id) throw new Error(t('common.serverErrors.noOrganization'))
+-
+-    const orgId = orgMember.organization_id
+-
+-    const { data: activeProfiles } = await supabase
+-      .schema('integration')
+-      .from('zernio_profiles')
+-      .select('id, zernio_profile_id')
+-      .eq('organization_id', orgId)
+-      .eq('status', 'active')
+-
+-    if (!activeProfiles || activeProfiles.length === 0) return { success: true, accounts: [] }
+-
+-    let allAccounts: any[] = []
+-
+-    for (const profile of activeProfiles) {
+-      try {
+-        const accRes = await fetch(`${ZERNIO_API_URL}/accounts?profileId=${profile.zernio_profile_id}`, {
+-          headers: { 'Authorization': `Bearer ${ZERNIO_API_KEY}` }
+-        })
+-        
+-        if (accRes.ok) {
+-          const accData = await accRes.json()
+-          const accounts = accData.data?.accounts || accData.accounts || accData.data || []
+-          allAccounts = allAccounts.concat(accounts)
+-
+-          if (accounts.length > 0) {
+-            
+-            const mappedAccounts = accounts.map((acc: any) => ({
+-              organization_id: orgId,
+-              zernio_profile_mapping_id: profile.id,
+-              zernio_profile_id: profile.zernio_profile_id,
+-              zernio_account_id: acc._id || acc.id || acc.accountId || acc.uuid,
+-              platform: acc.platform || 'unknown',
+-              username: acc.username || acc.displayName || acc.name || acc.platform,
+-              is_active: true,
+-              needs_reconnection: acc.needsReconnection === true,
+-              last_seen_at: new Date().toISOString()
+-            }))
+-            
+-            await supabase.schema('integration').from('social_accounts').upsert(
+-              mappedAccounts,
+-              { onConflict: 'zernio_account_id' }
+-            )
+-          }
+-        }
+-      } catch (e) {
+-        console.error(`Sync error for profile ${profile.zernio_profile_id}`, e)
+-      }
+-    }
+-
+-    revalidatePath('/sosyal-medya')
+-    return { success: true, accounts: allAccounts }
+-  } catch (error: any) {
+-    console.error("Zernio Sync Error:", error)
+-    return { success: false, error: error.message }
+-  }
+-}
 -- 
 2.43.0
 

@@ -11,7 +11,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 ## Fazlar
 | Faz | Konu | Talimat | Durum |
 |---|---|---|---|
-| 1 | **Güvenlik**: 1A flowweb Zernio anahtarı yedeği; 1B Supabase fonksiyon yetkileri (SQL: kullanıcı); 1C Auth sızdırılmış parola koruması (panel: kullanıcı) | 48 | HAZIR |
+| 1 | **Güvenlik**: 1A flowweb ölü `zernio.ts` silinir (NEXT_PUBLIC anahtar riski); 1B Supabase fonksiyon yetkileri (SQL: kullanıcı); 1C Auth sızdırılmış parola koruması (panel: kullanıcı) | 48 | HAZIR |
 | 2 | **Ölü kod temizliği** (flow + flowweb; risksiz silme) | 49 | HAZIR |
 | 3 | **flowweb hata/lint**: 4× `prefer-const`, `@ts-nocheck`, 8 `<img alt>`; 18 `exhaustive-deps` tek tek | 50 | sırada |
 | 4 | **flow tip ve tarih hataları**: kalan tsc hataları, `OdemeTakvimiScreen` saat dilimi, `import/no-duplicates`, kullanılmayan değişkenler | 51 | sırada |
@@ -25,6 +25,6 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 3–10. fazların talimatları, bir önceki faz ONAYLANDIKÇA yazılır (her biri bir önceki fazın sonucuna ve dosyaların güncel hâline dayanır; yama güncel koddan üretilir).
 
 ## Faz 1 sonrası kullanıcı kontrol listesi
-1. Vercel → flowweb → Settings → Environment Variables: `ZERNIO_API_KEY` VAR OLMALI; `NEXT_PUBLIC_ZERNIO_API_KEY` varsa SİL ve Zernio anahtarını yenile.
+1. (Vercel'de yapılacak bir şey yok; `zernio.ts` silindiği için Zernio anahtarına Vercel'de gerek yok.)
 2. SQL Editor'de `…000003` migration'ı çalıştır (Talimat 48 §0).
 3. Supabase → Authentication → Sign In / Providers → Password → "Prevent use of leaked passwords" AÇ.
