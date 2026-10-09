@@ -59,6 +59,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 54 | `TALIMAT_54_kalite_faz3b_flowweb.md` (Kalite Faz 3b; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 55 | `TALIMAT_55_kalite_faz4_flow.md` (Kalite Faz 4; hazır yama) | flow | yok | GEREKLİ |
 | 56 | `TALIMAT_56_kalite_faz5_ci_kapilari.md` (Kalite Faz 5; iki hazır yama) | flow + flowweb | yok | GEREKLİ |
+| 57 | `TALIMAT_57_kalite_faz6a_i18n_analiz.md` (Kalite Faz 6A; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
