@@ -1,0 +1,92 @@
+From b7e389454a1efb0b0d996344a62459199962f58b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 05:20:48 +0000
+Subject: [PATCH] fix(randevu): tum konusma kayitlarini silen Hafizayi Sil
+ dugmesi ve clearChatMemory kaldirildi
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/actions/clearChatMemory.ts                | 24 -------------------
+ .../ai-asistan/randevu/RandevuClient.tsx      | 21 ----------------
+ 3 files changed, 1 insertion(+), 45 deletions(-)
+ delete mode 100644 src/actions/clearChatMemory.ts
+
+diff --git a/README.md b/README.md
+index 91b6a65..1d66e68 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Randevu sayfası:** "🧹 Hafızayı Sil" düğmesi ve `clearChatMemory` işlemi kaldırıldı (işletmenin tüm konuşma kayıtlarını geri alınamaz şekilde siliyordu). Konuşma geçmişi silmek gerekirse yönetici tarafından veritabanından yapılır.
+ - **[09.10.2026] Canlı Test:** panelden "🧹 Hafızayı Sil" düğmesi kaldırıldı (işletmenin gerçek WhatsApp konuşma kayıtlarını `ai_communication_logs`'tan siliyordu; test paneli bu tabloyu kullanmaz). Yalnız "↻ Ekranı Temizle" kaldı. (Randevu sayfasındaki ayrı "Hafızayı Sil" düğmesine dokunulmadı.)
+ - **[09.10.2026] Canlı Test bilgilendirmesi (düzeltme):** not, kullanılmayan `LiveTestPanel.tsx` yerine sayfada gerçekten gösterilen Canlı Test paneline (`ai-asistan/page.tsx`) taşındı; ölü bileşendeki kopya ve anahtar kaldırıldı.
+ - **[09.10.2026] Canlı Test bilgilendirmesi:** AI Asistan sayfasındaki Canlı Test panelinin üstüne "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+diff --git a/src/actions/clearChatMemory.ts b/src/actions/clearChatMemory.ts
+deleted file mode 100644
+index f22b364..0000000
+--- a/src/actions/clearChatMemory.ts
++++ /dev/null
+@@ -1,24 +0,0 @@
+-
+-'use server'
+-import { createClient } from '@/lib/supabase/server'
+-import { getCurrentOrgId } from '@/lib/org'
+-
+-export async function clearChatMemory(): Promise<{ success: boolean; error?: string }> {
+-  const supabase = await createClient()
+-  const { data: { session } } = await supabase.auth.getSession()
+-  if (!session) return { success: false, error: 'Oturum bulunamadı' }
+-
+-  const orgId = await getCurrentOrgId(supabase)
+-  if (!orgId) return { success: false, error: 'İşletme bulunamadı' }
+-
+-  const { error } = await supabase
+-    .from('ai_communication_logs')
+-    .delete()
+-    .eq('org_id', orgId)
+-
+-  if (error) {
+-    return { success: false, error: error.message }
+-  }
+-  return { success: true }
+-}
+-
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+index 294e26a..735929b 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+@@ -388,27 +388,6 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+             <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", minWidth: 90, textAlign: "center" }}>{monthYearStr}</span>
+             <button onClick={handleNextMonth} style={{ background: "transparent", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 18, padding: 4 }}>&rsaquo;</button>
+           </div>
+-          <button
+-            onClick={async () => {
+-              if (window.confirm('AI Hafızası (son konuşmalar) silinsin mi? Sadece sizin işletmenizin kayıtları silinir.')) {
+-                const { clearChatMemory } = await import('@/actions/clearChatMemory');
+-                const res = await clearChatMemory();
+-                if (res.success) {
+-                  alert('AI Hafızası başarıyla silindi!');
+-                } else {
+-                  alert('Hata oluştu: ' + res.error);
+-                }
+-              }
+-            }}
+-            style={{ 
+-              background: 'rgba(255, 59, 48, 0.15)', 
+-              border: '1px solid rgba(255, 59, 48, 0.3)', borderRadius: 99, padding: '10px 20px', 
+-              color: '#ff3b30', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+-              display: 'flex', alignItems: 'center', gap: 8
+-            }}
+-          >
+-            🧹 Hafızayı Sil
+-          </button>
+           <button 
+             onClick={() => setIsModalOpen(true)}
+             style={{ 
+-- 
+2.43.0
+
