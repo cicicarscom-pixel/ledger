@@ -1,0 +1,1328 @@
+From aece3b9a50caf41bbb683cf49fadea14c275a245 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 16:31:25 +0000
+Subject: [PATCH] feat(i18n): dogrulama sayfasi (bekleme sayaci, hiz siniri
+ uyarisi), onboarding, musteriler, randevu, gonderiler, paylasim ve uyari
+ metinleri tr/en/de; kayitta locale (Kalite Faz 6B)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ messages/de.json                              | 110 +++++++++++++++++-
+ messages/en.json                              | 110 +++++++++++++++++-
+ messages/tr.json                              | 110 +++++++++++++++++-
+ scripts/ci/eslint-baseline.json               |   2 +-
+ src/actions/auth.ts                           |   4 +-
+ src/app/(dashboard)/ai-asistan/page.tsx       |   2 +-
+ .../ai-asistan/randevu/RandevuClient.tsx      |  48 ++++----
+ .../(dashboard)/ai-asistan/randevu/page.tsx   |   4 +-
+ src/app/(dashboard)/gelen-kutusu/page.tsx     |   8 +-
+ .../musteriler/MusterilerClient.tsx           |  32 ++---
+ .../(dashboard)/sosyal-medya/posts/page.tsx   |  12 +-
+ .../(dashboard)/sosyal-medya/share/page.tsx   |  14 +--
+ src/app/onboarding/page.tsx                   |  24 ++--
+ src/app/verify-email/page.tsx                 |  53 ++++++---
+ .../dashboard/AppointmentNotifications.tsx    |   6 +-
+ src/components/dashboard/InvoiceCard.tsx      |   2 +-
+ src/components/layout/Sidebar.tsx             |   8 +-
+ .../settings/MultiCalendarToggle.tsx          |   8 +-
+ 19 files changed, 448 insertions(+), 110 deletions(-)
+
+diff --git a/README.md b/README.md
+index 5baf953..3a510fb 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Kalite Faz 6B (i18n + e-posta doğrulama sayfası):** Doğrulama sayfası (`verify-email`), Onboarding formu, Müşteriler, Randevu (takvim yönetimi, rezervasyon penceresi), Gönderiler tablosu, Paylaşım uyarıları, Gelen Kutusu uyarıları, Çoklu Takvim anahtarı, Fatura kartı ve Kenar Çubuğu'ndaki sabit metinler tr/en/de anahtarlarına taşındı (78 yeni anahtar). Doğrulama sayfasında "Tekrar Gönder" artık 60 sn bekleme sayacı gösterir, hız sınırında anlaşılır uyarı verir ve hesap zaten doğrulanmışsa kullanıcıyı yanıltmaz (Supabase bu durumda e-posta göndermez ama başarılı döner); "Giriş sayfasına dön" bağlantısı eklendi. Kayıtta kullanıcının dili (`locale`) Supabase'e iletilir; e-posta şablonu bu dile göre seçilir. Kenar çubuğu ve doğrulama sayfasındaki `useEffect` bağımlılık uyarıları giderildi (38 → 37).
+ - **[09.10.2026] Kalite Faz 6A (i18n, Analiz sayfası):** `analiz/page.tsx` içindeki ~100 sabit Türkçe/İngilizce metin (kart başlıkları, tablo sütunları, grafik etiketleri, gün kısaltmaları, ısı haritası ipucu, Gelen Kutusu analizleri) `analizPage.*` anahtarlarına taşındı; tr/en/de 76 yeni anahtar. Ekran dili artık seçilen dille değişir; "Best times" ve saat ipucu da çevrilir (12 saat "am/pm" yerine 24 saat biçimi).
+ - **[09.10.2026] Kalite Faz 5 (CI kapıları):** CI artık `npm ci` + `tsc --noEmit` (hata olursa kırmızı) + ESLint çıtası çalıştırıyor. Çıta (`scripts/ci/eslint-ratchet.mjs`): hata/uyarı sayısı kayıtlı tabanı (0 hata, 38 uyarı) AŞAMAZ; temizlik yapıldıkça taban düşürülür. Yeni kod mevcut kaliteyi bozamaz.
+ - **[09.10.2026] Kalite Faz 3b:** ESLint uyarıları 86 → 38: kullanılmayan değişken/import/parametre uyarıları 45 → 1 (kalan: `muhasebecim` `handleDisconnect`, muhasebeci bağlantı yaşam döngüsü işiyle birlikte ele alınacak); Anasayfa'da sonucu hiçbir yerde kullanılmayan ödeme takvimi RPC'si ve 4 platform sayacı sorgusu kaldırıldı (her açılışta 5 gereksiz istek); 4 `useEffect` bağımlılığına `supabase` eklendi (tarayıcıda tek örnek olduğundan davranış değişmez). Tam `tsc` hatasız.
+diff --git a/messages/de.json b/messages/de.json
+index 56ff525..270b67c 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -272,7 +272,8 @@
+       "unknownErrorChat": "Unbekannter Fehler",
+       "noResponse": "Keine Antwort erhalten.",
+       "systemError": "Ein Systemfehler ist aufgetreten."
+-    }
++    },
++    "clearScreen": "Bildschirm leeren"
+   },
+   "hizmetAyarlari": {
+     "sessionNotFound": "Sitzung nicht gefunden.",
+@@ -390,6 +391,30 @@
+       "genericError": "Ein Fehler ist aufgetreten.",
+       "cancelSuccess": "Termin erfolgreich abgesagt.",
+       "deleteSuccess": "Termin erfolgreich gelöscht."
++    },
++    "extra": {
++      "newCalendarTitle": "Neuer Kalender",
++      "newCalendarPlaceholder": "Name des neuen Kalenders/Mitarbeiters eingeben",
++      "date": "Datum",
++      "selectCalendar": "Kalender auswählen",
++      "choose": "Auswählen",
++      "noteLabel": "Beschreibung / Notiz",
++      "notePlaceholder": "Wie die Notizen an den KI-Assistenten... (z. B. Meine Füllung ist ausgefallen, ich möchte eine neue)",
++      "scope": "Umfang",
++      "selectedDoctor": "Ausgewählter Arzt",
++      "wholeClinic": "Gesamte Praxis",
++      "duration": "Dauer",
++      "singleSlot": "Einzelner Slot",
++      "startEnd": "Start-Ende",
++      "start": "Beginn",
++      "end": "Ende",
++      "manageTitle": "Kalender-/Mitarbeiterverwaltung",
++      "manageSub": "Bearbeiten oder löschen Sie Ihre Mitarbeiter.",
++      "noCalendars": "Noch keine Kalender hinzugefügt.",
++      "editCalendarTitle": "Kalender bearbeiten",
++      "editCalendarPlaceholder": "Neuer Kalendername",
++      "confirmDelete": "'{name}' wird gelöscht. Sind Sie sicher?",
++      "noDeletePermission": "Sie dürfen diesen Kalender nicht löschen (Altdatensatz). Bitte löschen Sie ihn im Supabase-Panel."
+     }
+   },
+   "aiAsistanComponents": {
+@@ -893,6 +918,12 @@
+       "successAlert": "Nachricht erfolgreich gesendet!",
+       "errorAlertPrefix": "Fehler beim Senden der Nachricht: ",
+       "alreadyRepliedError": "An diesen Kommentar wurde bereits eine DM gesendet. Social-Media-Plattformen erlauben nur eine DM pro Kommentar."
++    },
++    "alerts": {
++      "noSession": "Sitzung nicht gefunden",
++      "replyNoAccount": "Auf diesen Kommentar konnte nicht geantwortet werden: Das '{platform}'-Konto Ihrer Organisation ist nicht verbunden oder im Zernio-Panel nicht autorisiert.",
++      "replyFailed": "Antwort konnte nicht gesendet werden: {message}",
++      "customerFallback": "Kunde"
+     }
+   },
+   "sosyalMedyaPage": {
+@@ -996,6 +1027,14 @@
+       "genericError": "Bei der Verarbeitung ist ein Fehler aufgetreten.",
+       "manualPlatformRemoval": "Diese Plattformen unterstützen die Entfernung über die API nicht. Sie müssen den Inhalt direkt in Ihrem Konto löschen: {platforms}",
+       "platformRemovalFailed": "Die Entfernung ist auf folgenden Plattformen fehlgeschlagen: {platforms}"
++    },
++    "table": {
++      "content": "Inhalt",
++      "platforms": "Plattformen",
++      "date": "Datum",
++      "status": "Status",
++      "actions": "Aktionen",
++      "tempStorage": "Im Zwischenspeicher"
+     }
+   },
+   "sharePage": {
+@@ -1057,7 +1096,11 @@
+     },
+     "youtube": {
+       "titlePlaceholder": "Videotitel...",
+-      "descriptionLabel": "Videobeschreibung (Optional)"
++      "descriptionLabel": "Videobeschreibung (Optional)",
++      "privacyPublic": "Öffentlich",
++      "privacyUnlisted": "Nicht gelistet",
++      "privacyPrivate": "Privat",
++      "titleLabel": "Titel"
+     },
+     "publishing": {
+       "label": "Veröffentlichung",
+@@ -1078,7 +1121,10 @@
+       "invalidDateFormat": "Ungültiges Datumsformat. Bitte im Format 'TAG.MONAT.JAHR STUNDE:MINUTE' eingeben (z. B. 16.08.2026 16:26).",
+       "publishFailed": "Beim Teilen des Beitrags ist ein Fehler aufgetreten: {message}",
+       "captionGenerationFailed": "Fehler: {message}",
+-      "captionLimit": "Du hast das heutige Limit für Beitragstexte erreicht. Versuche es morgen erneut."
++      "captionLimit": "Du hast das heutige Limit für Beitragstexte erreicht. Versuche es morgen erneut.",
++      "videoRemovedIntro": "Das hochgeladene Video ist {seconds} Sekunden lang. Diese Plattformen wurden automatisch entfernt, da das Video ihre Limits überschreitet:",
++      "videoRemovedItem": "- {platform} (Max.: {max} Sek.)",
++      "platformMaxDuration": "Auf {platform} können Videos von maximal {max} Sekunden geteilt werden (hochgeladen: {actual} Sek.)."
+     },
+     "success": {
+       "published": "Beitrag erfolgreich geteilt!"
+@@ -1122,7 +1168,8 @@
+         "viewReceipt": "Beleg ansehen",
+         "close": "Schließen",
+         "noPreview": "Keine Vorschau",
+-        "latest": "LETZTE RECHNUNG"
++        "latest": "LETZTE RECHNUNG",
++        "noInvoice": "Noch keine Rechnung gescannt"
+       }
+     },
+     "appointments": {
+@@ -1263,7 +1310,27 @@
+     },
+     "notes": "Notizen",
+     "saved": "Gespeichert",
+-    "notesPlaceholder": "Notiz zum Kunden hinzufügen..."
++    "notesPlaceholder": "Notiz zum Kunden hinzufügen...",
++    "stats": {
++      "appointments": "Termine",
++      "upcoming": "Bevorstehend",
++      "cancelled": "Storniert",
++      "total": "Gesamt",
++      "completed": "Abgeschlossen"
++    },
++    "actions": {
++      "call": "Anrufen",
++      "book": "Termin vereinbaren"
++    },
++    "history": {
++      "title": "Terminverlauf"
++    },
++    "addDialog": {
++      "title": "Neuen Kunden hinzufügen",
++      "name": "Vor- und Nachname",
++      "phone": "Telefon (+90 5XX ...)",
++      "cancel": "Abbrechen"
++    }
+   },
+   "randevu": {
+     "block": {
+@@ -1430,5 +1497,38 @@
+       "doctor": "Mitarbeiter",
+       "service": "Leistung"
+     }
++  },
++  "onboardingPage": {
++    "title": "Willkommen",
++    "subtitle": "Bitte füllen Sie die folgenden Angaben vollständig aus, um Ihr Geschäftskonto einzurichten.",
++    "googleNotice": "Ihre Angaben wurden aus Ihrem Google-Konto übernommen. Bitte prüfen und bestätigen Sie sie.",
++    "email": "E-Mail",
++    "fullName": "Vor- und Nachname",
++    "fullNamePlaceholder": "Ihr Vor- und Nachname",
++    "phone": "Telefon",
++    "businessName": "Name des Unternehmens",
++    "businessNamePlaceholder": "Name Ihres Unternehmens",
++    "saveError": "Beim Speichern ist ein Fehler aufgetreten: {message}",
++    "saving": "Wird gespeichert...",
++    "submit": "Einrichtung abschließen"
++  },
++  "verifyEmailPage": {
++    "title": "Bestätigen Sie Ihre E-Mail",
++    "sent": "Wir haben einen Bestätigungslink an Ihre E-Mail-Adresse gesendet. Bitte bestätigen Sie Ihre E-Mail, um fortzufahren.",
++    "resend": "Erneut senden",
++    "resending": "Wird gesendet...",
++    "resendIn": "Erneut senden ({seconds} Sek.)",
++    "resent": "Wenn dieses Konto auf die Bestätigung wartet, wurde ein neuer Link gesendet. Prüfen Sie auch Ihren Spam-Ordner. Wenn die E-Mail bereits bestätigt ist, versuchen Sie sich anzumelden.",
++    "resendError": "Beim Senden des Links ist ein Fehler aufgetreten: {message}",
++    "rateLimited": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
++    "backToLogin": "Zurück zur Anmeldung"
++  },
++  "multiCalendarToggle": {
++    "title": "Mehrfachkalender-/Mitarbeitermodus",
++    "description": "Ermöglicht mehreren Mitarbeitern, zur gleichen Zeit Termine anzunehmen.",
++    "errorPrefix": "Fehler: {message}"
++  },
++  "sidebar": {
++    "profileAlt": "Benutzerprofil"
+   }
+ }
+diff --git a/messages/en.json b/messages/en.json
+index f46a06f..ece3a9a 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -272,7 +272,8 @@
+       "unknownErrorChat": "Unknown Error",
+       "noResponse": "No response received.",
+       "systemError": "A system error occurred."
+-    }
++    },
++    "clearScreen": "Clear screen"
+   },
+   "hizmetAyarlari": {
+     "sessionNotFound": "Session not found.",
+@@ -390,6 +391,30 @@
+       "genericError": "An error occurred.",
+       "cancelSuccess": "Appointment cancelled successfully.",
+       "deleteSuccess": "Appointment deleted successfully."
++    },
++    "extra": {
++      "newCalendarTitle": "New Calendar",
++      "newCalendarPlaceholder": "Enter the new calendar/staff name",
++      "date": "Date",
++      "selectCalendar": "Select calendar",
++      "choose": "Select",
++      "noteLabel": "Description / Note",
++      "notePlaceholder": "Like the notes given to the AI assistant... (e.g. My filling fell out, I want a new one)",
++      "scope": "Scope",
++      "selectedDoctor": "Selected doctor",
++      "wholeClinic": "Whole clinic",
++      "duration": "Duration",
++      "singleSlot": "Single slot",
++      "startEnd": "Start-end",
++      "start": "Start",
++      "end": "End",
++      "manageTitle": "Calendar / Staff Management",
++      "manageSub": "Edit or delete your staff.",
++      "noCalendars": "No calendars added yet.",
++      "editCalendarTitle": "Edit Calendar",
++      "editCalendarPlaceholder": "New calendar name",
++      "confirmDelete": "'{name}' will be deleted. Are you sure?",
++      "noDeletePermission": "You are not allowed to delete this calendar (legacy record). Please delete it from the Supabase panel."
+     }
+   },
+   "aiAsistanComponents": {
+@@ -893,6 +918,12 @@
+       "successAlert": "Message sent successfully!",
+       "errorAlertPrefix": "Error sending message: ",
+       "alreadyRepliedError": "A DM has already been sent to this comment. Social media platforms only allow sending 1 DM per comment."
++    },
++    "alerts": {
++      "noSession": "Session not found",
++      "replyNoAccount": "Could not reply to this comment: your organization's '{platform}' account is not connected or not authorized in the Zernio panel.",
++      "replyFailed": "Reply could not be sent: {message}",
++      "customerFallback": "Customer"
+     }
+   },
+   "sosyalMedyaPage": {
+@@ -996,6 +1027,14 @@
+       "genericError": "An error occurred while processing your request.",
+       "manualPlatformRemoval": "These platforms do not support removal via API. You will need to delete the content directly from your account: {platforms}",
+       "platformRemovalFailed": "Removal failed on these platforms: {platforms}"
++    },
++    "table": {
++      "content": "Content",
++      "platforms": "Platforms",
++      "date": "Date",
++      "status": "Status",
++      "actions": "Actions",
++      "tempStorage": "In temporary storage"
+     }
+   },
+   "sharePage": {
+@@ -1057,7 +1096,11 @@
+     },
+     "youtube": {
+       "titlePlaceholder": "Video title...",
+-      "descriptionLabel": "Video Description (Optional)"
++      "descriptionLabel": "Video Description (Optional)",
++      "privacyPublic": "Public",
++      "privacyUnlisted": "Unlisted",
++      "privacyPrivate": "Private",
++      "titleLabel": "Title"
+     },
+     "publishing": {
+       "label": "publishing",
+@@ -1078,7 +1121,10 @@
+       "invalidDateFormat": "Invalid date format. Please enter it as 'DAY.MONTH.YEAR HOUR:MINUTE' (e.g. 16.08.2026 16:26).",
+       "publishFailed": "An error occurred while sharing the post: {message}",
+       "captionGenerationFailed": "Error: {message}",
+-      "captionLimit": "You've reached today's caption generation limit. Try again tomorrow."
++      "captionLimit": "You've reached today's caption generation limit. Try again tomorrow.",
++      "videoRemovedIntro": "The video you uploaded is {seconds} seconds long. These platforms were removed automatically because it exceeds their limits:",
++      "videoRemovedItem": "- {platform} (Max: {max} sec)",
++      "platformMaxDuration": "On {platform} you can share videos of at most {max} seconds (uploaded: {actual} sec)."
+     },
+     "success": {
+       "published": "Post shared successfully!"
+@@ -1122,7 +1168,8 @@
+         "viewReceipt": "View document",
+         "close": "Close",
+         "noPreview": "No preview",
+-        "latest": "LATEST INVOICE"
++        "latest": "LATEST INVOICE",
++        "noInvoice": "No invoice scanned yet"
+       }
+     },
+     "appointments": {
+@@ -1263,7 +1310,27 @@
+     },
+     "notes": "Notes",
+     "saved": "Saved",
+-    "notesPlaceholder": "Add a note for this customer..."
++    "notesPlaceholder": "Add a note for this customer...",
++    "stats": {
++      "appointments": "Appointments",
++      "upcoming": "Upcoming",
++      "cancelled": "Cancelled",
++      "total": "Total",
++      "completed": "Completed"
++    },
++    "actions": {
++      "call": "Call",
++      "book": "Book appointment"
++    },
++    "history": {
++      "title": "Appointment History"
++    },
++    "addDialog": {
++      "title": "Add New Customer",
++      "name": "Full name",
++      "phone": "Phone (+90 5XX ...)",
++      "cancel": "Cancel"
++    }
+   },
+   "randevu": {
+     "block": {
+@@ -1430,5 +1497,38 @@
+       "doctor": "staff",
+       "service": "service"
+     }
++  },
++  "onboardingPage": {
++    "title": "Welcome",
++    "subtitle": "Please fill in the information below completely to set up your business account.",
++    "googleNotice": "Your details were taken from your Google account. Please check them and confirm they are correct.",
++    "email": "Email",
++    "fullName": "Full name",
++    "fullNamePlaceholder": "Your first and last name",
++    "phone": "Phone",
++    "businessName": "Business name",
++    "businessNamePlaceholder": "Your business name",
++    "saveError": "An error occurred while saving: {message}",
++    "saving": "Saving...",
++    "submit": "Complete setup"
++  },
++  "verifyEmailPage": {
++    "title": "Verify your email",
++    "sent": "We sent a verification link to your email address. Please confirm your email to continue.",
++    "resend": "Resend",
++    "resending": "Sending...",
++    "resendIn": "Resend ({seconds}s)",
++    "resent": "If this account is waiting for verification, a new link has been sent. Also check your spam folder. If the email is already verified, try signing in.",
++    "resendError": "An error occurred while sending the link: {message}",
++    "rateLimited": "You tried too often. Please wait a moment and try again.",
++    "backToLogin": "Back to sign in"
++  },
++  "multiCalendarToggle": {
++    "title": "Multi-Calendar / Staff Mode",
++    "description": "Lets several staff members take appointments at the same time.",
++    "errorPrefix": "Error: {message}"
++  },
++  "sidebar": {
++    "profileAlt": "User profile"
+   }
+ }
+diff --git a/messages/tr.json b/messages/tr.json
+index 5b341dd..dfdd526 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -272,7 +272,8 @@
+       "unknownErrorChat": "Bilinmeyen Hata",
+       "noResponse": "Cevap alınamadı.",
+       "systemError": "Sistem hatası oluştu."
+-    }
++    },
++    "clearScreen": "Ekranı Temizle"
+   },
+   "hizmetAyarlari": {
+     "sessionNotFound": "Oturum bulunamadı.",
+@@ -390,6 +391,30 @@
+       "genericError": "Bir hata oluştu.",
+       "cancelSuccess": "Randevu başarıyla iptal edildi.",
+       "deleteSuccess": "Randevu başarıyla silindi."
++    },
++    "extra": {
++      "newCalendarTitle": "Yeni Takvim",
++      "newCalendarPlaceholder": "Yeni takvim/personel adını girin",
++      "date": "Tarih",
++      "selectCalendar": "Takvim Seçiniz",
++      "choose": "Seçiniz",
++      "noteLabel": "Açıklama / Not",
++      "notePlaceholder": "AI asistana verilen notlar gibi... (Örn: Dolgum düştü dolgu yaptırmak istiyorum)",
++      "scope": "Kapsam",
++      "selectedDoctor": "Seçili doktor",
++      "wholeClinic": "Tüm klinik",
++      "duration": "Süre",
++      "singleSlot": "Tek slot",
++      "startEnd": "Başlangıç-bitiş",
++      "start": "Başlangıç",
++      "end": "Bitiş",
++      "manageTitle": "Takvim / Personel Yönetimi",
++      "manageSub": "Personellerinizi düzenleyin veya silin.",
++      "noCalendars": "Henüz takvim eklenmemiş.",
++      "editCalendarTitle": "Takvimi Düzenle",
++      "editCalendarPlaceholder": "Yeni takvim adı",
++      "confirmDelete": "'{name}' silinecek. Emin misiniz?",
++      "noDeletePermission": "Bu takvimi silme yetkiniz yok (eski kayıt olduğu için). Lütfen Supabase panelinden silin."
+     }
+   },
+   "aiAsistanComponents": {
+@@ -893,6 +918,12 @@
+       "successAlert": "Mesaj başarıyla gönderildi!",
+       "errorAlertPrefix": "Mesaj gönderilirken hata: ",
+       "alreadyRepliedError": "Bu yoruma zaten bir DM gönderilmiş. Sosyal medya platformları bir yoruma sadece 1 kez DM atılmasına izin verir."
++    },
++    "alerts": {
++      "noSession": "Oturum bulunamadı",
++      "replyNoAccount": "Bu yoruma yanıt gönderilemedi: Organizasyonunuzun '{platform}' hesabı bağlı değil veya Zernio panelinde yetkilendirilmemiş.",
++      "replyFailed": "Yanıt gönderilemedi: {message}",
++      "customerFallback": "Müşteri"
+     }
+   },
+   "sosyalMedyaPage": {
+@@ -996,6 +1027,14 @@
+       "genericError": "İşlem sırasında hata oluştu.",
+       "manualPlatformRemoval": "Şu platformlar API üzerinden silmeyi desteklemiyor, içeriği ilgili hesabınız üzerinden manuel olarak silmeniz gerekmektedir: {platforms}",
+       "platformRemovalFailed": "Şu platformlardan kaldırma işlemi başarısız oldu: {platforms}"
++    },
++    "table": {
++      "content": "İçerik",
++      "platforms": "Platformlar",
++      "date": "Tarih",
++      "status": "Durum",
++      "actions": "İşlemler",
++      "tempStorage": "Geçici Depoda"
+     }
+   },
+   "sharePage": {
+@@ -1057,7 +1096,11 @@
+     },
+     "youtube": {
+       "titlePlaceholder": "Video başlığı...",
+-      "descriptionLabel": "Video Açıklaması (Opsiyonel)"
++      "descriptionLabel": "Video Açıklaması (Opsiyonel)",
++      "privacyPublic": "Herkese açık",
++      "privacyUnlisted": "Liste dışı",
++      "privacyPrivate": "Özel",
++      "titleLabel": "Başlık"
+     },
+     "publishing": {
+       "label": "yayıncılık",
+@@ -1078,7 +1121,10 @@
+       "invalidDateFormat": "Tarih formatı hatalı. Lütfen 'GÜN.AY.YIL SAAT:DAKİKA' (örn: 16.08.2026 16:26) şeklinde girin.",
+       "publishFailed": "Gönderi paylaşılırken bir hata oluştu: {message}",
+       "captionGenerationFailed": "Hata: {message}",
+-      "captionLimit": "Bugünlük gönderi metni üretim sınırına ulaştın. Yarın tekrar dene."
++      "captionLimit": "Bugünlük gönderi metni üretim sınırına ulaştın. Yarın tekrar dene.",
++      "videoRemovedIntro": "Yüklediğiniz video {seconds} saniye uzunluğunda. Şu platformların sınırlarını aştığı için otomatik olarak kaldırıldılar:",
++      "videoRemovedItem": "- {platform} (Maks: {max} sn)",
++      "platformMaxDuration": "{platform} platformunda en fazla {max} saniyelik video paylaşabilirsiniz (Yüklenen: {actual} sn)."
+     },
+     "success": {
+       "published": "Gönderi başarıyla paylaşıldı!"
+@@ -1122,7 +1168,8 @@
+         "viewReceipt": "Belgeyi görüntüle",
+         "close": "Kapat",
+         "noPreview": "Önizleme yok",
+-        "latest": "SON FATURA"
++        "latest": "SON FATURA",
++        "noInvoice": "Henüz fatura taranmadı"
+       }
+     },
+     "appointments": {
+@@ -1257,7 +1304,27 @@
+     },
+     "notes": "Notlar",
+     "saved": "Kaydedildi",
+-    "notesPlaceholder": "Müşteri için not ekleyin..."
++    "notesPlaceholder": "Müşteri için not ekleyin...",
++    "stats": {
++      "appointments": "Randevu",
++      "upcoming": "Yaklaşan",
++      "cancelled": "İptal",
++      "total": "Toplam",
++      "completed": "Tamamlanan"
++    },
++    "actions": {
++      "call": "Ara",
++      "book": "Randevu ver"
++    },
++    "history": {
++      "title": "Randevu Geçmişi"
++    },
++    "addDialog": {
++      "title": "Yeni Müşteri Ekle",
++      "name": "İsim Soyisim",
++      "phone": "Telefon (+90 5XX ...)",
++      "cancel": "İptal"
++    }
+   },
+   "randevu": {
+     "block": {
+@@ -1424,5 +1491,38 @@
+       "doctor": "uzman",
+       "service": "işlem"
+     }
++  },
++  "onboardingPage": {
++    "title": "Hoş Geldiniz",
++    "subtitle": "Lütfen işletme hesabınızı kurmak için aşağıdaki bilgileri eksiksiz doldurun.",
++    "googleNotice": "Bilgileriniz Google hesabınızdan otomatik alındı. Lütfen gerçek bilgilerinizi kontrol edip onaylayın.",
++    "email": "E-posta",
++    "fullName": "Ad Soyad",
++    "fullNamePlaceholder": "Adınız ve Soyadınız",
++    "phone": "Telefon",
++    "businessName": "İşletme Adı",
++    "businessNamePlaceholder": "İşletmenizin Adı",
++    "saveError": "Kaydedilirken bir hata oluştu: {message}",
++    "saving": "Kaydediliyor...",
++    "submit": "Kurulumu Tamamla"
++  },
++  "verifyEmailPage": {
++    "title": "E-postanızı Doğrulayın",
++    "sent": "E-posta adresinize bir doğrulama linki gönderdik. Devam etmek için lütfen e-postanızı onaylayın.",
++    "resend": "Tekrar Gönder",
++    "resending": "Gönderiliyor...",
++    "resendIn": "Tekrar gönder ({seconds} sn)",
++    "resent": "Doğrulama bekleyen bir hesap varsa yeni bağlantı gönderildi. Spam klasörünüze de bakın. E-posta zaten doğrulanmışsa giriş yapmayı deneyin.",
++    "resendError": "Bağlantı gönderilirken bir hata oluştu: {message}",
++    "rateLimited": "Çok sık denediniz. Lütfen biraz bekleyip tekrar deneyin.",
++    "backToLogin": "Giriş sayfasına dön"
++  },
++  "multiCalendarToggle": {
++    "title": "Çoklu Takvim / Personel Modu",
++    "description": "Aynı saatte birden fazla personelin randevu alabilmesini sağlar.",
++    "errorPrefix": "Hata: {message}"
++  },
++  "sidebar": {
++    "profileAlt": "Kullanıcı profili"
+   }
+ }
+diff --git a/scripts/ci/eslint-baseline.json b/scripts/ci/eslint-baseline.json
+index 1f45830..d77a4fa 100644
+--- a/scripts/ci/eslint-baseline.json
++++ b/scripts/ci/eslint-baseline.json
+@@ -1 +1 @@
+-{ "errors": 0, "warnings": 38 }
++{ "errors": 0, "warnings": 37 }
+diff --git a/src/actions/auth.ts b/src/actions/auth.ts
+index ca5b683..5e93211 100644
+--- a/src/actions/auth.ts
++++ b/src/actions/auth.ts
+@@ -3,6 +3,7 @@
+ import { createClient } from '@/lib/supabase/server'
+ import { revalidatePath } from 'next/cache'
+ import { redirect } from 'next/navigation'
++import { getLocale } from 'next-intl/server'
+ 
+ export async function authenticate(formData: FormData) {
+   const supabase = await createClient()
+@@ -22,7 +23,8 @@ export async function authenticate(formData: FormData) {
+         data: {
+           authorized_person: fullName,
+           full_name: fullName,
+-          user_type: 'business'
++          user_type: 'business',
++          locale: await getLocale()
+         }
+       }
+     })
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index 4721520..9d7830d 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -588,7 +588,7 @@ export default function BotScreen() {
+               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                 <div 
+                   onClick={() => { setIsSimulationActive(!isSimulationActive); setMessages([]); }}
+-                  title="Ekranı Temizle"
++                  title={t("aiAsistanPage.clearScreen")}
+                   style={{ cursor: "pointer", opacity: 0.6, transition: "opacity 0.2s" }}
+                   onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                   onMouseLeave={(e) => e.currentTarget.style.opacity = "0.6"}
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+index 1547397..d0eb451 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+@@ -411,7 +411,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                 border: activeCalendarId === null ? "none" : "1px solid rgba(255,255,255,0.1)"
+               }}
+             >
+-              {t("common.all") || "Tümü"}
++              {t("common.all")}
+             </button>
+             {calendars.map((cal: any) => (
+               <button
+@@ -445,8 +445,8 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                 onClick={() => {
+                   setPromptConfig({
+                     visible: true,
+-                    title: "Yeni Takvim",
+-                    placeholder: "Yeni takvim/personel adını girin",
++                    title: t("randevuPage.extra.newCalendarTitle"),
++                    placeholder: t("randevuPage.extra.newCalendarPlaceholder"),
+                     value: "",
+                     onSave: async (name: string) => {
+                       if (name && name.trim()) {
+@@ -812,7 +812,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+ 
+             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+               <div>
+-                <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>Tarih</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} style={{ width: "100%", padding: "14px 16px", borderRadius: 16, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)", color: "#fff", outline: "none", fontSize: 14, marginBottom: 16 }} /></div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>{t('randevuPage.modal.customerNameLabel')}</label>
++                <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>{t("randevuPage.extra.date")}</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} style={{ width: "100%", padding: "14px 16px", borderRadius: 16, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)", color: "#fff", outline: "none", fontSize: 14, marginBottom: 16 }} /></div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>{t('randevuPage.modal.customerNameLabel')}</label>
+                 <input
+                   type="text"
+                   value={newAppt.name}
+@@ -835,13 +835,13 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+ 
+               
+                 <div>
+-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>Takvim Seçiniz</label>
++                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>{t("randevuPage.extra.selectCalendar")}</label>
+                   <select
+                     value={newAppt.calendar_id}
+                     onChange={e => setNewAppt({...newAppt, calendar_id: e.target.value})}
+                     style={{ width: "100%", padding: "14px 16px", borderRadius: 16, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)", color: "#fff", outline: "none", fontSize: 14, marginBottom: 16 }}
+                   >
+-                    <option value="">Seçiniz</option>
++                    <option value="">{t("randevuPage.extra.choose")}</option>
+                     {calendars.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                   </select>
+                 </div>
+@@ -873,11 +873,11 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                 </div>
+               </div>
+               <div style={{ marginTop: 16 }}>
+-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>Açıklama / Not</label>
++                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, paddingLeft: 4 }}>{t("randevuPage.extra.noteLabel")}</label>
+                   <textarea
+                     value={newAppt.note}
+                     onChange={e => setNewAppt({...newAppt, note: e.target.value})}
+-                    placeholder="AI asistana verilen notlar gibi... (Örn: Dolgum düştü dolgu yaptırmak istiyorum)"
++                    placeholder={t("randevuPage.extra.notePlaceholder")}
+                     style={{ width: "100%", padding: "14px 16px", borderRadius: 16, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)", color: "#fff", outline: "none", fontSize: 14, minHeight: 80, resize: "vertical" }}
+                   />
+               </div>
+@@ -923,16 +923,16 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+               )}
+ 
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+-                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Kapsam</span>
++                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{t("randevuPage.extra.scope")}</span>
+                 {activeCalendarId ? (
+                   <div style={{ display: 'flex', gap: 8 }}>
+-                    <button onClick={() => setReserveScope('doctor')} style={{ flex: 1, padding: 8, background: reserveScope === 'doctor' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>{activeCalendarId ? calendars.find(c => c.id === activeCalendarId)?.name || 'Seçili doktor' : 'Seçili doktor'}</button>
+-                    <button onClick={() => setReserveScope('clinic')} style={{ flex: 1, padding: 8, background: reserveScope === 'clinic' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>Tüm klinik</button>
++                    <button onClick={() => setReserveScope('doctor')} style={{ flex: 1, padding: 8, background: reserveScope === 'doctor' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>{activeCalendarId ? calendars.find(c => c.id === activeCalendarId)?.name || t("randevuPage.extra.selectedDoctor") : t("randevuPage.extra.selectedDoctor")}</button>
++                    <button onClick={() => setReserveScope('clinic')} style={{ flex: 1, padding: 8, background: reserveScope === 'clinic' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>{t("randevuPage.extra.wholeClinic")}</button>
+                   </div>
+                 ) : (
+                   <div style={{ display: 'flex', gap: 8 }}>
+                     <select value={reserveScope} onChange={e => setReserveScope(e.target.value)} style={{ flex: 1, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: 6 }}>
+-                      <option value="clinic">Tüm klinik</option>
++                      <option value="clinic">{t("randevuPage.extra.wholeClinic")}</option>
+                       {calendars.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                     </select>
+                   </div>
+@@ -940,21 +940,21 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+               </div>
+ 
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+-                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Süre</span>
++                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{t("randevuPage.extra.duration")}</span>
+                 <div style={{ display: 'flex', gap: 8 }}>
+-                  <button onClick={() => { setReserveDurationType('single'); setReserveModal((p: any) => ({...p, endTime: add30Mins(p.time)})); }} style={{ flex: 1, padding: 8, background: reserveDurationType === 'single' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>Tek slot</button>
+-                  <button onClick={() => setReserveDurationType('range')} style={{ flex: 1, padding: 8, background: reserveDurationType === 'range' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>Başlangıç-bitiş</button>
++                  <button onClick={() => { setReserveDurationType('single'); setReserveModal((p: any) => ({...p, endTime: add30Mins(p.time)})); }} style={{ flex: 1, padding: 8, background: reserveDurationType === 'single' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>{t("randevuPage.extra.singleSlot")}</button>
++                  <button onClick={() => setReserveDurationType('range')} style={{ flex: 1, padding: 8, background: reserveDurationType === 'range' ? '#22B573' : 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', borderRadius: 6 }}>{t("randevuPage.extra.startEnd")}</button>
+                 </div>
+               </div>
+ 
+               {reserveDurationType === 'range' && (
+                 <div style={{ display: 'flex', gap: 12 }}>
+                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+-                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Başlangıç</span>
++                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{t("randevuPage.extra.start")}</span>
+                     <input type="time" step="1800" value={reserveModal.time} onChange={e => { const v = e.target.value; setReserveModal((p: any) => ({...p, time: v, endTime: add30Mins(v)})); }} style={{ padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: 6 }} />
+                   </div>
+                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+-                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Bitiş</span>
++                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{t("randevuPage.extra.end")}</span>
+                     <input type="time" step="1800" value={reserveModal.endTime} onChange={e => setReserveModal((p: any) => ({...p, endTime: e.target.value}))} style={{ padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: 6 }} />
+                   </div>
+                 </div>
+@@ -1019,12 +1019,12 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+               ✕
+             </button>
+             <div style={{ marginBottom: 24 }}>
+-              <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: 0 }}>Takvim / Personel Yönetimi</h2>
+-              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0 0" }}>Personellerinizi düzenleyin veya silin.</p>
++              <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: 0 }}>{t("randevuPage.extra.manageTitle")}</h2>
++              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0 0" }}>{t("randevuPage.extra.manageSub")}</p>
+             </div>
+             <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: 300, overflowY: "auto" }}>
+               {calendars.length === 0 && (
+-                <div style={{ color: "#756D66", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Henüz takvim eklenmemiş.</div>
++                <div style={{ color: "#756D66", fontSize: 14, textAlign: "center", padding: "20px 0" }}>{t("randevuPage.extra.noCalendars")}</div>
+               )}
+               {calendars.map((cal: any) => (
+                 <div key={cal.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.05)" }}>
+@@ -1035,8 +1035,8 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                       onClick={() => {
+                         setPromptConfig({
+                           visible: true,
+-                          title: "Takvimi Düzenle",
+-                          placeholder: "Yeni takvim adı",
++                          title: t("randevuPage.extra.editCalendarTitle"),
++                          placeholder: t("randevuPage.extra.editCalendarPlaceholder"),
+                           value: cal.name,
+                           onSave: async (newName: string) => {
+                             if (newName && newName.trim()) {
+@@ -1054,11 +1054,11 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                     <button 
+                       style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#EF4444" }}
+                       onClick={async () => {
+-                        if (confirm(`'${cal.name}' silinecek. Emin misiniz?`)) {
++                        if (confirm(t("randevuPage.extra.confirmDelete", { name: cal.name }))) {
+                           const { createClient } = await import("@/lib/supabase/client");
+                           const client = createClient();
+                           const { data } = await client.from("calendars").update({ is_active: false }).eq("id", cal.id).select();
+-                          if (!data || data.length === 0) alert("Bu takvimi silme yetkiniz yok (eski kayıt olduğu için). Lütfen Supabase panelinden silin.");
++                          if (!data || data.length === 0) alert(t("randevuPage.extra.noDeletePermission"));
+                           const { getCalendars } = await import("@/actions/calendars");
+                           const updated = await getCalendars();
+                           setCalendars(updated);
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/page.tsx b/src/app/(dashboard)/ai-asistan/randevu/page.tsx
+index 210195d..919f671 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/page.tsx
+@@ -4,8 +4,10 @@ import { getBusinessServices } from '@/actions/businessServices'
+ import RandevuClient from './RandevuClient'
+ import { Suspense } from 'react'
+ import { redirect } from 'next/navigation'
++import { getTranslations } from 'next-intl/server'
+ 
+ export default async function RandevuPage() {
++  const t = await getTranslations()
+   const supabase = await createClient()
+   const { data: { session } } = await supabase.auth.getSession()
+   
+@@ -33,7 +35,7 @@ export default async function RandevuPage() {
+   const appointmentsRes = await getAppointmentsByDate(today)
+ 
+   return (
+-    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>Yükleniyor...</div>}>
++    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>{t('veriGirisiPage.loading')}</div>}>
+       <RandevuClient 
+       initialAppointments={appointmentsRes.data} 
+       services={businessServices} 
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index e1f33e2..416ee90 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -284,7 +284,7 @@ function GelenKutusuContent() {
+     setIsSendingReply(true);
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+-      if (!session?.user?.id) throw new Error("Oturum bulunamadı");
++      if (!session?.user?.id) throw new Error(t("gelenKutusuPage.alerts.noSession"));
+       
+       const { data, error } = await supabase.functions.invoke('zernio-client', {
+         body: { 
+@@ -339,9 +339,9 @@ function GelenKutusuContent() {
+     } catch (err: any) {
+       console.error(err);
+       if (err.message?.includes('Missing accountId for reply-comment')) {
+-        alert(`Bu yoruma yanıt gönderilemedi: Organizasyonunuzun '${comment.platform}' hesabı bağlı değil veya Zernio panelinde yetkilendirilmemiş.`);
++        alert(t("gelenKutusuPage.alerts.replyNoAccount", { platform: comment.platform }));
+       } else {
+-        alert("Yanıt gönderilemedi: " + err.message);
++        alert(t("gelenKutusuPage.alerts.replyFailed", { message: err.message }));
+       }
+     } finally {
+       setIsSendingReply(false);
+@@ -1290,7 +1290,7 @@ function GelenKutusuContent() {
+                  } else if (locale === 'de') {
+                    title = m.calendar_name ? `${m.customer_name} hat einen Termin bei ${m.calendar_name} am ${when} gebucht` : `${m.customer_name} hat einen Termin am ${when} gebucht`;
+                  } else {
+-                   title = appointmentSentence(m.customer_name || 'Müşteri', when, m.calendar_name);
++                   title = appointmentSentence(m.customer_name || t("gelenKutusuPage.alerts.customerFallback"), when, m.calendar_name);
+                  }
+                  subtext = '';
+                  targetDate = m.starts_at ? new Intl.DateTimeFormat('en-CA', { timeZone: m.timezone || 'Europe/Istanbul' }).format(new Date(m.starts_at)) : null;
+diff --git a/src/app/(dashboard)/musteriler/MusterilerClient.tsx b/src/app/(dashboard)/musteriler/MusterilerClient.tsx
+index 1264222..45a7ff0 100644
+--- a/src/app/(dashboard)/musteriler/MusterilerClient.tsx
++++ b/src/app/(dashboard)/musteriler/MusterilerClient.tsx
+@@ -222,9 +222,9 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+ 
+                 {/* 3 Stats */}
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-300)' }}>
+-                  <div>Randevu: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.total}</span></div>
+-                  <div>Yaklaşan: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.upcoming}</span></div>
+-                  <div>İptal: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.cancelled}</span></div>
++                  <div>{t('musteriler.stats.appointments')}: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.total}</span></div>
++                  <div>{t('musteriler.stats.upcoming')}: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.upcoming}</span></div>
++                  <div>{t('musteriler.stats.cancelled')}: <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-100)' }}>{customer.cancelled}</span></div>
+                 </div>
+ 
+                 {/* Button */}
+@@ -264,17 +264,17 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+             {/* 3 Buttons */}
+             <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+               <button onClick={() => window.open(`https://wa.me/${selectedCustomer.phone_display?.replace(/\D/g, '')}`, '_blank')} style={{ flex: 1, padding: 8, background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>WhatsApp</button>
+-              <button onClick={() => window.location.href = `tel:+${selectedCustomer.phone_display?.replace(/\D/g, '')}`} style={{ flex: 1, padding: 8, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Ara</button>
+-              <button onClick={() => router.push('/ai-asistan/randevu')} style={{ flex: 1, padding: 8, background: 'var(--accent-blue)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Randevu ver</button>
++              <button onClick={() => window.location.href = `tel:+${selectedCustomer.phone_display?.replace(/\D/g, '')}`} style={{ flex: 1, padding: 8, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{t('musteriler.actions.call')}</button>
++              <button onClick={() => router.push('/ai-asistan/randevu')} style={{ flex: 1, padding: 8, background: 'var(--accent-blue)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{t('musteriler.actions.book')}</button>
+             </div>
+ 
+             {/* 4 Stats */}
+             <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+               {[
+-                { label: 'Toplam', val: selectedCustomer.total },
+-                { label: 'Yaklaşan', val: selectedCustomer.upcoming },
+-                { label: 'Tamamlanan', val: selectedCustomer.past },
+-                { label: 'İptal', val: selectedCustomer.cancelled },
++                { label: t('musteriler.stats.total'), val: selectedCustomer.total },
++                { label: t('musteriler.stats.upcoming'), val: selectedCustomer.upcoming },
++                { label: t('musteriler.stats.completed'), val: selectedCustomer.past },
++                { label: t('musteriler.stats.cancelled'), val: selectedCustomer.cancelled },
+               ].map(s => (
+                 <div key={s.label} style={{ flex: 1, background: 'rgba(0,0,0,0.2)', padding: '8px 4px', borderRadius: 8, textAlign: 'center' }}>
+                   <div style={{ fontSize: 10, color: 'var(--text-300)', marginBottom: 4 }}>{s.label}</div>
+@@ -299,10 +299,10 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+             </div>
+             {/* Appointments */}
+             <div>
+-              <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: 'var(--text-100)' }}>Randevu Geçmişi</h4>
++              <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: 'var(--text-100)' }}>{t('musteriler.history.title')}</h4>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+                 {appointments.length === 0 ? (
+-                  <div style={{ fontSize: 13, color: 'var(--text-400)' }}>Randevu bulunamadı.</div>
++                  <div style={{ fontSize: 13, color: 'var(--text-400)' }}>{t('randevuPage.actions.notFound')}</div>
+                 ) : (
+                   appointments.map(appt => (
+                     <div key={appt.id} style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, borderLeft: `3px solid ${appt.status === 'Approved' ? '#22c55e' : appt.status === 'Pending' ? '#eab308' : '#6b7280'}` }}>
+@@ -325,13 +325,13 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+       {isAddOpen && (
+         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+           <div className="glass-strong" style={{ width: 400, padding: 24, borderRadius: 16 }}>
+-            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text-100)' }}>Yeni Müşteri Ekle</h3>
++            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text-100)' }}>{t('musteriler.addDialog.title')}</h3>
+             <div style={{ marginBottom: 16 }}>
+-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-300)', marginBottom: 4 }}>İsim Soyisim</label>
++              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-300)', marginBottom: 4 }}>{t('musteriler.addDialog.name')}</label>
+               <input value={addName} onChange={e => setAddName(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: 10, borderRadius: 8, color: '#fff' }} />
+             </div>
+             <div style={{ marginBottom: 16 }}>
+-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-300)', marginBottom: 4 }}>Telefon (+90 5XX ...)</label>
++              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-300)', marginBottom: 4 }}>{t('musteriler.addDialog.phone')}</label>
+               <input value={addPhone} onChange={e => setAddPhone(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: 10, borderRadius: 8, color: '#fff' }} />
+             </div>
+                         {addError && (
+@@ -353,8 +353,8 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+               </div>
+             )}
+             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+-              <button onClick={() => setIsAddOpen(false)} style={{ padding: '8px 16px', background: 'transparent', color: 'var(--text-200)', border: 'none', cursor: 'pointer' }}>İptal</button>
+-              <button onClick={handleAdd} style={{ padding: '8px 16px', background: 'var(--accent-blue)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Ekle</button>
++              <button onClick={() => setIsAddOpen(false)} style={{ padding: '8px 16px', background: 'transparent', color: 'var(--text-200)', border: 'none', cursor: 'pointer' }}>{t('musteriler.addDialog.cancel')}</button>
++              <button onClick={handleAdd} style={{ padding: '8px 16px', background: 'var(--accent-blue)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{t('musteriler.add')}</button>
+             </div>
+           </div>
+         </div>
+diff --git a/src/app/(dashboard)/sosyal-medya/posts/page.tsx b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+index 83480f8..7d6afe7 100644
+--- a/src/app/(dashboard)/sosyal-medya/posts/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+@@ -342,11 +342,11 @@ export default function TumGonderilerPage() {
+                 {selectedPostIds.length === filteredPosts.length && filteredPosts.length > 0 && <i className="fa-solid fa-check text-[#17151A] text-[10px]"></i>}
+               </button>
+             </div>
+-            <div style={{ width: 250 }} className="text-[#A79E96] text-[12px] font-semibold">Content</div>
+-            <div style={{ width: 100 }} className="text-[#A79E96] text-[12px] font-semibold text-center">Platforms</div>
+-            <div style={{ width: 150 }} className="text-[#A79E96] text-[12px] font-semibold text-center">Date</div>
+-            <div style={{ width: 120 }} className="text-[#A79E96] text-[12px] font-semibold text-center">Status</div>
+-            <div style={{ width: 70 }} className="text-[#A79E96] text-[10px] font-semibold text-center">Actions</div>
++            <div style={{ width: 250 }} className="text-[#A79E96] text-[12px] font-semibold">{t("postsPage.table.content")}</div>
++            <div style={{ width: 100 }} className="text-[#A79E96] text-[12px] font-semibold text-center">{t("postsPage.table.platforms")}</div>
++            <div style={{ width: 150 }} className="text-[#A79E96] text-[12px] font-semibold text-center">{t("postsPage.table.date")}</div>
++            <div style={{ width: 120 }} className="text-[#A79E96] text-[12px] font-semibold text-center">{t("postsPage.table.status")}</div>
++            <div style={{ width: 70 }} className="text-[#A79E96] text-[10px] font-semibold text-center">{t("postsPage.table.actions")}</div>
+           </div>
+ 
+           {/* Table Rows */}
+@@ -434,7 +434,7 @@ export default function TumGonderilerPage() {
+                     </div>
+                     {item.media_storage_source === 'supabase' && (
+                       <div className="px-1.5 py-0.5 rounded bg-[#F2994A]/20 border border-[#F2994A]/40">
+-                         <span className="text-[#F2994A] text-[9px] font-bold">Geçici Depoda</span>
++                         <span className="text-[#F2994A] text-[9px] font-bold">{t("postsPage.table.tempStorage")}</span>
+                       </div>
+                     )}
+                   </div>
+diff --git a/src/app/(dashboard)/sosyal-medya/share/page.tsx b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+index 2ac8d48..0b741e5 100644
+--- a/src/app/(dashboard)/sosyal-medya/share/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+@@ -218,8 +218,8 @@ export default function SharePage() {
+         }
+         if (uncheckedPlatforms.length > 0) {
+           setSelectedPlatforms(updatedPlatforms);
+-          alert(`Yüklediğiniz video ${Math.round(duration)} saniye uzunluğunda. Şu platformların sınırlarını aştığı için otomatik olarak kaldırıldılar:\n\n` +
+-            uncheckedPlatforms.map(p => `- ${p.charAt(0).toUpperCase() + p.slice(1)} (Max: ${PLATFORM_MEDIA_RULES[p.toLowerCase()].maxDurationSec} sn)`).join('\n'));
++          alert(t("sharePage.errors.videoRemovedIntro", { seconds: Math.round(duration) }) + "\n\n" +
++            uncheckedPlatforms.map(p => t("sharePage.errors.videoRemovedItem", { platform: p.charAt(0).toUpperCase() + p.slice(1), max: PLATFORM_MEDIA_RULES[p.toLowerCase()].maxDurationSec })).join('\n'));
+         }
+       };
+       videoElement.src = URL.createObjectURL(file);
+@@ -294,7 +294,7 @@ export default function SharePage() {
+     if (!isCurrentlySelected && localImage?.startsWith('data:video') && mediaDurationSec > 0) {
+       const rule = PLATFORM_MEDIA_RULES[id.toLowerCase()];
+       if (rule && rule.maxDurationSec && mediaDurationSec > rule.maxDurationSec) {
+-        alert(`${id.charAt(0).toUpperCase() + id.slice(1)} platformunda en fazla ${rule.maxDurationSec} saniyelik video paylaşabilirsiniz (Yüklenen: ${Math.round(mediaDurationSec)} sn).`);
++        alert(t("sharePage.errors.platformMaxDuration", { platform: id.charAt(0).toUpperCase() + id.slice(1), max: rule.maxDurationSec, actual: Math.round(mediaDurationSec) }));
+         return;
+       }
+     }
+@@ -935,13 +935,13 @@ export default function SharePage() {
+                       <span className="text-[#F6F1EC] font-semibold text-sm">YouTube</span>
+                     </div>
+                     <select value={ytPrivacy} onChange={e => setYtPrivacy(e.target.value)} className="bg-[#201D24]/50 border border-white/5 rounded text-[#F6F1EC] text-[11px] px-2 py-1 outline-none">
+-                      <option value="public">Public</option>
+-                      <option value="unlisted">Unlisted</option>
+-                      <option value="private">Private</option>
++                      <option value="public">{t("sharePage.youtube.privacyPublic")}</option>
++                      <option value="unlisted">{t("sharePage.youtube.privacyUnlisted")}</option>
++                      <option value="private">{t("sharePage.youtube.privacyPrivate")}</option>
+                     </select>
+                   </div>
+ 
+-                  <label className="block text-[#A79E96] text-xs font-medium mb-1">title</label>
++                  <label className="block text-[#A79E96] text-xs font-medium mb-1">{t("sharePage.youtube.titleLabel")}</label>
+                   <input type="text" value={ytTitle} onChange={e => setYtTitle(e.target.value)} placeholder={t("sharePage.youtube.titlePlaceholder")} className="w-full bg-[#201D24]/50 border border-white/5 rounded-lg text-[#F6F1EC] text-sm px-3 py-2 mb-4 focus:outline-none focus:border-[#FF0000]/50" />
+ 
+                   <label className="block text-[#A79E96] text-xs font-medium mb-1">{t("sharePage.youtube.descriptionLabel")}</label>
+diff --git a/src/app/onboarding/page.tsx b/src/app/onboarding/page.tsx
+index 7356db1..c215230 100644
+--- a/src/app/onboarding/page.tsx
++++ b/src/app/onboarding/page.tsx
+@@ -2,9 +2,11 @@
+ 
+ import { useEffect, useState } from 'react';
+ import { useRouter } from 'next/navigation';
++import { useTranslations } from 'next-intl';
+ import { createClient } from '@/lib/supabase/client';
+ 
+ export default function OnboardingPage() {
++  const t = useTranslations('onboardingPage');
+   const router = useRouter();
+   const supabase = createClient();
+   
+@@ -69,7 +71,7 @@ export default function OnboardingPage() {
+     });
+ 
+     if (rpcError) {
+-      setError('Kaydedilirken bir hata oluştu: ' + rpcError.message);
++      setError(t('saveError', { message: rpcError.message }));
+       setSubmitting(false);
+     } else {
+       router.push('/');
+@@ -87,21 +89,21 @@ export default function OnboardingPage() {
+   return (
+     <div className="min-h-screen flex items-center justify-center bg-[#0F172A] text-white p-4 font-sans">
+       <div className="max-w-sm w-full bg-[#1E293B] rounded-2xl shadow-xl p-6 border border-white/10">
+-        <h1 className="text-xl font-bold mb-1">Hoş Geldiniz</h1>
++        <h1 className="text-xl font-bold mb-1">{t('title')}</h1>
+         <p className="text-gray-400 mb-4 text-xs">
+-          Lütfen işletme hesabınızı kurmak için aşağıdaki bilgileri eksiksiz doldurun.
++          {t('subtitle')}
+         </p>
+ 
+         {isGoogleLogin && form.fullName && (
+           <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-2.5 rounded-xl mb-4 text-xs flex items-start gap-2">
+             <i className="fa-brands fa-google mt-0.5"></i>
+-            <p>Bilgileriniz Google hesabınızdan otomatik alındı. Lütfen gerçek bilgilerinizi kontrol edip onaylayın.</p>
++            <p>{t('googleNotice')}</p>
+           </div>
+         )}
+ 
+         <form onSubmit={handleSubmit} className="space-y-3">
+           <div>
+-            <label className="block text-xs font-medium text-gray-300 mb-1">E-posta</label>
++            <label className="block text-xs font-medium text-gray-300 mb-1">{t('email')}</label>
+             <input
+               type="email"
+               value={email}
+@@ -111,19 +113,19 @@ export default function OnboardingPage() {
+           </div>
+ 
+           <div>
+-            <label className="block text-xs font-medium text-gray-300 mb-1">Ad Soyad</label>
++            <label className="block text-xs font-medium text-gray-300 mb-1">{t('fullName')}</label>
+             <input
+               type="text"
+               required
+               value={form.fullName}
+               onChange={e => setForm({...form, fullName: e.target.value})}
+               className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+-              placeholder="Adınız ve Soyadınız"
++              placeholder={t('fullNamePlaceholder')}
+             />
+           </div>
+ 
+           <div>
+-            <label className="block text-xs font-medium text-gray-300 mb-1">Telefon</label>
++            <label className="block text-xs font-medium text-gray-300 mb-1">{t('phone')}</label>
+             <input
+               type="tel"
+               required
+@@ -135,14 +137,14 @@ export default function OnboardingPage() {
+           </div>
+ 
+           <div>
+-            <label className="block text-xs font-medium text-gray-300 mb-1">İşletme Adı</label>
++            <label className="block text-xs font-medium text-gray-300 mb-1">{t('businessName')}</label>
+             <input
+               type="text"
+               required
+               value={form.businessName}
+               onChange={e => setForm({...form, businessName: e.target.value})}
+               className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+-              placeholder="İşletmenizin Adı"
++              placeholder={t('businessNamePlaceholder')}
+             />
+           </div>
+ 
+@@ -153,7 +155,7 @@ export default function OnboardingPage() {
+             disabled={submitting}
+             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors mt-4"
+           >
+-            {submitting ? 'Kaydediliyor...' : 'Kurulumu Tamamla'}
++            {submitting ? t('saving') : t('submit')}
+           </button>
+         </form>
+       </div>
+diff --git a/src/app/verify-email/page.tsx b/src/app/verify-email/page.tsx
+index 32ceca3..b84f162 100644
+--- a/src/app/verify-email/page.tsx
++++ b/src/app/verify-email/page.tsx
+@@ -2,15 +2,21 @@
+ 
+ import { useEffect, useState } from 'react';
+ import { useRouter, useSearchParams } from 'next/navigation';
++import { useTranslations } from 'next-intl';
+ import { createClient } from '@/lib/supabase/client';
+ 
++const RESEND_COOLDOWN_SECONDS = 60;
++
+ export default function VerifyEmailPage() {
++  const t = useTranslations('verifyEmailPage');
+   const router = useRouter();
+   const searchParams = useSearchParams();
+   const supabase = createClient();
+   const [email, setEmail] = useState<string | null>(null);
+   const [resending, setResending] = useState(false);
+   const [message, setMessage] = useState('');
++  const [isError, setIsError] = useState(false);
++  const [cooldown, setCooldown] = useState(0);
+ 
+   useEffect(() => {
+     // If we have an email in URL (after signup redirect)
+@@ -41,13 +47,20 @@ export default function VerifyEmailPage() {
+     });
+ 
+     return () => subscription.unsubscribe();
+-  }, [router, supabase]);
++  }, [router, supabase, searchParams]);
++
++  useEffect(() => {
++    if (cooldown <= 0) return;
++    const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
++    return () => clearTimeout(timer);
++  }, [cooldown]);
+ 
+   const handleResend = async () => {
+-    if (!email) return;
++    if (!email || cooldown > 0) return;
+     setResending(true);
+     setMessage('');
+-    
++    setIsError(false);
++
+     const { error } = await supabase.auth.resend({
+       type: 'signup',
+       email: email,
+@@ -57,11 +70,16 @@ export default function VerifyEmailPage() {
+     });
+ 
+     if (error) {
+-      setMessage('Bağlantı gönderilirken bir hata oluştu: ' + error.message);
++      setIsError(true);
++      const rateLimited = error.status === 429 || error.code === 'over_email_send_rate_limit';
++      setMessage(rateLimited ? t('rateLimited') : t('resendError', { message: error.message }));
+     } else {
+-      setMessage('Doğrulama bağlantısı tekrar gönderildi.');
++      // Supabase, hesap zaten doğrulanmışsa da (hesap sızdırmamak için) başarılı döner;
++      // bu yüzden mesaj iki durumu da kapsar.
++      setMessage(t('resent'));
++      setCooldown(RESEND_COOLDOWN_SECONDS);
+     }
+-    
++
+     setResending(false);
+   };
+ 
+@@ -71,26 +89,33 @@ export default function VerifyEmailPage() {
+         <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
+           <i className="fa-regular fa-envelope text-3xl"></i>
+         </div>
+-        
+-        <h1 className="text-2xl font-bold mb-4">E-postanızı Doğrulayın</h1>
+-        
++
++        <h1 className="text-2xl font-bold mb-4">{t('title')}</h1>
++
+         <p className="text-gray-300 mb-8 leading-relaxed">
+           {email ? <span className="font-semibold text-white block mb-2">{email}</span> : null}
+-          E-posta adresinize bir doğrulama linki gönderdik. Devam etmek için lütfen e-postanızı onaylayın.
++          {t('sent')}
+         </p>
+ 
+         <div className="space-y-4">
+           <button
+             onClick={handleResend}
+-            disabled={resending}
++            disabled={resending || cooldown > 0}
+             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+           >
+-            {resending ? 'Gönderiliyor...' : 'Tekrar Gönder'}
++            {resending ? t('resending') : cooldown > 0 ? t('resendIn', { seconds: cooldown }) : t('resend')}
+           </button>
+-          
++
+           {message && (
+-            <p className="text-sm text-blue-400 mt-4">{message}</p>
++            <p className={`text-sm mt-4 ${isError ? 'text-red-400' : 'text-blue-400'}`}>{message}</p>
+           )}
++
++          <button
++            onClick={() => router.push('/login')}
++            className="w-full text-sm text-gray-400 hover:text-white transition-colors py-2"
++          >
++            {t('backToLogin')}
++          </button>
+         </div>
+       </div>
+     </div>
+diff --git a/src/components/dashboard/AppointmentNotifications.tsx b/src/components/dashboard/AppointmentNotifications.tsx
+index bbe2213..daf4f1c 100644
+--- a/src/components/dashboard/AppointmentNotifications.tsx
++++ b/src/components/dashboard/AppointmentNotifications.tsx
+@@ -51,6 +51,7 @@ const STRINGS: Record<Locale, {
+   clear: string;
+   clearConfirm: string;
+   clearFailed: string;
++  unread: string;
+   sentence: (name: string, when: string, calendarName?: string) => string;
+ }> = {
+   tr: {
+@@ -66,6 +67,7 @@ const STRINGS: Record<Locale, {
+     clear: "Raporları Temizle",
+     clearConfirm: "Randevu bildirim raporları silinsin mi? Bu işlem geri alınamaz. (Randevularınız ve müşteri konuşmalarınız silinmez.)",
+     clearFailed: "Raporlar temizlenemedi. Biraz sonra tekrar deneyin.",
++    unread: "okunmadı",
+     sentence: (name, when, calendarName) => appointmentSentence(name, when, calendarName),
+   },
+   en: {
+@@ -81,6 +83,7 @@ const STRINGS: Record<Locale, {
+     clear: "Clear reports",
+     clearConfirm: "Delete the appointment notification reports? This cannot be undone. (Your appointments and customer conversations are not deleted.)",
+     clearFailed: "Couldn't clear the reports. Please try again shortly.",
++    unread: "unread",
+     sentence: (name, when) => `Appointment booked for ${name} on ${when}`,
+   },
+   de: {
+@@ -96,6 +99,7 @@ const STRINGS: Record<Locale, {
+     clear: "Berichte löschen",
+     clearConfirm: "Die Terminbenachrichtigungen löschen? Das kann nicht rückgängig gemacht werden. (Ihre Termine und Kundengespräche werden nicht gelöscht.)",
+     clearFailed: "Die Berichte konnten nicht gelöscht werden. Bitte versuchen Sie es gleich noch einmal.",
++    unread: "ungelesen",
+     sentence: (name, when) => `Termin für ${name} am ${when} erstellt`,
+   },
+ };
+@@ -284,7 +288,7 @@ export default function AppointmentNotifications({ locale = "tr", limit = 5 }: {
+               <span className="an-time">{formatCreatedAt(n.created_at, locale)}</span>
+               <span className="an-body">
+                 <span className="an-sentence">
+-                  {!n.is_read && <span className="an-dot" aria-label="okunmadı" />}
++                  {!n.is_read && <span className="an-dot" aria-label={s.unread} />}
+                   {m ? s.sentence(name, when) : s.sentence(name, "—")}
+                 </span>
+                 {(m?.calendar_name || m?.customer_request_raw) && (
+diff --git a/src/components/dashboard/InvoiceCard.tsx b/src/components/dashboard/InvoiceCard.tsx
+index 9981e7b..8f5c333 100644
+--- a/src/components/dashboard/InvoiceCard.tsx
++++ b/src/components/dashboard/InvoiceCard.tsx
+@@ -94,7 +94,7 @@ export default function InvoiceCard({ invoice, locale, todayYmd, onScan }: { inv
+           <div style={{ width: 56, height: 56, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,158,11,0.1)", border: `1px dashed ${AMBER}66`, color: AMBER, fontSize: 22 }}>
+             <i className="fa-solid fa-file-invoice"></i>
+           </div>
+-          <p style={{ fontSize: 13 }}>Henüz fatura taranmadı</p>
++          <p style={{ fontSize: 13 }}>{c("noInvoice")}</p>
+         </div>
+         {cta}
+       </div>
+diff --git a/src/components/layout/Sidebar.tsx b/src/components/layout/Sidebar.tsx
+index 69d49cd..b07b409 100644
+--- a/src/components/layout/Sidebar.tsx
++++ b/src/components/layout/Sidebar.tsx
+@@ -20,12 +20,12 @@ export default function Sidebar() {
+     router.push("/login");
+     router.refresh();
+   };
+-  const [userName, setUserName] = useState("Kullanıcı");
++  const [userName, setUserName] = useState(t("dashboardHome.defaults.user"));
+   const [avatar, setAvatar] = useState("https://images.unsplash.com/photo-1758520145147-c30bc656f314?w=36&h=36&fit=crop&auto=format");
+ 
+   useEffect(() => {
+     if (profile) {
+-      setUserName(profile.authorized_person || profile.business_name || "Kullanıcı");
++      setUserName(profile.authorized_person || profile.business_name || t("dashboardHome.defaults.user"));
+       
+       let av = profile.avatar_url;
+       if (av && av.startsWith('file://')) {
+@@ -42,7 +42,7 @@ export default function Sidebar() {
+         setAvatar('https://ui-avatars.com/api/?name=' + encodeURIComponent(profile.business_name || profile.authorized_person || 'Esnaf') + '&background=00daf3&color=fff');
+       }
+     }
+-  }, [profile]);
++  }, [profile, t]);
+ 
+   const navItems = [
+     { href: "/", label: t("nav.home"), icon: "⬡", color: "#FF7A59" },
+@@ -107,7 +107,7 @@ export default function Sidebar() {
+           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, cursor: "pointer" }}>
+             <img
+               src={avatar}
+-              alt="Kullanıcı profili"
++              alt={t("sidebar.profileAlt")}
+               style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", border: "1.5px solid rgba(255,122,89,0.2)" }}
+             />
+             <div style={{ flex: 1, minWidth: 0 }}>
+diff --git a/src/components/settings/MultiCalendarToggle.tsx b/src/components/settings/MultiCalendarToggle.tsx
+index 72aaabb..444a569 100644
+--- a/src/components/settings/MultiCalendarToggle.tsx
++++ b/src/components/settings/MultiCalendarToggle.tsx
+@@ -1,12 +1,14 @@
+ "use client";
+ 
+ import React, { useState, useEffect } from "react";
++import { useTranslations } from "next-intl";
+ import { createClient } from "@/lib/supabase/client";
+ import { toggleMultiCalendarMode } from "@/actions/toggleCalendar";
+ 
+ export default function MultiCalendarToggle() {
+   const [isEnabled, setIsEnabled] = useState(false);
+   const [loading, setLoading] = useState(true);
++  const t = useTranslations("multiCalendarToggle");
+   const supabase = createClient();
+ 
+   useEffect(() => {
+@@ -56,7 +58,7 @@ export default function MultiCalendarToggle() {
+     
+     const res = await toggleMultiCalendarMode(newVal);
+     if (res.error) {
+-      alert("Hata: " + res.error);
++      alert(t("errorPrefix", { message: res.error }));
+       setIsEnabled(!newVal); // Revert
+     }
+   };
+@@ -71,10 +73,10 @@ export default function MultiCalendarToggle() {
+       <div>
+         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+           <span style={{ fontSize: 20 }}>📅</span>
+-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>Çoklu Takvim / Personel Modu</h3>
++          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>{t("title")}</h3>
+         </div>
+         <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+-          Aynı saatte birden fazla personelin randevu alabilmesini sağlar.
++          {t("description")}
+         </p>
+       </div>
+ 
+-- 
+2.43.0
+

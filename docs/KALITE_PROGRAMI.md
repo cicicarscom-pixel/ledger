@@ -18,7 +18,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 | 3c | flowweb: kalan 14 `exhaustive-deps` (gelen-kutusu, inbox, analiz, sosyal-medya, ai-asistan, odeme-takvimi, muhasebecim, Anasayfa, verify-email) — her biri davranış testi gerektirir | 54c | sırada |
 | 4 (TAMAM) | **flow tip ve tarih hataları**: kalan tsc hataları, `OdemeTakvimiScreen` saat dilimi, `import/no-duplicates`, kullanılmayan değişkenler | 55 | HAZIR |
 | 5 (TAMAM) | **CI kapıları**: tam `tsc` + ESLint (flow'da React Compiler kuralları hariç) CI'ya eklenir, `npm audit` bilgi amaçlı | 56 | HAZIR |
-| 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | 6A HAZIR (57); 6B–6D sırada |
+| 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | 6A TAMAM (57); 6B HAZIR (58); 6C–6D sırada |
 | 7 | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 61 | sırada |
 | 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 62+ | sırada |
 | 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 64+ | sırada |
