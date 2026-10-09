@@ -1,0 +1,59 @@
+From dbb56ae0eed4ff5ff82589b17a25688cfff0e97a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 04:59:39 +0000
+Subject: [PATCH] fix(ai-asistan): Canli Test panelinden gercek konusma
+ kayitlarini silen Hafizayi Sil dugmesi kaldirildi
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                               |  1 +
+ src/app/(dashboard)/ai-asistan/page.tsx | 20 --------------------
+ 2 files changed, 1 insertion(+), 20 deletions(-)
+
+diff --git a/README.md b/README.md
+index 9ceadac..91b6a65 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Canlı Test:** panelden "🧹 Hafızayı Sil" düğmesi kaldırıldı (işletmenin gerçek WhatsApp konuşma kayıtlarını `ai_communication_logs`'tan siliyordu; test paneli bu tabloyu kullanmaz). Yalnız "↻ Ekranı Temizle" kaldı. (Randevu sayfasındaki ayrı "Hafızayı Sil" düğmesine dokunulmadı.)
+ - **[09.10.2026] Canlı Test bilgilendirmesi (düzeltme):** not, kullanılmayan `LiveTestPanel.tsx` yerine sayfada gerçekten gösterilen Canlı Test paneline (`ai-asistan/page.tsx`) taşındı; ölü bileşendeki kopya ve anahtar kaldırıldı.
+ - **[09.10.2026] Canlı Test bilgilendirmesi:** AI Asistan sayfasındaki Canlı Test panelinin üstüne "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+ - **[09.10.2026] Flow AI web sesli sohbet:** yanıt beklenirken ("Düşünüyor…") de mikrofon dinlemeye devam eder; o sırada söylenenler hemen sohbette görünür ve yanıt gelince otomatik gönderilir. Yanıt okunurken mikrofon yankıyı duymasın diye kapalıdır; okuma bitince yeniden açılır. Yanıt beklerken sessizlik sayılıp sohbet kapanmaz.
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index 50a1014..ccfc0ef 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -586,26 +586,6 @@ export default function BotScreen() {
+                 <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{t("aiAsistanPage.liveTest.title")}</span>
+               </div>
+               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+-                <div 
+-                  onClick={async () => {
+-                    if (window.confirm('AI Hafızası (son konuşmalar) silinsin mi? Sadece sizin işletmenizin kayıtları silinir.')) {
+-                      const { clearChatMemory } = await import('@/actions/clearChatMemory');
+-                      const res = await clearChatMemory();
+-                      if (res.success) {
+-                        alert('AI Hafızası başarıyla silindi!');
+-                        setMessages([]); // clear local UI too
+-                      } else {
+-                        alert('Hata oluştu: ' + res.error);
+-                      }
+-                    }
+-                  }}
+-                  title="Hafızayı Sil (Veritabanından)"
+-                  style={{ cursor: "pointer", opacity: 0.6, transition: "opacity 0.2s", display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: "50%", background: "rgba(255, 59, 48, 0.15)", color: "#ff3b30", border: "1px solid rgba(255, 59, 48, 0.3)" }}
+-                  onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+-                  onMouseLeave={(e) => e.currentTarget.style.opacity = "0.6"}
+-                >
+-                  <span style={{ fontSize: 12 }}>🧹</span>
+-                </div>
+                 <div 
+                   onClick={() => { setIsSimulationActive(!isSimulationActive); setMessages([]); }}
+                   title="Ekranı Temizle"
+-- 
+2.43.0
+
