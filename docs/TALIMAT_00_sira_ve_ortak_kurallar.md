@@ -52,6 +52,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 48 | `TALIMAT_48_kalite_faz1_guvenlik.md` (Kalite Faz 1; hazır yama ×2; önce kullanıcı SQL + Vercel ortamı) | ledger (SQL: kullanıcı) + flowweb | yok | GEREKLİ |
 | 49 | `TALIMAT_49_kalite_faz2_olu_kod.md` (Kalite Faz 2; hazır yama ×2; Faz 1 onayından sonra) | flowweb + flow | yok | GEREKLİ |
 | 50 | `TALIMAT_50_eposta_dogrulama_mobil.md` (hazır yama; önce kullanıcı Supabase paneli) | flow | yok (EAS derlemesi) | GEREKLİ |
+| 51 | `TALIMAT_51_acil_geri_alma_flow.md` (ACİL; hazır yama) | flow | yok | GEREKLİ — APK almadan ÖNCE |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
@@ -102,3 +103,6 @@ bash scripts/ci/check-names.sh src
 node scripts/ci/i18n-parity.mjs messages scripts/ci/i18n-parity-ignore.json tr en de
 node scripts/ci/check-root-map.mjs
 ```
+
+## Ek yasaklar (09.10.2026, Talimat 51 sonrası; kalıcı)
+Ajan talimatta AÇIKÇA yazılmadıkça şunları ÇALIŞTIRMAZ/DEĞİŞTİRMEZ: `eas init|build|update|submit|credentials`, `npx skills …`, `expo skills …`; `app.json`, `eas.json`, `package.json`, `skills-lock.json`, `.agents/`. EAS derlemesini yalnız kullanıcı alır (hesap `volkanakbulut`, proje kimliği `3914afac-6620-4e3f-9000-4c003a57df58`). Rapor, yamanın dışında dosya değişikliği varsa BUNU açıkça yazar.
