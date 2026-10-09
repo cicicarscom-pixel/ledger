@@ -42,6 +42,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 38 | `TALIMAT_38_web_sesli_bekleme_dinleme.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 39 | `TALIMAT_39_mobil_sesli_dosya_ekle.md` (hazır yama) | flow | yok (EAS derlemesi) | GEREKLİ |
 | 40 | `TALIMAT_40_persona_test_duzeltme_ve_deploy.md` (hazır yama) | ledger | persona-test (tek fonksiyon) | GEREKLİ |
+| 41 | `TALIMAT_41_canli_test_bilgilendirme.md` (hazır yama ×2) | flowweb + flow | yok (Vercel / EAS) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

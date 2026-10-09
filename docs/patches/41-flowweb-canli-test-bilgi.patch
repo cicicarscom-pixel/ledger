@@ -1,0 +1,83 @@
+From 8f617bf821e0388cdfee235f42171cf34065e957 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 03:29:51 +0000
+Subject: [PATCH] feat(ai-asistan): Canli Test panelinde hafizasiz/ilk
+ karsilasma bilgilendirmesi (web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                   | 1 +
+ messages/de.json                            | 1 +
+ messages/en.json                            | 1 +
+ messages/tr.json                            | 1 +
+ src/components/ai-asistan/LiveTestPanel.tsx | 5 +++++
+ 5 files changed, 9 insertions(+)
+
+diff --git a/README.md b/README.md
+index 73a6467..3fe73b6 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Canlı Test bilgilendirmesi:** AI Asistan sayfasındaki Canlı Test panelinin üstüne "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+ - **[09.10.2026] Flow AI web sesli sohbet:** yanıt beklenirken ("Düşünüyor…") de mikrofon dinlemeye devam eder; o sırada söylenenler hemen sohbette görünür ve yanıt gelince otomatik gönderilir. Yanıt okunurken mikrofon yankıyı duymasın diye kapalıdır; okuma bitince yeniden açılır. Yanıt beklerken sessizlik sayılıp sohbet kapanmaz.
+ - **[09.10.2026] Flow AI → Paylaşım Merkezi devri:** video ve paylaşım işi artık Paylaşım Merkezi zaten açıkken de alınır (yalnız sayfa açılışında alınıyordu); panelde "Paylaş"a basınca sayfa hazır değilse Paylaşım Merkezi açılır ve hazır olunca paylaşım başlatılır. Paylaşım Merkezi'nde metin/platform eksikliği gibi erken çıkışlar panele hata olarak bildirilir (panel "paylaşılıyor"da takılı kalmaz).
+ - **[09.10.2026] Flow AI web — sesli sohbet:** panelde mikrofon düğmesi eklendi (tarayıcının Web Speech API'si; ek paket yok). Basınca eller serbest döngü: dinle → cümle bitince gönder → yanıtı sesli oku → yeniden dinle. "bitir/kapat/stop" ya da düğme ile kapanır; 3 sessiz tur sonra kendiliğinden durur. Desteklemeyen tarayıcıda (ör. Firefox) düğme görünmez. tr/en/de.
+diff --git a/messages/de.json b/messages/de.json
+index a36b788..bab76ae 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -393,6 +393,7 @@
+   },
+   "aiAsistanComponents": {
+     "liveTestPanel": {
++      "notice": "Dieser Testchat hat kein Gedächtnis: Jede Nachricht wird wie die erste Begegnung eines Kunden mit dem Assistenten behandelt. Frühere Nachrichten werden nicht gemerkt; er dient nur dazu, den ersten Eindruck des Assistenten zu testen. Es wird kein echter Termin angelegt und keine Nachricht verschickt.",
+       "title": "Live-Test",
+       "emptyState": "Beginne das Gespräch mit dem Assistenten...",
+       "simulationStarted": "SIMULATION GESTARTET",
+diff --git a/messages/en.json b/messages/en.json
+index 5578486..222789f 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -393,6 +393,7 @@
+   },
+   "aiAsistanComponents": {
+     "liveTestPanel": {
++      "notice": "This test chat has no memory: every message is treated as a customer's first encounter with the assistant. Earlier messages are not remembered; it is only for trying the assistant's first impression. No real appointment is created and no message is sent to anyone.",
+       "title": "Live Test",
+       "emptyState": "Start chatting with the assistant...",
+       "simulationStarted": "SIMULATION STARTED",
+diff --git a/messages/tr.json b/messages/tr.json
+index 129d95b..510231c 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -393,6 +393,7 @@
+   },
+   "aiAsistanComponents": {
+     "liveTestPanel": {
++      "notice": "Bu test sohbeti hafızasızdır: her mesaj, müşterinin asistanla ilk karşılaşması gibi değerlendirilir. Önceki mesajlar hatırlanmaz; yalnızca asistanın ilk izlenimini denemek içindir. Gerçek randevu açılmaz, kimseye mesaj gitmez.",
+       "title": "Canlı Test",
+       "emptyState": "Asistan ile konuşmaya başlayın...",
+       "simulationStarted": "SİMÜLASYON BAŞLADI",
+diff --git a/src/components/ai-asistan/LiveTestPanel.tsx b/src/components/ai-asistan/LiveTestPanel.tsx
+index e236b4e..5e3dfb6 100644
+--- a/src/components/ai-asistan/LiveTestPanel.tsx
++++ b/src/components/ai-asistan/LiveTestPanel.tsx
+@@ -62,6 +62,11 @@ export default function LiveTestPanel({
+           </div>
+         </div>
+ 
++        <div data-testid="live_test_notice" style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "10px 16px", background: "rgba(59,130,246,0.08)", borderBottom: "1px solid rgba(59,130,246,0.18)", color: "#9CC2FF", fontSize: 12, lineHeight: 1.5 }}>
++          <i className="fa-solid fa-circle-info" style={{ marginTop: 2 }}></i>
++          <span>{t("aiAsistanComponents.liveTestPanel.notice")}</span>
++        </div>
++
+         <div style={{ flex: 1, background: "rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", padding: "20px 16px", overflowY: "auto", gap: 16 }}>
+           {!isSimulationActive && messages.length === 0 ? (
+             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+-- 
+2.43.0
+
