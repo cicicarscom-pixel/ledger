@@ -48,6 +48,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 44 | `TALIMAT_44_randevu_hafiza_dugmesi_kaldir.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 45 | `TALIMAT_45_raporlari_temizle.md` (hazır yama ×3) | ledger (SQL: kullanıcı) + flowweb + flow | yok (SQL editörü / Vercel / EAS) | GEREKLİ |
 | 46 | `TALIMAT_46_bildirim_senkron.md` (hazır yama ×3) | ledger (SQL: kullanıcı) + flowweb + flow | yok (SQL editörü / Vercel / EAS) | GEREKLİ |
+| 47 | `TALIMAT_47_yaklasan_bos_metin.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

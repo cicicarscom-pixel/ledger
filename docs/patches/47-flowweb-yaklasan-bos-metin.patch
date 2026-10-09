@@ -1,0 +1,80 @@
+From 11f5b821484eff56a8c0f41c2b387a99e33578e3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 07:50:20 +0000
+Subject: [PATCH] fix(anasayfa): Yaklasan Randevular bos durum metni duzeltildi
+ (Bugun icin planli randevu yok yaziyordu)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                    | 1 +
+ messages/de.json             | 1 +
+ messages/en.json             | 1 +
+ messages/tr.json             | 1 +
+ src/app/(dashboard)/page.tsx | 2 +-
+ 5 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 349128e..ac2bcf2 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Anasayfa "Yaklaşan Randevular":** boş durumda "Bugün için planlı randevu yok" yazıyordu (Bugünkü Randevular ile çelişiyordu); artık "Yaklaşan randevu veya rezervasyon bulunmuyor" (tr/en/de). Mobil zaten doğruydu.
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri randevularla senkron:** silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications` RPC'leri; web + mobil aynı kaynak).
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri:** "Raporları Temizle" düğmesi eklendi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez; tr/en/de). Veritabanı: `clear_appointment_notifications()`.
+ - **[09.10.2026] Randevu sayfası:** "🧹 Hafızayı Sil" düğmesi ve `clearChatMemory` işlemi kaldırıldı (işletmenin tüm konuşma kayıtlarını geri alınamaz şekilde siliyordu). Konuşma geçmişi silmek gerekirse yönetici tarafından veritabanından yapılır.
+diff --git a/messages/de.json b/messages/de.json
+index 80472d0..4c58c36 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -1143,6 +1143,7 @@
+       "todayTitle": "Heutige Termine",
+       "todayEmpty": "Heute sind keine Termine geplant.",
+       "upcomingTitle": "Anstehende Termine",
++      "upcomingEmpty": "Keine anstehenden Termine oder Reservierungen.",
+       "viewAll": "Alle ansehen"
+     }
+   },
+diff --git a/messages/en.json b/messages/en.json
+index b85c80e..b4b7ac8 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -1143,6 +1143,7 @@
+       "todayTitle": "Today's Appointments",
+       "todayEmpty": "No appointments planned for today.",
+       "upcomingTitle": "Upcoming Appointments",
++      "upcomingEmpty": "No upcoming appointments or reservations.",
+       "viewAll": "View All"
+     }
+   },
+diff --git a/messages/tr.json b/messages/tr.json
+index 07bbdf8..816344a 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -1143,6 +1143,7 @@
+       "todayTitle": "Bugünkü Randevular",
+       "todayEmpty": "Bugün için planlı randevu yok.",
+       "upcomingTitle": "Yaklaşan Randevular",
++      "upcomingEmpty": "Yaklaşan randevu veya rezervasyon bulunmuyor.",
+       "viewAll": "Tümünü gör"
+     }
+   },
+diff --git a/src/app/(dashboard)/page.tsx b/src/app/(dashboard)/page.tsx
+index 6cc6494..9c1812b 100644
+--- a/src/app/(dashboard)/page.tsx
++++ b/src/app/(dashboard)/page.tsx
+@@ -433,7 +433,7 @@ export default function DashboardHomePage() {
+                 </div>
+               )}) : (
+                 <div style={{ textAlign: "center", width: "100%" }}>
+-                  <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>{t('dashboardAppointments.appointments.todayEmpty')}</span>
++                  <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>{t('dashboardAppointments.appointments.upcomingEmpty')}</span>
+                 </div>
+               )}
+               {totalUpcomingAppointments > appointments.length && (
+-- 
+2.43.0
+
