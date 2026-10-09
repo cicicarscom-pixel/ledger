@@ -18,6 +18,9 @@ Supabase'te "Confirm email" açıldı. Mobilde e-posta doğrulandıktan sonra ku
 - `VerifyEmailScreen.js`: çevirili; işlevsiz bağlantı dinleyicisi kaldırıldı.
 - `locales/{tr,en,de}.json`: `authScreen.notice.*`, `verifyEmail.*`. README satırı.
 
+## Önemli: mevcut akış korunur
+Kayıt → (artık) e-posta doğrulama → giriş → **işletme formu (Onboarding)** → ana ekran. Yama yalnız "doğrulama → giriş" arasını düzeltir; Onboarding'in tetiklenmesi (`AppNavigator.js`, `complete_onboarding`) AYNEN kalır ve DEĞİŞTİRİLMEZ.
+
 ## SIRA: önce kullanıcı (Supabase paneli), sonra yama
 ### 0) KULLANICI yapar (ajan yapmaz)
 a) Supabase → Authentication → **URL Configuration → Redirect URLs** listesinde şu satırlar OLMALI: `workigomflow://**` (yayın derlemesi) ve `workigomflow://` ; geliştirme için `exp://**` (Expo Go kullanılıyorsa). Yoksa ekle. (Yoksa doğrulama bağlantısı uygulamayı açmaz, Site URL'ye gider.)
@@ -30,6 +33,7 @@ Claude "PANEL TAMAM" demeden yamayı uygulama (yama panelden bağımsız çalı�
 ## Kullanıcı testi (yeni APK; GERÇEK telefon, yayın derlemesi — Expo Go değil)
 1. Uygulamada yeni e-postayla kayıt ol → Doğrulama ekranı açılır.
 2. Telefondaki e-posta uygulamasından bağlantıya dokun → uygulama açılmalı → **Giriş ekranı + yeşil "E-postanız doğrulandı" bildirimi**.
+2b. Giriş yapınca (e-posta + şifre) **işletme kurulum formu (Onboarding: ad soyad, telefon, işletme adı)** açılmalı; doldurup onaylayınca ana ekrana geçmeli. (Bu form kayıtla birlikte hep vardı; yama ona DOKUNMAZ. Onboarding'i `AppNavigator` tetikler: oturum açılınca `profiles.onboarding_completed = false` ise.)
 3. Bağlantıyı ikinci kez dene → "bağlantının süresi dolmuş/kullanılmış" bildirimi.
 4. Doğrulamadan girişe çalış → ham hata yerine Doğrulama ekranı ("Tekrar Gönder" çalışmalı).
 5. Dil İngilizce/Almanca iken kayıt ol → e-posta o dilde gelmeli.
