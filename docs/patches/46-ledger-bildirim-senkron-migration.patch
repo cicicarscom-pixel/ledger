@@ -1,0 +1,83 @@
+From 99f3d45088a44a0989e3786e401c0d1059c31e41 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 06:32:01 +0000
+Subject: [PATCH] feat(db): get_appointment_notifications /
+ count_unread_appointment_notifications (randevularla senkron)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ ...9000002_appointment_notifications_sync.sql | 50 +++++++++++++++++++
+ 2 files changed, 51 insertions(+)
+ create mode 100644 supabase/migrations/20261009000002_appointment_notifications_sync.sql
+
+diff --git a/README.md b/README.md
+index 70e6742..e5fb1f8 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,5 @@
+ ## 🆕 Son Güncellemeler (Ekim 2026)
++- 09.10.2026 — Randevu bildirimleri randevularla senkron: `get_appointment_notifications(p_limit)` ve `count_unread_appointment_notifications()` silinen/iptal edilen randevunun bildirimini gizler (Anasayfa web + mobil).
+ - 09.10.2026 — `clear_appointment_notifications()` (Anasayfa "Raporları Temizle"): işletmenin randevu bildirimlerini siler; randevular ve konuşma kayıtları silinmez.
+ - 09.10.2026 — `persona-test` (AI Asistan "Canlı Test" simülasyonu) açılmıyordu ("Failed to send a request to the Edge Function"): kaynakta `serve` iki kez içe aktarılmıştı (`Identifier 'serve' has already been declared`, işçi açılışta çöküyordu). Yinelenen satır silindi; CI `check-names` artık yinelenen tanımı (TS2300) yakalıyor.
+ - 08.10.2026 — WhatsApp hatırlatma: metni işletme yazar ({name}, {business}, {date}, {time}, {doctor}, {service}); mesaj dili seçilir (tr/en/de/fr/es); unvanlar koda gömülü değildir.
+diff --git a/supabase/migrations/20261009000002_appointment_notifications_sync.sql b/supabase/migrations/20261009000002_appointment_notifications_sync.sql
+new file mode 100644
+index 0000000..5350667
+--- /dev/null
++++ b/supabase/migrations/20261009000002_appointment_notifications_sync.sql
+@@ -0,0 +1,50 @@
++-- Anasayfa "Randevu Bildirimleri" randevularla SENKRON olsun: silinen veya iptal edilen randevunun bildirimi listede/sayaçta görünmez.
++-- Tek doğru kaynak (AGENTS §4 ilkesi): web ve mobil bildirimleri doğrudan `notifications` tablosundan okumaz, bu iki fonksiyonu çağırır.
++-- Kimlik istemciden gelmez: current_org_id() çözer. Bildirimin randevusu (metadata.appointment_id) yoksa ya da durumu 'Cancelled' ise gizlenir.
++-- (delete_appointment zaten silinen randevunun bildirimlerini siler; bu fonksiyonlar diğer silme yollarını (AI aracı, sıfırlama, doğrudan SQL) ve iptalleri de kapsar.)
++
++create or replace function public.get_appointment_notifications(p_limit integer default 10)
++ returns table(id uuid, created_at timestamptz, is_read boolean, metadata jsonb)
++ language sql stable security definer set search_path to 'public'
++as $function$
++  select n.id, n.created_at, n.is_read, n.metadata
++  from public.notifications n
++  where n.profile_id = public.current_org_id()
++    and n.type = 'appointment_created'
++    and (
++      nullif(n.metadata->>'appointment_id', '') is null
++      or exists (
++        select 1 from public.appointments a
++        where a.id::text = n.metadata->>'appointment_id'
++          and a.org_id = n.profile_id
++          and a.status::text <> 'Cancelled'
++      )
++    )
++  order by n.created_at desc
++  limit greatest(1, least(coalesce(p_limit, 10), 100));
++$function$;
++
++create or replace function public.count_unread_appointment_notifications()
++ returns integer
++ language sql stable security definer set search_path to 'public'
++as $function$
++  select count(*)::integer
++  from public.notifications n
++  where n.profile_id = public.current_org_id()
++    and n.type = 'appointment_created'
++    and not n.is_read
++    and (
++      nullif(n.metadata->>'appointment_id', '') is null
++      or exists (
++        select 1 from public.appointments a
++        where a.id::text = n.metadata->>'appointment_id'
++          and a.org_id = n.profile_id
++          and a.status::text <> 'Cancelled'
++      )
++    );
++$function$;
++
++revoke all on function public.get_appointment_notifications(integer) from public, anon;
++revoke all on function public.count_unread_appointment_notifications() from public, anon;
++grant execute on function public.get_appointment_notifications(integer) to authenticated, service_role;
++grant execute on function public.count_unread_appointment_notifications() to authenticated, service_role;
+-- 
+2.43.0
+

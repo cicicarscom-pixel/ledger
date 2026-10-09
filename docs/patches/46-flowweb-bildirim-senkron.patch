@@ -1,0 +1,75 @@
+From aa135aed883798f734d35384f0e76f66e7524dc5 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 06:32:00 +0000
+Subject: [PATCH] fix(anasayfa): Randevu Bildirimleri silinen/iptal
+ randevularla senkron (RPC) - web
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                       |  1 +
+ .../dashboard/AppointmentNotifications.tsx      | 17 ++++-------------
+ 2 files changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/README.md b/README.md
+index 6cce4b4..349128e 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Anasayfa Randevu Bildirimleri randevularla senkron:** silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications` RPC'leri; web + mobil aynı kaynak).
+ - **[09.10.2026] Anasayfa Randevu Bildirimleri:** "Raporları Temizle" düğmesi eklendi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez; tr/en/de). Veritabanı: `clear_appointment_notifications()`.
+ - **[09.10.2026] Randevu sayfası:** "🧹 Hafızayı Sil" düğmesi ve `clearChatMemory` işlemi kaldırıldı (işletmenin tüm konuşma kayıtlarını geri alınamaz şekilde siliyordu). Konuşma geçmişi silmek gerekirse yönetici tarafından veritabanından yapılır.
+ - **[09.10.2026] Canlı Test:** panelden "🧹 Hafızayı Sil" düğmesi kaldırıldı (işletmenin gerçek WhatsApp konuşma kayıtlarını `ai_communication_logs`'tan siliyordu; test paneli bu tabloyu kullanmaz). Yalnız "↻ Ekranı Temizle" kaldı. (Randevu sayfasındaki ayrı "Hafızayı Sil" düğmesine dokunulmadı.)
+diff --git a/src/components/dashboard/AppointmentNotifications.tsx b/src/components/dashboard/AppointmentNotifications.tsx
+index 93e15e4..f7e1390 100644
+--- a/src/components/dashboard/AppointmentNotifications.tsx
++++ b/src/components/dashboard/AppointmentNotifications.tsx
+@@ -36,7 +36,6 @@ type AppointmentNotification = {
+   metadata: NotificationMetadata | null;
+ };
+ 
+-const NOTIFICATION_TYPE = "appointment_created";
+ const REFRESH_MS = 30_000;
+ 
+ const STRINGS: Record<Locale, {
+@@ -149,12 +148,8 @@ export function useAppointmentNotifications(limit = 5) {
+   const [error, setError] = useState<string | null>(null);
+ 
+   const refresh = useCallback(async () => {
+-    const { data, error } = await supabase
+-      .from("notifications")
+-      .select("id, created_at, is_read, metadata")
+-      .eq("type", NOTIFICATION_TYPE)
+-      .order("created_at", { ascending: false })
+-      .limit(limit);
++    // Tek doğru kaynak: silinen/iptal edilen randevuların bildirimleri gelmez (sunucu RPC'si).
++    const { data, error } = await supabase.rpc("get_appointment_notifications", { p_limit: limit });
+ 
+     if (error) {
+       console.error("[AppointmentNotifications] fetch failed:", error);
+@@ -207,17 +202,13 @@ export function useUnreadAppointmentCount() {
+   const [count, setCount] = useState(0);
+ 
+   const refresh = useCallback(async () => {
+-    const { count, error } = await supabase
+-      .from("notifications")
+-      .select("id", { count: "exact", head: true })
+-      .eq("type", NOTIFICATION_TYPE)
+-      .eq("is_read", false);
++    const { data: count, error } = await supabase.rpc("count_unread_appointment_notifications");
+ 
+     if (error) {
+       console.error("[useUnreadAppointmentCount] failed:", error);
+       return;
+     }
+-    setCount(count ?? 0);
++    setCount(Number(count) || 0);
+   }, [supabase]);
+ 
+   useEffect(() => {
+-- 
+2.43.0
+

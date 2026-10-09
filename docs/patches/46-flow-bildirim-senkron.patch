@@ -1,0 +1,64 @@
+From 8f6d7dc1dea9dd59b39b897ab2b13db9eab000f3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 06:31:24 +0000
+Subject: [PATCH] fix(anasayfa): Randevu Bildirimleri silinen/iptal
+ randevularla senkron (RPC) - mobil
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                      |  1 +
+ src/screens/DashboardScreen.js | 17 +++++------------
+ 2 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/README.md b/README.md
+index 042cda1..c11c06c 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Anasayfa Randevu Bildirimleri randevularla senkron: silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications`).
+ - 09.10.2026 — Anasayfa "Randevu Bildirimleri": "Raporları Temizle" düğmesi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez). Veritabanı: `clear_appointment_notifications()`.
+ - 09.10.2026 — Canlı Test bilgilendirmesi: Bot Yönetimi'ndeki Canlı Test kartına "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+ - 09.10.2026 — Flow AI sesli sohbet: dinleme/konuşma sırasında da dosya (video) ekleme düğmesi görünür (web ile aynı). Seçici açıkken dinleme/okuma durur, sohbet kapanmaz; seçimden dönünce dinleme sürer.
+diff --git a/src/screens/DashboardScreen.js b/src/screens/DashboardScreen.js
+index 6f696ae..ee4b759 100644
+--- a/src/screens/DashboardScreen.js
++++ b/src/screens/DashboardScreen.js
+@@ -199,12 +199,8 @@ const AppointmentNotifications = ({ navigation, onRead, onCleared }) => {
+   const fetchNotifs = async () => {
+     try {
+       setErrorMsg(null);
+-      const { data, error } = await supabase
+-        .from('notifications')
+-        .select('id, created_at, is_read, metadata')
+-        .eq('type', 'appointment_created')
+-        .order('created_at', { ascending: false })
+-        .limit(10);
++      // Tek doğru kaynak: silinen/iptal edilen randevuların bildirimleri gelmez (sunucu RPC'si).
++      const { data, error } = await supabase.rpc('get_appointment_notifications', { p_limit: 10 });
+       if (error) throw error;
+       setNotifications(data || []);
+     } catch (e) {
+@@ -370,13 +366,10 @@ export default function DashboardScreen({ navigation }) {
+ 
+     const fetchUnreadNotifications = async () => {
+       try {
+-        const { count, error } = await supabase
+-          .from('notifications')
+-          .select('id', { count: 'exact', head: true })
+-          .eq('type', 'appointment_created')
+-          .eq('is_read', false);
++        // Tek doğru kaynak: silinen/iptal edilen randevuların bildirimleri sayılmaz (sunucu RPC'si).
++        const { data, error } = await supabase.rpc('count_unread_appointment_notifications');
+         if (error) throw error;
+-        setUnreadCount(count || 0);
++        setUnreadCount(Number(data) || 0);
+       } catch (e) {
+         console.warn('Unread count error:', e);
+       }
+-- 
+2.43.0
+
