@@ -1,0 +1,18 @@
+<!-- Supabase → Authentication → Emails → Confirm sign up → Body (Source). Dil: kayıtta uygulamanın gönderdiği `locale` (user_metadata) değerinden seçilir; yoksa İngilizce.
+     Konu (Subject) alanına şunu yaz:  Workigom Flow – Confirm your email / E-postanızı doğrulayın / E-Mail bestätigen -->
+{{ if eq .Data.locale "tr" }}
+<h2>E-posta adresinizi doğrulayın</h2>
+<p>Workigom Flow'a hoş geldiniz! Kaydı tamamlamak için aşağıdaki bağlantıya dokunun. Doğrulamadan sonra giriş ekranına yönlendirileceksiniz.</p>
+<p><a href="{{ .ConfirmationURL }}">E-posta adresimi doğrula</a></p>
+<p>Bu kaydı siz yapmadıysanız bu e-postayı yok sayabilirsiniz.</p>
+{{ else if eq .Data.locale "de" }}
+<h2>Bestätigen Sie Ihre E-Mail-Adresse</h2>
+<p>Willkommen bei Workigom Flow! Tippen Sie auf den Link unten, um die Registrierung abzuschließen. Nach der Bestätigung werden Sie zur Anmeldung weitergeleitet.</p>
+<p><a href="{{ .ConfirmationURL }}">E-Mail-Adresse bestätigen</a></p>
+<p>Falls Sie sich nicht registriert haben, können Sie diese E-Mail ignorieren.</p>
+{{ else }}
+<h2>Confirm your email address</h2>
+<p>Welcome to Workigom Flow! Tap the link below to finish signing up. After confirming, you will be taken to the sign-in screen.</p>
+<p><a href="{{ .ConfirmationURL }}">Confirm my email address</a></p>
+<p>If you didn't create this account, you can ignore this email.</p>
+{{ end }}

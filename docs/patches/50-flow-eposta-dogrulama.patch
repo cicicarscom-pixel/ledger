@@ -1,0 +1,384 @@
+From 4a5a6a69f7f907588e6af59b2949576c5f1f7976 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 09:16:38 +0000
+Subject: [PATCH] feat(auth): e-posta dogrulama sonrasi giris ekranina
+ yonlendirme, dogrulanmamis giriste Dogrulama ekrani, tr/en/de (mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ App.js                           | 27 +++++++++++++++++++++++-
+ README.md                        |  1 +
+ src/core/i18n/locales/de.json    | 17 +++++++++++++++-
+ src/core/i18n/locales/en.json    | 17 +++++++++++++++-
+ src/core/i18n/locales/tr.json    | 17 +++++++++++++++-
+ src/screens/AuthScreen.js        | 25 ++++++++++++++++++++---
+ src/screens/VerifyEmailScreen.js | 33 +++++++++---------------------
+ src/shared/lib/authLink.js       | 35 ++++++++++++++++++++++++++++++++
+ 8 files changed, 142 insertions(+), 30 deletions(-)
+ create mode 100644 src/shared/lib/authLink.js
+
+diff --git a/App.js b/App.js
+index cf5380a..abf59f9 100644
+--- a/App.js
++++ b/App.js
+@@ -9,6 +9,8 @@ import { ForceUpdateGate } from './src/modules/app_update';
+ import AuthScreen from './src/screens/AuthScreen';
+ import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
+ import { supabase } from './src/shared';
++import { parseAuthLink } from './src/shared/lib/authLink';
++import * as Linking from 'expo-linking';
+ import React, { useState, useEffect } from 'react';
+ 
+ import { registerRootComponent } from 'expo';
+@@ -18,6 +20,7 @@ import { ActionSheetProvider } from '@expo/react-native-action-sheet';
+ export default function App() {
+   const [session, setSession] = useState(null);
+   const [pendingVerificationEmail, setPendingVerificationEmail] = useState(null);
++  const [authNotice, setAuthNotice] = useState(null); // e-posta doğrulama bağlantısından dönüş: { kind: 'verified' } | { kind: 'error', code }
+   const navigationRef = useNavigationContainerRef();
+   const [routeName, setRouteName] = useState(null);
+ 
+@@ -33,6 +36,24 @@ export default function App() {
+     return () => subscription.unsubscribe();
+   }, []);
+ 
++  // E-posta doğrulama bağlantısı uygulamayı açınca: doğrulandıysa GİRİŞ ekranına yönlendir (oturum KURULMAZ; kullanıcı girişi kendisi yapar).
++  useEffect(() => {
++    const handleUrl = (url) => {
++      const parsed = parseAuthLink(url);
++      if (!parsed) return;
++      setPendingVerificationEmail(null);
++      setAuthNotice(parsed);
++    };
++    Linking.getInitialURL().then(handleUrl).catch(() => {});
++    const sub = Linking.addEventListener('url', (event) => handleUrl(event.url));
++    return () => sub.remove();
++  }, []);
++
++  // Oturum açılınca bildirim temizlenir.
++  useEffect(() => {
++    if (session && session.user) setAuthNotice(null);
++  }, [session]);
++
+   return (
+     <ActionSheetProvider>
+       <SafeAreaProvider>
+@@ -51,7 +72,11 @@ export default function App() {
+           ) : pendingVerificationEmail ? (
+             <VerifyEmailScreen emailFromProps={pendingVerificationEmail} onClear={() => setPendingVerificationEmail(null)} />
+           ) : (
+-            <AuthScreen onSignUpSuccess={(email) => setPendingVerificationEmail(email)} />
++            <AuthScreen
++              onSignUpSuccess={(email) => setPendingVerificationEmail(email)}
++              onNeedsVerification={(email) => setPendingVerificationEmail(email)}
++              notice={authNotice}
++            />
+           )}
+         </NavigationContainer>
+         </ForceUpdateGate>
+diff --git a/README.md b/README.md
+index c11c06c..8b1b9bd 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — E-posta doğrulama akışı (mobil): doğrulama bağlantısı uygulamayı açınca kullanıcı GİRİŞ ekranına yönlendirilir ve "E-postanız doğrulandı" bildirimi görür (süresi dolmuş/kullanılmış bağlantı için ayrı mesaj); doğrulanmamış hesapla girişte ham İngilizce hata yerine Doğrulama ekranı açılır; Doğrulama ekranı tr/en/de çevrildi; kayıtta `locale` gönderilir (e-posta şablonu dile göre seçilir). Yeni: `src/shared/lib/authLink.js`.
+ - 09.10.2026 — Anasayfa Randevu Bildirimleri randevularla senkron: silinen veya iptal edilen randevuların bildirimi artık listede ve zil sayacında görünmez (`get_appointment_notifications`, `count_unread_appointment_notifications`).
+ - 09.10.2026 — Anasayfa "Randevu Bildirimleri": "Raporları Temizle" düğmesi (onay sorar; yalnız randevu bildirimlerini siler, randevular ve müşteri konuşmaları silinmez). Veritabanı: `clear_appointment_notifications()`.
+ - 09.10.2026 — Canlı Test bilgilendirmesi: Bot Yönetimi'ndeki Canlı Test kartına "hafızasızdır, her mesaj ilk karşılaşma gibi değerlendirilir; gerçek randevu açılmaz, mesaj gitmez" notu eklendi (tr/en/de).
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 6a86836..251c760 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -587,7 +587,22 @@
+     "signupButton": "Registrieren",
+     "noAccountText": "Sie haben noch kein Konto? ",
+     "hasAccountText": "Sie haben bereits ein Konto? ",
+-    "privacyLink": "Datenschutzerklärung"
++    "privacyLink": "Datenschutzerklärung",
++    "notice": {
++      "verified": "Ihre E-Mail-Adresse ist bestätigt! Sie können sich jetzt anmelden.",
++      "expired": "Der Bestätigungslink ist abgelaufen oder wurde bereits verwendet. Versuchen Sie sich anzumelden; falls das nicht klappt, fordern Sie eine neue Bestätigungs-E-Mail an.",
++      "linkError": "Der Bestätigungslink konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut."
++    }
++  },
++  "verifyEmail": {
++    "title": "E-Mail bestätigen",
++    "description": "Wir haben einen Bestätigungslink an Ihre E-Mail-Adresse gesendet. Tippen Sie auf den Link, um fortzufahren; die App führt Sie danach zur Anmeldung.",
++    "checkStatus": "Status prüfen",
++    "checkHint": "Wenn Sie Ihr Konto bestätigt haben, melden Sie sich über „Zurück zur Anmeldung“ an.",
++    "resend": "Erneut senden",
++    "resent": "Die Bestätigungs-E-Mail wurde erneut gesendet.",
++    "resendError": "Fehler: {{message}}",
++    "backToLogin": "Zurück zur Anmeldung"
+   },
+   "aiAssistantScreen": {
+     "initialMessages": {
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 9857791..14fabe6 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -587,7 +587,22 @@
+     "signupButton": "Sign Up",
+     "noAccountText": "Don't have an account? ",
+     "hasAccountText": "Already have an account? ",
+-    "privacyLink": "Privacy Policy"
++    "privacyLink": "Privacy Policy",
++    "notice": {
++      "verified": "Your email is verified! You can sign in now.",
++      "expired": "The verification link has expired or was already used. Try signing in; if that fails, request a new verification email.",
++      "linkError": "The verification link could not be processed. Please try again."
++    }
++  },
++  "verifyEmail": {
++    "title": "Verify your email",
++    "description": "We sent a verification link to your email address. Tap the link to continue; the app will then take you to the sign-in screen.",
++    "checkStatus": "Check status",
++    "checkHint": "If you have verified your account, use \"Back to sign in\" to log in.",
++    "resend": "Resend",
++    "resent": "The verification email was sent again.",
++    "resendError": "Error: {{message}}",
++    "backToLogin": "Back to sign in"
+   },
+   "aiAssistantScreen": {
+     "initialMessages": {
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index bfd7e42..f8190b4 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -587,7 +587,22 @@
+     "signupButton": "Kayıt Ol",
+     "noAccountText": "Hesabınız yok mu? ",
+     "hasAccountText": "Zaten hesabınız var mı? ",
+-    "privacyLink": "Gizlilik Politikası"
++    "privacyLink": "Gizlilik Politikası",
++    "notice": {
++      "verified": "E-postanız doğrulandı! Şimdi giriş yapabilirsiniz.",
++      "expired": "Doğrulama bağlantısının süresi dolmuş ya da daha önce kullanılmış. Giriş yapmayı deneyin; olmuyorsa doğrulama e-postasını yeniden isteyin.",
++      "linkError": "Doğrulama bağlantısı işlenemedi. Lütfen yeniden deneyin."
++    }
++  },
++  "verifyEmail": {
++    "title": "E-postanızı Doğrulayın",
++    "description": "E-posta adresinize bir doğrulama bağlantısı gönderdik. Devam etmek için bağlantıya tıklayın; sonra uygulama sizi giriş ekranına yönlendirecek.",
++    "checkStatus": "Durumu Kontrol Et",
++    "checkHint": "Hesabınızı doğruladıysanız \"Giriş Ekranına Dön\" düğmesiyle giriş yapın.",
++    "resend": "Tekrar Gönder",
++    "resent": "Doğrulama e-postası tekrar gönderildi.",
++    "resendError": "Hata: {{message}}",
++    "backToLogin": "Giriş Ekranına Dön"
+   },
+   "aiAssistantScreen": {
+     "initialMessages": {
+diff --git a/src/screens/AuthScreen.js b/src/screens/AuthScreen.js
+index ac71a28..e185b23 100644
+--- a/src/screens/AuthScreen.js
++++ b/src/screens/AuthScreen.js
+@@ -15,8 +15,8 @@ WebBrowser.maybeCompleteAuthSession();
+ 
+ const { width, height } = Dimensions.get('window');
+ 
+-export default function AuthScreen({ onSignUpSuccess }) {
+-  const { t } = useTranslation();
++export default function AuthScreen({ onSignUpSuccess, notice, onNeedsVerification }) {
++  const { t, i18n } = useTranslation();
+   const insets = useSafeAreaInsets();
+   const [email, setEmail] = useState('');
+   const [password, setPassword] = useState('');
+@@ -87,7 +87,11 @@ export default function AuthScreen({ onSignUpSuccess }) {
+       email: email,
+       password: password,
+     });
+-    if (error) Alert.alert(t('authScreen.errors.loginTitle'), error.message);
++    if (error) {
++      // E-posta henüz doğrulanmamışsa ham İngilizce hata yerine doğrulama ekranına yönlendir (yeniden gönderme orada).
++      if (error.code === 'email_not_confirmed' && onNeedsVerification) onNeedsVerification(email);
++      else Alert.alert(t('authScreen.errors.loginTitle'), error.message);
++    }
+     setLoading(false);
+   }
+ 
+@@ -107,6 +111,7 @@ export default function AuthScreen({ onSignUpSuccess }) {
+       options: {
+         emailRedirectTo: makeRedirectUri(),
+         data: {
++          locale: i18n.language, // e-posta şablonu dile göre seçilir (Supabase şablonu .Data.locale okur)
+           phone: phone,
+           display_name: name,
+           full_name: name,
+@@ -174,6 +179,16 @@ export default function AuthScreen({ onSignUpSuccess }) {
+         {/* GLASSMORPHISM CARD */}
+         <View style={styles.glassCard} className="rounded-3xl p-6 shadow-2xl">
+           
++          {notice ? (
++            <View style={[styles.noticeBox, notice.kind === 'verified' ? styles.noticeOk : styles.noticeWarn]}>
++              <Text style={styles.noticeText}>
++                {notice.kind === 'verified'
++                  ? t('authScreen.notice.verified')
++                  : (notice.code === 'otp_expired' ? t('authScreen.notice.expired') : t('authScreen.notice.linkError'))}
++              </Text>
++            </View>
++          ) : null}
++
+           <Text className="text-white text-2xl font-bold mb-6 text-center">
+             {isLogin ? t('authScreen.title.login') : t('authScreen.title.signup')}
+           </Text>
+@@ -268,6 +283,10 @@ export default function AuthScreen({ onSignUpSuccess }) {
+ }
+ 
+ const styles = StyleSheet.create({
++  noticeBox: { borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1 },
++  noticeOk: { backgroundColor: 'rgba(34,181,115,0.12)', borderColor: 'rgba(34,181,115,0.5)' },
++  noticeWarn: { backgroundColor: 'rgba(255,122,89,0.12)', borderColor: 'rgba(255,122,89,0.5)' },
++  noticeText: { color: '#fff', fontSize: 13, lineHeight: 19, textAlign: 'center' },
+   logoContainer: {
+     width: '100%',
+     height: 90,
+diff --git a/src/screens/VerifyEmailScreen.js b/src/screens/VerifyEmailScreen.js
+index b8eab69..b3c8949 100644
+--- a/src/screens/VerifyEmailScreen.js
++++ b/src/screens/VerifyEmailScreen.js
+@@ -1,11 +1,12 @@
+ import React, { useState, useEffect } from 'react';
+ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+ import { supabase } from '../shared';
+-import * as Linking from 'expo-linking';
+ import { MaterialCommunityIcons } from '@expo/vector-icons';
+ import { makeRedirectUri } from 'expo-auth-session';
++import { useTranslation } from 'react-i18next';
+ 
+ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
++  const { t } = useTranslation();
+   const [email, setEmail] = useState(emailFromProps || '');
+   const [resending, setResending] = useState(false);
+   const [message, setMessage] = useState('');
+@@ -17,20 +18,6 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+         if (user) setEmail(user.email);
+       });
+     }
+-
+-    // Handle deep link (when user clicks email link and returns to app)
+-    const handleDeepLink = (event) => {
+-      const url = event.url;
+-      if (url) {
+-        // Just refresh the session when app opens from any link
+-        supabase.auth.getSession();
+-      }
+-    };
+-    const linkSubscription = Linking.addEventListener('url', handleDeepLink);
+-
+-    return () => {
+-      linkSubscription.remove();
+-    };
+   }, []);
+ 
+   const handleResend = async () => {
+@@ -47,9 +34,9 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+     });
+ 
+     if (error) {
+-      setMessage('Hata: ' + error.message);
++      setMessage(t('verifyEmail.resendError', { message: error.message }));
+     } else {
+-      setMessage('Doğrulama e-postası tekrar gönderildi.');
++      setMessage(t('verifyEmail.resent'));
+     }
+     
+     setResending(false);
+@@ -59,7 +46,7 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+     setMessage('');
+     // If they verified on another device or the deep link didn't work,
+     // they need to log in to get a session.
+-    setMessage('Hesabınızı doğruladıysanız, lütfen Giriş Ekranına Dön butonuna tıklayarak giriş yapın.');
++    setMessage(t('verifyEmail.checkHint'));
+   };
+ 
+   return (
+@@ -69,19 +56,19 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+           <MaterialCommunityIcons name="email-check-outline" size={32} color="#3b82f6" />
+         </View>
+         
+-        <Text style={styles.title}>E-postanızı Doğrulayın</Text>
++        <Text style={styles.title}>{t('verifyEmail.title')}</Text>
+         
+         {email && <Text style={styles.emailText}>{email}</Text>}
+         
+         <Text style={styles.description}>
+-          E-posta adresinize bir doğrulama linki gönderdik. Devam etmek için lütfen e-postanızı onaylayın.
++          {t('verifyEmail.description')}
+         </Text>
+ 
+         <TouchableOpacity 
+           style={styles.button} 
+           onPress={handleCheckStatus}
+         >
+-          <Text style={styles.buttonText}>Durumu Kontrol Et</Text>
++          <Text style={styles.buttonText}>{t('verifyEmail.checkStatus')}</Text>
+         </TouchableOpacity>
+ 
+         <TouchableOpacity 
+@@ -92,7 +79,7 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+           {resending ? (
+             <ActivityIndicator color="#3b82f6" />
+           ) : (
+-            <Text style={styles.outlineButtonText}>Tekrar Gönder</Text>
++            <Text style={styles.outlineButtonText}>{t('verifyEmail.resend')}</Text>
+           )}
+         </TouchableOpacity>
+ 
+@@ -101,7 +88,7 @@ export default function VerifyEmailScreen({ emailFromProps, onClear }) {
+             style={[styles.outlineButton, { borderColor: 'rgba(255,255,255,0.5)' }]} 
+             onPress={onClear}
+           >
+-            <Text style={styles.outlineButtonText}>Giriş Ekranına Dön</Text>
++            <Text style={styles.outlineButtonText}>{t('verifyEmail.backToLogin')}</Text>
+           </TouchableOpacity>
+         )}
+         
+diff --git a/src/shared/lib/authLink.js b/src/shared/lib/authLink.js
+new file mode 100644
+index 0000000..7c5a75d
+--- /dev/null
++++ b/src/shared/lib/authLink.js
+@@ -0,0 +1,35 @@
++// E-posta doğrulama / kimlik bağlantılarını (deep link) çözer. Saf fonksiyon: ağ ya da oturum işlemi YAPMAZ.
++// Supabase doğrulama bağlantısı uygulamaya şöyle döner (örnekler):
++//   workigomflow://#access_token=...&refresh_token=...&type=signup        → doğrulandı
++//   workigomflow://#error=access_denied&error_code=otp_expired&error_description=...  → bağlantı süresi dolmuş/kullanılmış
++// Google OAuth dönüşünde `type=signup` bulunmaz; o akış AuthScreen içinde kendi işlenir ve bu fonksiyon onu "doğrulandı" saymaz.
++
++function readParams(url) {
++  const out = {};
++  const text = String(url || '');
++  const hashIdx = text.indexOf('#');
++  const queryIdx = text.indexOf('?');
++  const parts = [];
++  if (queryIdx >= 0) parts.push(text.slice(queryIdx + 1, hashIdx >= 0 && hashIdx > queryIdx ? hashIdx : undefined));
++  if (hashIdx >= 0) parts.push(text.slice(hashIdx + 1));
++  for (const part of parts) {
++    for (const pair of part.split('&')) {
++      if (!pair) continue;
++      const eq = pair.indexOf('=');
++      const key = decodeURIComponent(eq >= 0 ? pair.slice(0, eq) : pair);
++      const val = eq >= 0 ? decodeURIComponent(pair.slice(eq + 1).replace(/\+/g, ' ')) : '';
++      if (!(key in out)) out[key] = val;
++    }
++  }
++  return out;
++}
++
++/** @returns {{ kind: 'verified' } | { kind: 'error', code: string } | null} */
++export function parseAuthLink(url) {
++  if (!url) return null;
++  let p;
++  try { p = readParams(url); } catch (e) { return null; }
++  if (p.error || p.error_code) return { kind: 'error', code: p.error_code || p.error || 'unknown' };
++  if (p.type === 'signup') return { kind: 'verified' };
++  return null;
++}
+-- 
+2.43.0
+

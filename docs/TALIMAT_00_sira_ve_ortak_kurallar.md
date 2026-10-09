@@ -51,6 +51,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 47 | `TALIMAT_47_yaklasan_bos_metin.md` (hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 48 | `TALIMAT_48_kalite_faz1_guvenlik.md` (Kalite Faz 1; hazır yama ×2; önce kullanıcı SQL + Vercel ortamı) | ledger (SQL: kullanıcı) + flowweb | yok | GEREKLİ |
 | 49 | `TALIMAT_49_kalite_faz2_olu_kod.md` (Kalite Faz 2; hazır yama ×2; Faz 1 onayından sonra) | flowweb + flow | yok | GEREKLİ |
+| 50 | `TALIMAT_50_eposta_dogrulama_mobil.md` (hazır yama; önce kullanıcı Supabase paneli) | flow | yok (EAS derlemesi) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
