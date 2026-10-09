@@ -1,0 +1,186 @@
+From 29315e44e1d8130f6064ac94100fa4c0cc00be9e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 09:43:08 +0000
+Subject: [PATCH] chore(quality): ESLint hatalari 0, alt metinleri, dates.test
+ gercek modulu sinar (Kalite Faz 3)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ eslint.config.mjs                             |  2 ++
+ .../ai-asistan/randevu/RandevuClient.tsx      |  2 +-
+ src/app/(dashboard)/gelen-kutusu/page.tsx     | 14 +++++++-------
+ src/app/(dashboard)/page.tsx                  |  5 ++---
+ src/lib/dates.test.ts                         | 19 +++----------------
+ tsconfig.json                                 |  3 ++-
+ 7 files changed, 18 insertions(+), 28 deletions(-)
+
+diff --git a/README.md b/README.md
+index c7f8ea2..5d7d3fd 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Kalite Faz 3:** ESLint hataları 5 → 0 (`prefer-const`, `@ts-nocheck`); 8 `<img>` alt metni (süs avatarlar `alt=""`); `(dashboard)/page.tsx`'te kullanılmayan `inc/exp` kaldırıldı; `lib/dates.test.ts` artık gerçek `dates.ts` modülünü sınıyor (önceden fonksiyonların kopyasını sınıyordu); Deno testleri `tsconfig`/ESLint dışında. Tam `tsc --strict` ve `deno test` temiz.
+ - **[09.10.2026] Temizlik (Kalite Faz 2):** hiçbir yerden çağrılmayan ve tablo izinleriyle zaten çalışmayan sunucu işlemleri (`actions/accounting.ts`, `actions/insights.ts`) ile derlenemeyen eski `docs/archive/test_appts.ts` silindi; tam `tsc` artık hatasız.
+ - **[09.10.2026] Güvenlik (Kalite Faz 1A):** hiçbir yerden çağrılmayan `src/actions/zernio.ts` silindi (Zernio ile tüm iletişim Supabase `zernio-client` Edge Function'ı üzerinden; anahtar yalnız Supabase Secrets'ta). Dosya, tarayıcıya gömülen `NEXT_PUBLIC_ZERNIO_API_KEY` adını da okuyordu; bu risk kökünden kalktı. Vercel'de Zernio anahtarına gerek yoktur.
+ - **[09.10.2026] Anasayfa "Yaklaşan Randevular":** boş durumda "Bugün için planlı randevu yok" yazıyordu (Bugünkü Randevular ile çelişiyordu); artık "Yaklaşan randevu veya rezervasyon bulunmuyor" (tr/en/de). Mobil zaten doğruydu.
+diff --git a/eslint.config.mjs b/eslint.config.mjs
+index b4bd309..51e99ab 100644
+--- a/eslint.config.mjs
++++ b/eslint.config.mjs
+@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
+     "out/**",
+     "build/**",
+     "next-env.d.ts",
++    // Deno testleri (Next derlemesinin parçası değil; `deno test` ile çalışır)
++    "src/**/*.test.ts",
+   ]),
+   {
+     rules: {
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+index 735929b..a548a80 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+@@ -555,7 +555,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+                           
+                           const slots = daySchedule.filter(s => s.local_time === slotTime);
+                           let status = 'free';
+-                          let badge = null;
++                          const badge: string | null = null;
+                           let bId = '', bReason = '', bNote = '';
+ 
+                           if (activeCalendarId) {
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index a0c5ac1..7f42fe7 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -836,11 +836,11 @@ function GelenKutusuContent() {
+                     <div className="relative w-12 h-12 flex-shrink-0">
+                       <div className="w-full h-full bg-white/5 rounded-full flex items-center justify-center overflow-hidden">
+                         {conv.participant_picture ? (
+-                          <img src={conv.participant_picture} className="w-full h-full object-cover" onError={(e) => {
++                          <img alt="" src={conv.participant_picture} className="w-full h-full object-cover" onError={(e) => {
+                             e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.participant_name || 'U')}&background=random`;
+                           }} />
+                         ) : (
+-                          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conv.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
++                          <img alt="" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conv.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
+                         )}
+                       </div>
+                       <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-dark-surface border border-dark-border flex items-center justify-center text-xs">
+@@ -884,11 +884,11 @@ function GelenKutusuContent() {
+                    <div className="p-4 border-b border-dark-border flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                         {conversations.find(c => c.id === selectedConvId)?.participant_picture ? (
+-                           <img src={conversations.find(c => c.id === selectedConvId)?.participant_picture} className="w-full h-full object-cover" onError={(e) => {
++                           <img alt="" src={conversations.find(c => c.id === selectedConvId)?.participant_picture} className="w-full h-full object-cover" onError={(e) => {
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`;
+                            }} />
+                         ) : (
+-                           <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
++                           <img alt="" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
+                         )}
+                      </div>
+                      <span className="font-bold text-on-surface">
+@@ -907,11 +907,11 @@ function GelenKutusuContent() {
+                            {!isOutbound && (
+                              <div className="w-7 h-7 rounded-full bg-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center mb-1 border border-white/10">
+                                 {conversations.find(c => c.id === selectedConvId)?.participant_picture ? (
+-                                  <img src={conversations.find(c => c.id === selectedConvId)?.participant_picture} className="w-full h-full object-cover" onError={(e) => {
++                                  <img alt="" src={conversations.find(c => c.id === selectedConvId)?.participant_picture} className="w-full h-full object-cover" onError={(e) => {
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`;
+                            }} />
+                                 ) : (
+-                                  <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
++                                  <img alt="" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(conversations.find(c => c.id === selectedConvId)?.participant_name || 'U')}&background=random`} className="w-full h-full object-cover" />
+                                 )}
+                              </div>
+                            )}
+@@ -1025,7 +1025,7 @@ function GelenKutusuContent() {
+                           </div>
+                         </>
+                       ) : (
+-                        <img src={postsWithComments.find(p => p.postId === selectedPostId)?.postPicture} className="w-full h-full object-cover" onError={(e) => {
++                        <img alt="" src={postsWithComments.find(p => p.postId === selectedPostId)?.postPicture} className="w-full h-full object-cover" onError={(e) => {
+                           e.currentTarget.style.display = 'none';
+                           e.currentTarget.parentElement!.innerHTML = '<i class="fa-regular fa-image text-dark-muted"></i>';
+                         }} />
+diff --git a/src/app/(dashboard)/page.tsx b/src/app/(dashboard)/page.tsx
+index 9c1812b..c1742a5 100644
+--- a/src/app/(dashboard)/page.tsx
++++ b/src/app/(dashboard)/page.tsx
+@@ -50,7 +50,6 @@ export default function DashboardHomePage() {
+         }
+ 
+         // Finance Stats (Transactions + Finance Documents)
+-        let inc = 0, exp = 0;
+         const upcoming: any[] = [];
+         let timezone = 'Europe/Istanbul';
+         if (merchantId) {
+@@ -189,7 +188,7 @@ export default function DashboardHomePage() {
+ 
+                   const nextDateStr = addDaysYmd(today, 1);
+ 
+-          let calsMap: Record<string, string> = {};
++          const calsMap: Record<string, string> = {};
+           if (merchantId) {
+             const { data: cals } = await supabase.from('calendars').select('id, name');
+             if (cals) cals.forEach((c: any) => calsMap[c.id] = c.name);
+@@ -488,7 +487,7 @@ export default function DashboardHomePage() {
+           {recentActivities.map(act => (
+             <div key={act.id} className="glass" style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", borderRadius: 16, borderLeft: `3px solid ${act.color}` }}>
+               <div style={{ width: 44, height: 44, borderRadius: 22, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, overflow: "hidden" }}>
+-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(act.name)}&background=random&color=fff`} style={{ width: "100%", height: "100%" }} />
++                <img alt="" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(act.name)}&background=random&color=fff`} style={{ width: "100%", height: "100%" }} />
+               </div>
+               <div style={{ flex: 1 }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+diff --git a/src/lib/dates.test.ts b/src/lib/dates.test.ts
+index 617a47c..a8cd758 100644
+--- a/src/lib/dates.test.ts
++++ b/src/lib/dates.test.ts
+@@ -1,21 +1,8 @@
+-// @ts-nocheck
+ import { assertEquals } from "https://deno.land/std@0.220.0/testing/asserts.ts";
++import { addDaysYmd, dateFromYmd, todayInTimezone } from "./dates.ts";
+ 
+-export function addDaysYmd(ymd: string, n: number): string {
+-  const [y, m, d] = ymd.split('-').map(Number);
+-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+-}
+-
+-/** İşletmenin saat diliminde bugünün tarihi: "2026-09-27" */
+-export function todayInTimezone(timeZone: string, now: Date = new Date()): string {
+-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+-}
+-
+-/** "YYYY-MM-DD" metninden, saat dilimi kaymasına dayanıklı yerel Date (gün ortası) */
+-export function dateFromYmd(ymd: string): Date {
+-  const [y, m, d] = ymd.split('-').map(Number);
+-  return new Date(y, m - 1, d, 12, 0, 0);
+-}
++// Deno testi: GERÇEK `dates.ts` modülünü sınar (önceden fonksiyonların kopyasını sınıyordu).
++// Çalıştırma: deno test src/lib/dates.test.ts
+ 
+ Deno.test("todayInTimezone - Istanbul edge case (next day locally)", () => {
+   // Istanbul is UTC+3. At 22:30 UTC, it's 01:30 the next day locally.
+diff --git a/tsconfig.json b/tsconfig.json
+index 34939b2..a50bd72 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -37,6 +37,7 @@
+     "**/*.mts"
+   ],
+   "exclude": [
+-    "node_modules"
++    "node_modules",
++    "src/**/*.test.ts"
+   ]
+ }
+-- 
+2.43.0
+

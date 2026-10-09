@@ -54,6 +54,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 50 | `TALIMAT_50_eposta_dogrulama_mobil.md` (hazır yama; önce kullanıcı Supabase paneli) | flow | yok (EAS derlemesi) | GEREKLİ |
 | 51 | `TALIMAT_51_acil_geri_alma_flow.md` | — | — | **İPTAL** (kullanıcı kararı: workigom hesabı kalır) |
 | 52 | `TALIMAT_52_eas_hesabi_agents.md` (hazır yama) | flow | yok | GEREKLİ |
+| 53 | `TALIMAT_53_kalite_faz3_flowweb.md` (Kalite Faz 3; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

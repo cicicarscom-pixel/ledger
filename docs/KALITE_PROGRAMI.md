@@ -11,15 +11,16 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 ## Fazlar
 | Faz | Konu | Talimat | Durum |
 |---|---|---|---|
-| 1 | **Güvenlik**: 1A flowweb ölü `zernio.ts` silinir (NEXT_PUBLIC anahtar riski); 1B Supabase fonksiyon yetkileri (SQL: kullanıcı); 1C Auth sızdırılmış parola koruması (panel: kullanıcı) | 48 | HAZIR |
-| 2 | **Ölü kod temizliği** (flow + flowweb; risksiz silme) | 49 | HAZIR |
-| 3 | **flowweb hata/lint**: 4× `prefer-const`, `@ts-nocheck`, 8 `<img alt>`; 18 `exhaustive-deps` tek tek | 50 | sırada |
-| 4 | **flow tip ve tarih hataları**: kalan tsc hataları, `OdemeTakvimiScreen` saat dilimi, `import/no-duplicates`, kullanılmayan değişkenler | 51 | sırada |
-| 5 | **CI kapıları**: tam `tsc` + ESLint (flow'da React Compiler kuralları hariç) CI'ya eklenir, `npm audit` bilgi amaçlı | 52 | sırada (3–4'ten sonra) |
-| 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 53–56 | sırada |
-| 7 | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 57 | sırada |
-| 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 58+ | sırada |
-| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 60+ | sırada |
+| 1 | **Güvenlik** (TAMAM): 1A flowweb ölü `zernio.ts` silinir (NEXT_PUBLIC anahtar riski); 1B Supabase fonksiyon yetkileri (SQL: kullanıcı); 1C Auth sızdırılmış parola koruması (panel: kullanıcı) | 48 | HAZIR |
+| 2 | **Ölü kod temizliği** (flow + flowweb; risksiz silme) | 49 | TAMAM |
+| 3 | **flowweb hata/lint**: 4× `prefer-const`, `@ts-nocheck`, 8 `<img alt>`, gerçek modülü sınayan tarih testi | 53 | HAZIR |
+| 3b | flowweb: 45 kullanılmayan değişken + 18 `exhaustive-deps` (tek tek) | 54 | sırada |
+| 4 | **flow tip ve tarih hataları**: kalan tsc hataları, `OdemeTakvimiScreen` saat dilimi, `import/no-duplicates`, kullanılmayan değişkenler | 55 | sırada |
+| 5 | **CI kapıları**: tam `tsc` + ESLint (flow'da React Compiler kuralları hariç) CI'ya eklenir, `npm audit` bilgi amaçlı | 56 | sırada (3–4'ten sonra) |
+| 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | sırada |
+| 7 | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 61 | sırada |
+| 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 62+ | sırada |
+| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 64+ | sırada |
 | 10 | **Bağımlılıklar**: `npm audit` düzeltmeleri (web: nanoid/postcss/sharp/source-map-js; mobil: `expo install --fix` ile), `xlsx` kararı | 70+ | sırada |
 
 3–10. fazların talimatları, bir önceki faz ONAYLANDIKÇA yazılır (her biri bir önceki fazın sonucuna ve dosyaların güncel hâline dayanır; yama güncel koddan üretilir).
