@@ -1,0 +1,71 @@
+From 0b0090bc91c6df841a19d043e7ad6c99a11f2d61 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 16:52:12 +0000
+Subject: [PATCH] fix(i18n): eksik common.cancel anahtari eklendi (web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md        | 1 +
+ messages/de.json | 3 ++-
+ messages/en.json | 3 ++-
+ messages/tr.json | 3 ++-
+ 4 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 3a510fb..d22ddc4 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Eksik çeviri anahtarı:** Tüm `t("…")` çağrıları tr/en/de dosyalarıyla karşılaştırıldı; tek eksik `common.cancel` (Randevu rezervasyon penceresi "İptal" düğmesi) eklendi.
+ - **[09.10.2026] Kalite Faz 6B (i18n + e-posta doğrulama sayfası):** Doğrulama sayfası (`verify-email`), Onboarding formu, Müşteriler, Randevu (takvim yönetimi, rezervasyon penceresi), Gönderiler tablosu, Paylaşım uyarıları, Gelen Kutusu uyarıları, Çoklu Takvim anahtarı, Fatura kartı ve Kenar Çubuğu'ndaki sabit metinler tr/en/de anahtarlarına taşındı (78 yeni anahtar). Doğrulama sayfasında "Tekrar Gönder" artık 60 sn bekleme sayacı gösterir, hız sınırında anlaşılır uyarı verir ve hesap zaten doğrulanmışsa kullanıcıyı yanıltmaz (Supabase bu durumda e-posta göndermez ama başarılı döner); "Giriş sayfasına dön" bağlantısı eklendi. Kayıtta kullanıcının dili (`locale`) Supabase'e iletilir; e-posta şablonu bu dile göre seçilir. Kenar çubuğu ve doğrulama sayfasındaki `useEffect` bağımlılık uyarıları giderildi (38 → 37).
+ - **[09.10.2026] Kalite Faz 6A (i18n, Analiz sayfası):** `analiz/page.tsx` içindeki ~100 sabit Türkçe/İngilizce metin (kart başlıkları, tablo sütunları, grafik etiketleri, gün kısaltmaları, ısı haritası ipucu, Gelen Kutusu analizleri) `analizPage.*` anahtarlarına taşındı; tr/en/de 76 yeni anahtar. Ekran dili artık seçilen dille değişir; "Best times" ve saat ipucu da çevrilir (12 saat "am/pm" yerine 24 saat biçimi).
+ - **[09.10.2026] Kalite Faz 5 (CI kapıları):** CI artık `npm ci` + `tsc --noEmit` (hata olursa kırmızı) + ESLint çıtası çalıştırıyor. Çıta (`scripts/ci/eslint-ratchet.mjs`): hata/uyarı sayısı kayıtlı tabanı (0 hata, 38 uyarı) AŞAMAZ; temizlik yapıldıkça taban düşürülür. Yeni kod mevcut kaliteyi bozamaz.
+diff --git a/messages/de.json b/messages/de.json
+index 270b67c..764cbf8 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -113,7 +113,8 @@
+       "wahaPairingCodeFailed": "Kopplungscode konnte nicht abgerufen werden",
+       "wahaAccountNotActive": "WhatsApp kann nicht verbunden werden, weil Ihr Konto nicht aktiv ist. Bitte kontaktieren Sie den Support."
+     },
+-    "all": "Alle"
++    "all": "Alle",
++    "cancel": "Abbrechen"
+   },
+   "nav": {
+     "home": "Startseite",
+diff --git a/messages/en.json b/messages/en.json
+index ece3a9a..93948db 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -113,7 +113,8 @@
+       "wahaPairingCodeFailed": "Could not retrieve pairing code",
+       "wahaAccountNotActive": "WhatsApp cannot be connected because your account is not active. Please contact support."
+     },
+-    "all": "All"
++    "all": "All",
++    "cancel": "Cancel"
+   },
+   "nav": {
+     "home": "Home",
+diff --git a/messages/tr.json b/messages/tr.json
+index dfdd526..18264a8 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -113,7 +113,8 @@
+       "wahaPairingCodeFailed": "Eşleşme kodu alınamadı",
+       "wahaAccountNotActive": "Hesabınız etkin olmadığı için WhatsApp bağlantısı kurulamıyor. Lütfen destekle iletişime geçin."
+     },
+-    "all": "Tümü"
++    "all": "Tümü",
++    "cancel": "İptal"
+   },
+   "nav": {
+     "home": "Anasayfa",
+-- 
+2.43.0
+

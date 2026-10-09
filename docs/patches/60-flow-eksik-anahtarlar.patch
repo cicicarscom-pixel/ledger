@@ -1,0 +1,441 @@
+From 670fc41c5e8f2767ee625ff9a5702586f7441c86 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 16:52:22 +0000
+Subject: [PATCH] fix(i18n): kodda cagrilip locale dosyalarinda olmayan 31
+ anahtar eklendi, Muhasebecim bagli ekrani ham anahtar gostermiyor (mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/core/i18n/locales/de.json                 | 50 +++++++++++++++----
+ src/core/i18n/locales/en.json                 | 50 +++++++++++++++----
+ src/core/i18n/locales/tr.json                 | 50 +++++++++++++++----
+ .../presentation/screens/MuhasebecimScreen.js | 10 ++--
+ .../presentation/screens/SosyalMedyaScreen.js |  2 +-
+ 6 files changed, 130 insertions(+), 33 deletions(-)
+
+diff --git a/README.md b/README.md
+index a33f451..4c7c091 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 09.10.2026 — Eksik çeviri anahtarları (mobil): kodda çağrılıp tr/en/de dosyalarında bulunmayan 31 anahtar eklendi. En görünür hata: Muhasebecim "bağlı" ekranında başlık ve hızlı eylem düğmeleri ham anahtar adıyla görünüyordu (`muhasebecimScreen.connected.title` vb.); Sosyal Medya hesap bağlantısını kesme uyarısı, bağlı/bağlı değil etiketleri, Sohbet menüsü, Randevu rezervasyon penceresi ve AI Muhasebe kartları artık seçili dilde. Bağlantıyı kes onayı platform adını parametre olarak alır.
+ - 09.10.2026 — Kalite Faz 6C/6D (i18n, mobil): `AiUretimScreen` (platform formları, ipuçları, zamanlama), `AnalyticsScreen` (kart başlıkları, tablo sütunları), Müşteri detayı ve listesi, Sohbet/Gelen Kutusu/Sosyal Medya ekranlarındaki ~110 sabit metin tr/en/de anahtarlarına taşındı (79 yeni anahtar). ESLint sabit-metin hataları 110 azaldı (211 → 101); çıta tabanı güncellendi. Marka adları (YouTube, Instagram…) ve para simgesi bilerek sabit bırakıldı.
+ - 09.10.2026 — Kalite Faz 5 (CI kapıları): CI artık `npm ci` + `tsc --noEmit` (hata olursa kırmızı) + ESLint çıtası çalıştırıyor. Çıta (`scripts/ci/eslint-ratchet.mjs`): hata/uyarı sayısı kayıtlı tabanı (211 hata, 122 uyarı; çoğu React Compiler kuralları ve i18n sabit metinleri) AŞAMAZ; temizlik yapıldıkça taban düşürülür. Yeni kod mevcut borcu artıramaz.
+ - 09.10.2026 — Kalite Faz 4 (mobil): `tsc --noEmit` 20 hata → 0. Gerçek hata düzeltildi: iptal edilen randevunun "iptal nedeni" varlığa hiç aktarılmıyordu, Randevular ekranındaki neden rozeti hiç görünmüyordu (`Appointment.cancelReason`). Ödeme Takvimi ekranı: ay sınırları `toISOString().split('T')` yerine `monthRangeYmd` ile, "bugün" işaretçisi cihazın değil işletmenin saat dilimine göre (`todayInTimezone`). 19 tekrarlı `import` birleştirildi; kullanılmayan import ve `catch` bağlayıcıları temizlendi (`no-unused-vars` 127 → 61). React Compiler kuralları ve i18n sabit metinleri sonraki fazlarda.
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 8b4d222..8c4cdf5 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -47,7 +47,10 @@
+       "shareFailedMessage": "Ihr Beitrag konnte nicht geteilt werden. Überprüfen Sie Ihre Kontoverbindungen.",
+       "shareSuccessMessage": "Ihr Inhalt wurde erfolgreich auf den ausgewählten Plattformen geteilt!",
+       "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten.",
+-      "imageSelectError": "Beim Auswählen des Bildes ist ein Problem aufgetreten."
++      "imageSelectError": "Beim Auswählen des Bildes ist ein Problem aufgetreten.",
++      "disconnectTitle": "Verbindung trennen",
++      "disconnectConfirm": "Möchten Sie die Verbindung zu Ihrem {{platform}}-Konto wirklich trennen?",
++      "disconnected": "Kontoverbindung getrennt."
+     },
+     "ui": {
+       "title": "Social Media KI",
+@@ -61,7 +64,8 @@
+       "sync": "Synchronisieren",
+       "active": "Aktiv",
+       "noAccountsYet": "Sie haben noch kein verbundenes Konto.",
+-      "connectNewAccount": "Neues Konto verbinden"
++      "connectNewAccount": "Neues Konto verbinden",
++      "shareCenterDesc": "Social-Media-Beiträge erstellen und teilen"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} ausgewählt",
+@@ -77,7 +81,8 @@
+         "comments": "Kommentare",
+         "reviews": "Bewertungen"
+       },
+-      "selectAll": "Alle auswählen"
++      "selectAll": "Alle auswählen",
++      "selected": "Ausgewählt"
+     },
+     "bot": {
+       "title": "Bot-Verwaltung",
+@@ -263,7 +268,18 @@
+       "liRepostTip2": "Der ursprüngliche Beitrag wird unter Ihrem Text eingebettet. Medien werden bei einem Repost nicht unterstützt.",
+       "tweetN": "Tweet {{n}}",
+       "addTweet": "+ Tweet hinzufügen {{n}}"
+-    }
++    },
++    "chat": {
++      "delete": "Löschen",
++      "edit": "Bearbeiten",
++      "typeMessage": "Nachricht schreiben..."
++    },
++    "assistant": "Social-Media-Assistent",
++    "assistantDesc": "KI antwortet auf DMs und Kommentare",
++    "notConnected": "Noch nicht verbunden",
++    "connectAccount": "Konto verbinden",
++    "connected": "Verbunden",
++    "disconnect": "Verbindung trennen"
+   },
+   "muhasebe": {
+     "aiMuhasebe": {
+@@ -289,7 +305,12 @@
+       "mockBank1": "Garanti BBVA",
+       "mockBank2": "Andere Bank",
+       "incomePercentage": "{{percent}}% Einnahmen",
+-      "expensePercentage": "{{percent}}% Ausgaben"
++      "expensePercentage": "{{percent}}% Ausgaben",
++      "netBalance": "NETTOSALDO",
++      "thisMonthIncome": "Einnahmen diesen Monat",
++      "thisMonthExpense": "Ausgaben diesen Monat",
++      "receivable": "Forderungen",
++      "payable": "Verbindlichkeiten"
+     },
+     "odemeTakvimi": {
+       "title": "Zahlungskalender",
+@@ -381,7 +402,9 @@
+         "genericError": "Ein Fehler ist aufgetreten.",
+         "cancelSuccess": "Termin erfolgreich abgesagt.",
+         "deleteSuccess": "Termin erfolgreich gelöscht."
+-      }
++      },
++      "addAppointment": "Neuen Termin hinzufügen",
++      "saveAppointment": "Termin erstellen"
+     },
+     "block": {
+       "reserve": "Reservieren",
+@@ -405,7 +428,14 @@
+       "confirmRemove": "Diese Reservierung entfernen?",
+       "alreadyBlocked": "Diese Zeit ist bereits reserviert",
+       "noteLabel": "Notiz (optional)",
+-      "notePlaceholder": "Kurze Notiz schreiben…"
++      "notePlaceholder": "Kurze Notiz schreiben…",
++      "scope": "Umfang",
++      "selectedDoctor": "Ausgewählter Arzt",
++      "entireClinic": "Gesamte Praxis",
++      "duration": "Dauer",
++      "start": "Beginn",
++      "end": "Ende",
++      "reasonLabel": "Grund"
+     }
+   },
+   "personas": {
+@@ -471,7 +501,8 @@
+       "german": "Deutsch",
+       "systemDefault": "Automatisch (Gerätesprache)"
+     },
+-    "cancel": "Abbrechen"
++    "cancel": "Abbrechen",
++    "disconnect": "Trennen"
+   },
+   "profil": {
+     "title": "Profileinstellungen",
+@@ -621,7 +652,8 @@
+       "quickActionsTitle": "Schnellaktionen",
+       "sendMessage": "Nachricht senden",
+       "viewDocuments": "Dokumente ansehen",
+-      "disconnect": "Verbindung trennen"
++      "disconnect": "Verbindung trennen",
++      "viewInvoices": "Rechnungen"
+     },
+     "screenTitle": "Mein Steuerberater",
+     "pendingTitle": "Ihre Verbindungsanfrage wurde gesendet",
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 7ec2d26..c415632 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -47,7 +47,10 @@
+       "shareFailedMessage": "Could not share your post. Check your account connections.",
+       "shareSuccessMessage": "Your content has been successfully shared on selected platforms!",
+       "unexpectedError": "An unexpected error occurred.",
+-      "imageSelectError": "An error occurred while selecting the image."
++      "imageSelectError": "An error occurred while selecting the image.",
++      "disconnectTitle": "Disconnect",
++      "disconnectConfirm": "Are you sure you want to disconnect your {{platform}} account?",
++      "disconnected": "Account disconnected."
+     },
+     "ui": {
+       "title": "Social Media AI",
+@@ -61,7 +64,8 @@
+       "sync": "Sync",
+       "active": "Active",
+       "noAccountsYet": "You don't have any connected accounts yet.",
+-      "connectNewAccount": "Connect New Account"
++      "connectNewAccount": "Connect New Account",
++      "shareCenterDesc": "Create and share social media posts"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} Selected",
+@@ -77,7 +81,8 @@
+         "comments": "Comments",
+         "reviews": "Reviews"
+       },
+-      "selectAll": "Select All"
++      "selectAll": "Select All",
++      "selected": "Selected"
+     },
+     "bot": {
+       "title": "Bot Management",
+@@ -263,7 +268,18 @@
+       "liRepostTip2": "The original post is embedded below your text. Media is not supported in a repost.",
+       "tweetN": "Tweet {{n}}",
+       "addTweet": "+ add tweet {{n}}"
+-    }
++    },
++    "chat": {
++      "delete": "Delete",
++      "edit": "Edit",
++      "typeMessage": "Type a message..."
++    },
++    "assistant": "Social Media Assistant",
++    "assistantDesc": "Let AI reply to DMs and comments",
++    "notConnected": "Not connected yet",
++    "connectAccount": "Connect Account",
++    "connected": "Connected",
++    "disconnect": "Disconnect"
+   },
+   "muhasebe": {
+     "aiMuhasebe": {
+@@ -289,7 +305,12 @@
+       "mockBank1": "Garanti BBVA",
+       "mockBank2": "Other Bank",
+       "incomePercentage": "{{percent}}% Income",
+-      "expensePercentage": "{{percent}}% Expense"
++      "expensePercentage": "{{percent}}% Expense",
++      "netBalance": "NET BALANCE",
++      "thisMonthIncome": "Income This Month",
++      "thisMonthExpense": "Expenses This Month",
++      "receivable": "Receivable",
++      "payable": "Payable"
+     },
+     "odemeTakvimi": {
+       "title": "Payment Calendar",
+@@ -381,7 +402,9 @@
+         "genericError": "An error occurred.",
+         "cancelSuccess": "Appointment cancelled successfully.",
+         "deleteSuccess": "Appointment deleted successfully."
+-      }
++      },
++      "addAppointment": "Add New Appointment",
++      "saveAppointment": "Create Appointment"
+     },
+     "block": {
+       "reserve": "Reserve",
+@@ -405,7 +428,14 @@
+       "confirmRemove": "Remove this reservation?",
+       "alreadyBlocked": "This time is already reserved",
+       "noteLabel": "Note (optional)",
+-      "notePlaceholder": "Write a short note…"
++      "notePlaceholder": "Write a short note…",
++      "scope": "Scope",
++      "selectedDoctor": "Selected doctor",
++      "entireClinic": "Whole clinic",
++      "duration": "Duration",
++      "start": "Start",
++      "end": "End",
++      "reasonLabel": "Reason"
+     }
+   },
+   "personas": {
+@@ -471,7 +501,8 @@
+       "german": "Deutsch",
+       "systemDefault": "Automatic (Device Language)"
+     },
+-    "cancel": "Cancel"
++    "cancel": "Cancel",
++    "disconnect": "Disconnect"
+   },
+   "profil": {
+     "title": "Profile Settings",
+@@ -621,7 +652,8 @@
+       "quickActionsTitle": "Quick Actions",
+       "sendMessage": "Send Message",
+       "viewDocuments": "View Documents",
+-      "disconnect": "Disconnect"
++      "disconnect": "Disconnect",
++      "viewInvoices": "Invoices"
+     },
+     "screenTitle": "My Accountant",
+     "pendingTitle": "Your connection request was sent",
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index a667ff1..737ae65 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -47,7 +47,10 @@
+       "shareFailedMessage": "Gönderiniz paylaşılamadı. Hesap bağlantılarınızı kontrol edin.",
+       "shareSuccessMessage": "İçeriğiniz seçili platformlarda başarıyla paylaşıldı!",
+       "unexpectedError": "Beklenmeyen bir hata oluştu.",
+-      "imageSelectError": "Resim seçilirken bir sorun oluştu."
++      "imageSelectError": "Resim seçilirken bir sorun oluştu.",
++      "disconnectTitle": "Bağlantıyı Kes",
++      "disconnectConfirm": "{{platform}} hesabınızın bağlantısını kesmek istediğinize emin misiniz?",
++      "disconnected": "Hesap bağlantısı kesildi."
+     },
+     "ui": {
+       "title": "Sosyal Medya AI",
+@@ -61,7 +64,8 @@
+       "sync": "Senkronize Et",
+       "active": "Aktif",
+       "noAccountsYet": "Henüz bağlı bir hesabınız bulunmuyor.",
+-      "connectNewAccount": "Yeni Hesap Bağla"
++      "connectNewAccount": "Yeni Hesap Bağla",
++      "shareCenterDesc": "Sosyal medya gönderileri oluşturun ve paylaşın"
+     },
+     "inbox": {
+       "selectedCount": "{{count}} Seçildi",
+@@ -77,7 +81,8 @@
+         "comments": "Yorumlar",
+         "reviews": "Değerlendirmeler"
+       },
+-      "selectAll": "Tümünü Seç"
++      "selectAll": "Tümünü Seç",
++      "selected": "Seçildi"
+     },
+     "bot": {
+       "title": "Bot Yönetimi",
+@@ -263,7 +268,18 @@
+       "liRepostTip2": "Orijinal gönderi, metninizin altına gömülür. Medya, bir yeniden paylaşımda (repost) desteklenmez.",
+       "tweetN": "Tweet {{n}}",
+       "addTweet": "+ tweet ekle {{n}}"
+-    }
++    },
++    "chat": {
++      "delete": "Sil",
++      "edit": "Düzenle",
++      "typeMessage": "Mesaj yazın..."
++    },
++    "assistant": "Sosyal Medya Asistanı",
++    "assistantDesc": "Yapay zeka DM ve yorumlara yanıt versin",
++    "notConnected": "Henüz bağlanmadı",
++    "connectAccount": "Hesap Bağla",
++    "connected": "Bağlı",
++    "disconnect": "Bağlantıyı Kes"
+   },
+   "muhasebe": {
+     "aiMuhasebe": {
+@@ -289,7 +305,12 @@
+       "mockBank1": "Garanti BBVA",
+       "mockBank2": "Diğer Banka",
+       "incomePercentage": "%{{percent}} Gelir",
+-      "expensePercentage": "%{{percent}} Gider"
++      "expensePercentage": "%{{percent}} Gider",
++      "netBalance": "NET BAKİYE",
++      "thisMonthIncome": "Bu Ay Gelir",
++      "thisMonthExpense": "Bu Ay Gider",
++      "receivable": "Alacak",
++      "payable": "Borç"
+     },
+     "odemeTakvimi": {
+       "title": "Ödeme Takvimi",
+@@ -381,7 +402,9 @@
+         "genericError": "Bir hata oluştu.",
+         "cancelSuccess": "Randevu başarıyla iptal edildi.",
+         "deleteSuccess": "Randevu başarıyla silindi."
+-      }
++      },
++      "addAppointment": "Yeni Randevu Ekle",
++      "saveAppointment": "Randevu Oluştur"
+     },
+     "block": {
+       "reserve": "Rezerve et",
+@@ -405,7 +428,14 @@
+       "confirmRemove": "Bu rezervasyon kaldırılsın mı?",
+       "alreadyBlocked": "Bu saat zaten rezerve",
+       "noteLabel": "Not (isteğe bağlı)",
+-      "notePlaceholder": "Kısa bir not yazın…"
++      "notePlaceholder": "Kısa bir not yazın…",
++      "scope": "Kapsam",
++      "selectedDoctor": "Seçili doktor",
++      "entireClinic": "Tüm klinik",
++      "duration": "Süre",
++      "start": "Başlangıç",
++      "end": "Bitiş",
++      "reasonLabel": "Neden"
+     }
+   },
+   "personas": {
+@@ -471,7 +501,8 @@
+       "german": "Deutsch",
+       "systemDefault": "Cihaz Diline Göre Otomatik"
+     },
+-    "cancel": "İptal"
++    "cancel": "İptal",
++    "disconnect": "Kes"
+   },
+   "profil": {
+     "title": "Profil Ayarları",
+@@ -621,7 +652,8 @@
+       "quickActionsTitle": "Hızlı Eylemler",
+       "sendMessage": "Mesaj Gönder",
+       "viewDocuments": "Belgeleri Gör",
+-      "disconnect": "Bağlantıyı Kes"
++      "disconnect": "Bağlantıyı Kes",
++      "viewInvoices": "Faturalar"
+     },
+     "screenTitle": "Muhasebecim",
+     "pendingTitle": "Bağlantı isteğiniz gönderildi",
+diff --git a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+index a999a83..0921ae0 100644
+--- a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
++++ b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+@@ -257,7 +257,7 @@ export default function MuhasebecimScreen({ navigation }) {
+     const dateStr = firm?.connected_at ? new Date(firm.connected_at).toLocaleDateString() : '';
+     return (
+     <View style={styles.stateContainer}>
+-      <Text style={styles.headerTitle}>{t('muhasebecimScreen.connected.title')}</Text>
++      <Text style={styles.headerTitle}>{t('muhasebecimScreen.screenTitle')}</Text>
+       
+       <View style={styles.profileCard}>
+         <View style={styles.profileRow}>
+@@ -274,27 +274,27 @@ export default function MuhasebecimScreen({ navigation }) {
+         </View>
+       </View>
+ 
+-      <Text style={styles.sectionTitle}>{t('muhasebecimScreen.connected.actionsTitle')}</Text>
++      <Text style={styles.sectionTitle}>{t('muhasebecimScreen.connected.quickActionsTitle')}</Text>
+       <View style={styles.quickActionsGrid}>
+         <TouchableOpacity style={styles.quickActionBtn}>
+           <View style={styles.quickActionIcon}>
+             <MaterialIcons name="receipt" size={24} color={COLORS.textPrimary} />
+           </View>
+-          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.actionInvoices')}</Text>
++          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.viewInvoices')}</Text>
+         </TouchableOpacity>
+         
+         <TouchableOpacity style={styles.quickActionBtn}>
+           <View style={styles.quickActionIcon}>
+             <MaterialIcons name="description" size={24} color={COLORS.textPrimary} />
+           </View>
+-          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.actionDocuments')}</Text>
++          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.viewDocuments')}</Text>
+         </TouchableOpacity>
+         
+         <TouchableOpacity style={styles.quickActionBtn}>
+           <View style={styles.quickActionIcon}>
+             <MaterialIcons name="chat" size={24} color={COLORS.textPrimary} />
+           </View>
+-          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.actionMessage')}</Text>
++          <Text style={styles.quickActionText}>{t('muhasebecimScreen.connected.sendMessage')}</Text>
+         </TouchableOpacity>
+         
+         <TouchableOpacity style={styles.quickActionBtn} onPress={handleDisconnect} disabled={isLoading}>
+diff --git a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+index 17047d9..3266695 100644
+--- a/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/SosyalMedyaScreen.js
+@@ -281,7 +281,7 @@ export default function SosyalMedyaScreen({ navigation }) {
+   const handleDisconnect = (accountId, platform) => {
+     Alert.alert(
+       t('sosyalMedya.alerts.disconnectTitle', 'Bağlantıyı Kes'),
+-      t('sosyalMedya.alerts.disconnectConfirm', `${platform} hesabınızın bağlantısını kesmek istediğinize emin misiniz?`),
++      t('sosyalMedya.alerts.disconnectConfirm', { platform }),
+       [
+         { text: t('common.cancel', 'İptal'), style: 'cancel' },
+         { 
+-- 
+2.43.0
+
