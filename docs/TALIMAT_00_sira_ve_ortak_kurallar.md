@@ -56,6 +56,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 52 | `TALIMAT_52_eas_hesabi_agents.md` (hazır yama) | flow | yok | GEREKLİ |
 | 53 | `TALIMAT_53_kalite_faz3_flowweb.md` (Kalite Faz 3; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 53b | `TALIMAT_53b_flow_ses_modulu_koruma.md` (hazır yama; kırmızı ekran koruması) | flow | yok | GEREKLİ |
+| 54 | `TALIMAT_54_kalite_faz3b_flowweb.md` (Kalite Faz 3b; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

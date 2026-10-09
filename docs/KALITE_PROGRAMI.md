@@ -13,8 +13,9 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 |---|---|---|---|
 | 1 | **Güvenlik** (TAMAM): 1A flowweb ölü `zernio.ts` silinir (NEXT_PUBLIC anahtar riski); 1B Supabase fonksiyon yetkileri (SQL: kullanıcı); 1C Auth sızdırılmış parola koruması (panel: kullanıcı) | 48 | HAZIR |
 | 2 | **Ölü kod temizliği** (flow + flowweb; risksiz silme) | 49 | TAMAM |
-| 3 | **flowweb hata/lint**: 4× `prefer-const`, `@ts-nocheck`, 8 `<img alt>`, gerçek modülü sınayan tarih testi | 53 | HAZIR |
-| 3b | flowweb: 45 kullanılmayan değişken + 18 `exhaustive-deps` (tek tek) | 54 | sırada |
+| 3 | **flowweb hata/lint**: 4× `prefer-const`, `@ts-nocheck`, 8 `<img alt>`, gerçek modülü sınayan tarih testi | 53 | TAMAM |
+| 3b | flowweb: 44/45 kullanılmayan değişken + 4/18 `exhaustive-deps` (`supabase`). Kalan 14 `exhaustive-deps` (işlev bağımlılıkları, `useCallback` gerekir) → Faz 3c | 54 | HAZIR |
+| 3c | flowweb: kalan 14 `exhaustive-deps` (gelen-kutusu, inbox, analiz, sosyal-medya, ai-asistan, odeme-takvimi, muhasebecim, Anasayfa, verify-email) — her biri davranış testi gerektirir | 54c | sırada |
 | 4 | **flow tip ve tarih hataları**: kalan tsc hataları, `OdemeTakvimiScreen` saat dilimi, `import/no-duplicates`, kullanılmayan değişkenler | 55 | sırada |
 | 5 | **CI kapıları**: tam `tsc` + ESLint (flow'da React Compiler kuralları hariç) CI'ya eklenir, `npm audit` bilgi amaçlı | 56 | sırada (3–4'ten sonra) |
 | 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | sırada |

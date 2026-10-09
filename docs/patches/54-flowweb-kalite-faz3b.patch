@@ -1,0 +1,601 @@
+From fe7007908dce75d4b95e5367648679db6c3e905d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 9 Oct 2026 14:23:54 +0000
+Subject: [PATCH] chore(quality): kullanilmayan degisken uyarilari 45->1,
+ Anasayfa'da kullanilmayan sorgular kaldirildi (Kalite Faz 3b)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/actions/calendars.ts                      |  5 +-
+ src/actions/customers.ts                      |  1 -
+ .../HizmetAyarlariClient.tsx                  |  2 +-
+ src/app/(dashboard)/ai-asistan/page.tsx       |  2 +-
+ .../ai-asistan/randevu/RandevuClient.tsx      | 15 +---
+ .../(dashboard)/ai-muhasebe/isletmem/page.tsx |  1 -
+ .../ai-muhasebe/muhasebecim/page.tsx          |  8 +--
+ src/app/(dashboard)/ai-muhasebe/page.tsx      |  4 +-
+ src/app/(dashboard)/gelen-kutusu/page.tsx     |  9 +--
+ .../musteriler/MusterilerClient.tsx           |  2 +-
+ src/app/(dashboard)/page.tsx                  | 71 +------------------
+ src/app/(dashboard)/profil/page.tsx           |  2 +-
+ src/app/(dashboard)/sosyal-medya/page.tsx     |  2 +-
+ .../(dashboard)/sosyal-medya/posts/page.tsx   |  2 +-
+ .../(dashboard)/sosyal-medya/share/page.tsx   |  4 +-
+ src/components/chat/AiChatInput.tsx           |  1 -
+ .../dashboard/AppointmentNotifications.tsx    |  8 +--
+ src/components/layout/Header.tsx              |  4 --
+ .../settings/MultiCalendarToggle.tsx          |  2 -
+ src/i18n/request.ts                           |  4 +-
+ src/lib/supabase/server.ts                    |  2 +-
+ src/proxy.ts                                  |  2 +-
+ 23 files changed, 31 insertions(+), 123 deletions(-)
+
+diff --git a/README.md b/README.md
+index 5d7d3fd..d306b66 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[09.10.2026] Kalite Faz 3b:** ESLint uyarıları 86 → 38: kullanılmayan değişken/import/parametre uyarıları 45 → 1 (kalan: `muhasebecim` `handleDisconnect`, muhasebeci bağlantı yaşam döngüsü işiyle birlikte ele alınacak); Anasayfa'da sonucu hiçbir yerde kullanılmayan ödeme takvimi RPC'si ve 4 platform sayacı sorgusu kaldırıldı (her açılışta 5 gereksiz istek); 4 `useEffect` bağımlılığına `supabase` eklendi (tarayıcıda tek örnek olduğundan davranış değişmez). Tam `tsc` hatasız.
+ - **[09.10.2026] Kalite Faz 3:** ESLint hataları 5 → 0 (`prefer-const`, `@ts-nocheck`); 8 `<img>` alt metni (süs avatarlar `alt=""`); `(dashboard)/page.tsx`'te kullanılmayan `inc/exp` kaldırıldı; `lib/dates.test.ts` artık gerçek `dates.ts` modülünü sınıyor (önceden fonksiyonların kopyasını sınıyordu); Deno testleri `tsconfig`/ESLint dışında. Tam `tsc --strict` ve `deno test` temiz.
+ - **[09.10.2026] Temizlik (Kalite Faz 2):** hiçbir yerden çağrılmayan ve tablo izinleriyle zaten çalışmayan sunucu işlemleri (`actions/accounting.ts`, `actions/insights.ts`) ile derlenemeyen eski `docs/archive/test_appts.ts` silindi; tam `tsc` artık hatasız.
+ - **[09.10.2026] Güvenlik (Kalite Faz 1A):** hiçbir yerden çağrılmayan `src/actions/zernio.ts` silindi (Zernio ile tüm iletişim Supabase `zernio-client` Edge Function'ı üzerinden; anahtar yalnız Supabase Secrets'ta). Dosya, tarayıcıya gömülen `NEXT_PUBLIC_ZERNIO_API_KEY` adını da okuyordu; bu risk kökünden kalktı. Vercel'de Zernio anahtarına gerek yoktur.
+diff --git a/src/actions/calendars.ts b/src/actions/calendars.ts
+index 2db2140..be91244 100644
+--- a/src/actions/calendars.ts
++++ b/src/actions/calendars.ts
+@@ -62,7 +62,10 @@ export async function createCalendar(name: string, workingHours?: any): Promise<
+ export async function updateCalendar(id: string, changes: Partial<Calendar>): Promise<{ success: boolean; error?: string }> {
+   const supabase = await createClient();
+   
+-  const { id: _, merchant_id: __, services: ___, ...safeChanges } = changes;
++  const safeChanges = { ...changes };
++  delete safeChanges.id;
++  delete safeChanges.merchant_id;
++  delete safeChanges.services;
+   
+   const { error } = await supabase
+     .from("calendars")
+diff --git a/src/actions/customers.ts b/src/actions/customers.ts
+index 6ec31c3..01e71ae 100644
+--- a/src/actions/customers.ts
++++ b/src/actions/customers.ts
+@@ -1,7 +1,6 @@
+ 'use server'
+ 
+ import { createClient } from '@/lib/supabase/server'
+-import { getTranslations } from 'next-intl/server'
+ 
+ export async function getCustomers() {
+   try {
+diff --git a/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx b/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
+index 940985f..284ac53 100644
+--- a/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/isletme-hizmetleri/HizmetAyarlariClient.tsx
+@@ -6,7 +6,7 @@ import { createBusinessService, updateBusinessService, deleteBusinessService } f
+ 
+ export default function HizmetAyarlarıiClient({ initialServices }: { initialServices: any[] }) {
+   const t = useTranslations();
+-  const [services, setServices] = useState(initialServices);
++  const [services] = useState(initialServices);
+   const [selectedService, setSelectedService] = useState<any>(null);
+   const [isPending, startTransition] = useTransition();
+ 
+diff --git a/src/app/(dashboard)/ai-asistan/page.tsx b/src/app/(dashboard)/ai-asistan/page.tsx
+index ccfc0ef..4721520 100644
+--- a/src/app/(dashboard)/ai-asistan/page.tsx
++++ b/src/app/(dashboard)/ai-asistan/page.tsx
+@@ -329,7 +329,7 @@ export default function BotScreen() {
+       } else {
+         setMessages(prev => [...prev, { role: 'bot', content: data?.text || t("aiAsistanPage.alerts.noResponse") }]);
+       }
+-    } catch (e: any) {
++    } catch {
+       setMessages(prev => [...prev, { role: 'bot', content: t("aiAsistanPage.alerts.systemError") }]);
+     } finally {
+       setIsTyping(false);
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+index a548a80..1547397 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/RandevuClient.tsx
+@@ -7,17 +7,6 @@ import { createClient } from '@/lib/supabase/client';
+ import { getAppointmentsByDate, getAvailableSlots, createAppointment, cancelAppointment, deleteAppointment, getDaySchedule, createCalendarBlock, deleteCalendarBlock } from '@/actions/appointments';
+ import { dateFromYmd } from '@/lib/dates';
+ 
+-const TIME_SLOTS = (() => {
+-  const slots = [];
+-  for (let h = 8; h < 24; h++) {
+-    ['00', '30'].forEach(m => {
+-      slots.push({ time: `${String(h).padStart(2, '0')}:${m}` });
+-    });
+-  }
+-  slots.push({ time: '00:00' });
+-  return slots;
+-})();
+-
+ const CARD_COLORS = [
+   { bg: 'rgba(34,181,115,0.1)', border: 'rgba(34,181,115,0.3)', text: '#22B573', icon: '✂️' },
+   { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', text: '#F59E0B', icon: '✨' },
+@@ -84,7 +73,7 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+   const [activeCalendarId, setActiveCalendarId] = useState<string | null>(null);
+   const [calendars, setCalendars] = useState(initialCalendars || []);
+   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+-  const [promptConfig, setPromptConfig] = useState({ visible: false, title: "", placeholder: "", value: "", onSave: (val: string) => {} });
++  const [promptConfig, setPromptConfig] = useState<{ visible: boolean; title: string; placeholder: string; value: string; onSave: (val: string) => void }>({ visible: false, title: "", placeholder: "", value: "", onSave: () => {} });
+   const t = useTranslations();
+   const supabase = createClient();
+   const searchParams = useSearchParams();
+@@ -123,8 +112,6 @@ export default function RandevuClient({ initialAppointments, services, orgId, to
+   const [reserveNote, setReserveNote] = useState('');
+   const [reserveError, setReserveError] = useState('');
+   const [reserveConflicts, setReserveConflicts] = useState<any[]>([]);
+-  const [popover, setPopover] = useState<any>(null);
+-  const [popoverError, setPopoverError] = useState('');
+ 
+   const add30Mins = (t: string) => {
+     if (!t) return '';
+diff --git a/src/app/(dashboard)/ai-muhasebe/isletmem/page.tsx b/src/app/(dashboard)/ai-muhasebe/isletmem/page.tsx
+index cb80ed2..f2ca369 100644
+--- a/src/app/(dashboard)/ai-muhasebe/isletmem/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/isletmem/page.tsx
+@@ -1,4 +1,3 @@
+-import Link from 'next/link';
+ import { getTranslations } from 'next-intl/server';
+ import styles from './page.module.css';
+ 
+diff --git a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+index d598a8e..42f6a37 100644
+--- a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+@@ -65,7 +65,7 @@ export default function MuhasebecimPage() {
+         } else {
+           alert(t("aiMuhasebePage.muhasebecim.actionError"));
+         }
+-      } catch (err) {
++      } catch {
+         alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       } finally {
+         setIsLoading(false);
+@@ -91,7 +91,7 @@ export default function MuhasebecimPage() {
+       } else {
+         alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       }
+-    } catch (err) {
++    } catch {
+       alert(t("aiMuhasebePage.muhasebecim.actionError"));
+     } finally {
+       setIsLoading(false);
+@@ -104,7 +104,7 @@ export default function MuhasebecimPage() {
+       const { error } = await supabase.rpc('cancel_accountant_request');
+       if (error) throw error;
+       checkConnection();
+-    } catch (err) {
++    } catch {
+       alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       setIsLoading(false);
+     }
+@@ -117,7 +117,7 @@ export default function MuhasebecimPage() {
+         const { error } = await supabase.rpc('disconnect_current_accountant', { p_reason: 'User request' });
+         if (error) throw error;
+         checkConnection();
+-      } catch (err) {
++      } catch {
+         alert(t("aiMuhasebePage.muhasebecim.actionError"));
+         setIsLoading(false);
+       }
+diff --git a/src/app/(dashboard)/ai-muhasebe/page.tsx b/src/app/(dashboard)/ai-muhasebe/page.tsx
+index b5073bd..4e3429c 100644
+--- a/src/app/(dashboard)/ai-muhasebe/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/page.tsx
+@@ -22,13 +22,11 @@ export default function AiMuhasebePage() {
+         const { data: { session } } = await supabase.auth.getSession();
+         const userId = session?.user?.id;
+ 
+-        const now = new Date();
+         let tz = 'Europe/Istanbul';
+         if (userId) {
+           const { data: org } = await supabase.from('organizations').select('timezone').eq('owner_id', userId).maybeSingle();
+           if (org?.timezone) tz = org.timezone;
+         }
+-        const startOfMonth = `${todayInTimezone(tz).slice(0, 7)}-01`;
+ 
+         let totalIncome = 0;
+         let totalExpense = 0;
+@@ -55,7 +53,7 @@ export default function AiMuhasebePage() {
+     };
+ 
+     fetchData();
+-  }, []);
++  }, [supabase]);
+ 
+   const formatCurrency = (amount: number) => formatAmount(amount, locale);
+ 
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index 7f42fe7..e1f33e2 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -190,8 +190,6 @@ function GelenKutusuContent() {
+     if (!conv || !dmText.trim()) return;
+     setIsSendingDM(true);
+     try {
+-      const { data: { session } } = await supabase.auth.getSession();
+-      
+       const { data, error } = await supabase.functions.invoke('zernio-client', {
+         body: {
+           action: 'send-message',
+@@ -244,7 +242,6 @@ function GelenKutusuContent() {
+     if (!privateReplyModal || !privateReplyText.trim()) return;
+     setIsSendingPrivateReply(true);
+     try {
+-      const { data: { session } } = await supabase.auth.getSession();
+       const { data, error } = await supabase.functions.invoke('zernio-client', {
+         body: {
+           action: 'send-private-reply',
+@@ -275,7 +272,7 @@ function GelenKutusuContent() {
+                errorMsg = t("gelenKutusuPage.privateReply.alreadyRepliedError");
+            }
+         }
+-      } catch (err) {}
++      } catch {}
+       alert(t("gelenKutusuPage.privateReply.errorAlertPrefix") + errorMsg);
+     } finally {
+       setIsSendingPrivateReply(false);
+@@ -438,7 +435,7 @@ function GelenKutusuContent() {
+         const userId = sessionData?.session?.user?.id;
+         
+         if (organizationId || userId) {
+-           const { data: picData, error: picError } = await supabase.functions.invoke('zernio-client', {
++           const { data: picData } = await supabase.functions.invoke('zernio-client', {
+               body: { action: 'get-inbox-pictures', payload: { organizationId, userId } }
+            });
+            
+@@ -505,7 +502,7 @@ function GelenKutusuContent() {
+ 
+         setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+         window.dispatchEvent(new Event('appointment-notifications-changed'));
+-      } catch (err: any) {
++      } catch {
+         setNotifError(t('gelenKutusuPage.notifications.markAllError'));
+       } finally {
+         setMarkingAll(false);
+diff --git a/src/app/(dashboard)/musteriler/MusterilerClient.tsx b/src/app/(dashboard)/musteriler/MusterilerClient.tsx
+index 36b1b19..1264222 100644
+--- a/src/app/(dashboard)/musteriler/MusterilerClient.tsx
++++ b/src/app/(dashboard)/musteriler/MusterilerClient.tsx
+@@ -54,7 +54,7 @@ export default function MusterilerClient({ initialCustomers }: { initialCustomer
+         timeZone: tz || 'Europe/Istanbul', 
+         day: 'numeric', month: 'short', weekday: 'short', hour: '2-digit', minute: '2-digit' 
+       }).format(d);
+-    } catch(e) {
++    } catch {
+       return new Date(isoStr).toLocaleString(locale);
+     }
+   };
+diff --git a/src/app/(dashboard)/page.tsx b/src/app/(dashboard)/page.tsx
+index c1742a5..5553f5a 100644
+--- a/src/app/(dashboard)/page.tsx
++++ b/src/app/(dashboard)/page.tsx
+@@ -19,7 +19,6 @@ export default function DashboardHomePage() {
+   const [isLoading, setIsLoading] = useState(true);
+   const [aiActive, setAiActive] = useState(true);
+   const [financeStats, setFinanceStats] = useState({ income: 0, expense: 0 });
+-  const [upcomingPayments, setUpcomingPayments] = useState<any[]>([]);
+   const [socialStats, setSocialStats] = useState({ followers: 0, trend: 0 });
+   const [latestInvoice, setLatestInvoice] = useState<any>(null);
+   const [orgTimezone, setOrgTimezone] = useState('Europe/Istanbul');
+@@ -30,7 +29,6 @@ export default function DashboardHomePage() {
+   const [appointments, setAppointments] = useState<any[]>([]);
+   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
+   const [totalUpcomingAppointments, setTotalUpcomingAppointments] = useState(0);
+-    const [platformStats, setPlatformStats] = useState<{ platform: string; count: number }[]>([]);
+ 
+   const supabase = createClient();
+ 
+@@ -50,7 +48,6 @@ export default function DashboardHomePage() {
+         }
+ 
+         // Finance Stats (Transactions + Finance Documents)
+-        const upcoming: any[] = [];
+         let timezone = 'Europe/Istanbul';
+         if (merchantId) {
+           const { data: org } = await supabase.from('organizations').select('timezone').eq('owner_id', merchantId).maybeSingle();
+@@ -83,24 +80,8 @@ export default function DashboardHomePage() {
+           setFinanceStats({ income: summaryData.income / 100, expense: summaryData.expense / 100 });
+         }
+ 
+-        const futureStr = addDaysYmd(today, 30);
+-        const { data: calendarData } = await supabase.rpc('get_payment_calendar', { p_from: today, p_to: futureStr });
+-        if (calendarData) {
+-          const upcomingList = calendarData
+-            .filter((d: any) => d.type === 'expense' && d.payment_status !== 'paid')
+-            .slice(0, 5)
+-            .map((d: any) => ({
+-               id: d.id,
+-               date: d.day,
+-               amount: d.amount_minor / 100,
+-               description: d.title || t('dashboardHome.defaults.payment'),
+-               type: 'expense'
+-            }));
+-          setUpcomingPayments(upcomingList);
+-        }
+-
+         // Social Stats (Zernio)
+-        const { data: followRes, error: followErr } = await supabase.functions.invoke('zernio-client', {
++        const { data: followRes } = await supabase.functions.invoke('zernio-client', {
+           body: { action: 'get-follower-stats', payload: {} }
+         });
+         
+@@ -229,33 +210,6 @@ export default function DashboardHomePage() {
+           setTodayAppointments((todayData || []).map(mapAppt));
+           setAppointments((upcData || []).map(mapAppt));
+ 
+-          // Platform bazlı toplam müşteri iletişim sayacı (Yorumlar + Mesajlar + WhatsApp AI sohbetleri)
+-        const statsMap: Record<string, number> = {};
+-        if (orgId) {
+-          const { data: commentPlatforms } = await supabase.from('comments').select('platform').eq('profile_id', orgId);
+-          (commentPlatforms || []).forEach((c: any) => {
+-             const p = (c.platform || 'diğer').toLowerCase();
+-             statsMap[p] = (statsMap[p] || 0) + 1;
+-          });
+-          
+-          const { data: messagePlatforms } = await supabase.from('messages').select('conversation_id, conversations(platform)').eq('profile_id', orgId);
+-          (messagePlatforms || []).forEach((m: any) => {
+-             const p = (m.conversations?.platform || 'diğer').toLowerCase();
+-             statsMap[p] = (statsMap[p] || 0) + 1;
+-          });
+-        }
+-        
+-        if (merchantId) {
+-          const { count: waCount } = await supabase.from('ai_communication_logs').select('*', { count: 'exact', head: true });
+-          if (waCount) statsMap['whatsapp'] = (statsMap['whatsapp'] || 0) + waCount;
+-        }
+-        
+-        setPlatformStats(
+-          Object.entries(statsMap)
+-            .map(([platform, count]) => ({ platform, count }))
+-            .sort((a, b) => b.count - a.count)
+-        );
+-
+       } catch (error) {
+         console.warn('Dashboard fetch error:', error);
+       } finally {
+@@ -291,29 +245,6 @@ export default function DashboardHomePage() {
+     return t('dashboardHome.relativeTime.daysAgo', { count: Math.floor(hrs / 24) });
+   };
+ 
+-  function PlatformIcon({ platform, size = 16 }: { platform: string; size?: number }) {
+-    const icons: Record<string, { bg: string; label: string }> = {
+-      instagram: { bg: "linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)", label: "IG" },
+-      tiktok: { bg: "#010101", label: "TK" },
+-      facebook: { bg: "#1877F2", label: "FB" },
+-      youtube: { bg: "#FF0000", label: "YT" },
+-      linkedin: { bg: "#0A66C2", label: "LI" },
+-      google: { bg: "#4285F4", label: "GB" },
+-      whatsapp: { bg: "#25D366", label: "WA" },
+-    };
+-    const p = icons[platform.toLowerCase()] || { bg: "#444", label: "??" };
+-    return (
+-      <span style={{
+-        display: "inline-flex", alignItems: "center", justifyContent: "center",
+-        width: size, height: size, borderRadius: "50%", background: p.bg,
+-        fontSize: size * 0.38, fontWeight: 700, color: "#fff", flexShrink: 0,
+-        fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em",
+-      }}>
+-        {p.label}
+-      </span>
+-    );
+-  }
+-
+   if (isLoading) {
+     return (
+       <div style={{ padding: "28px 32px", display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+diff --git a/src/app/(dashboard)/profil/page.tsx b/src/app/(dashboard)/profil/page.tsx
+index efcdd3a..dc4b9c5 100644
+--- a/src/app/(dashboard)/profil/page.tsx
++++ b/src/app/(dashboard)/profil/page.tsx
+@@ -150,7 +150,7 @@ export default function ProfilPage() {
+       const compressedFile = await compressImage(file);
+       const fileName = `${session.user.id}/avatar-${Date.now()}.jpg`;
+       
+-      const { data, error } = await supabase.storage
++      const { error } = await supabase.storage
+         .from('avatars')
+         .upload(fileName, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+         
+diff --git a/src/app/(dashboard)/sosyal-medya/page.tsx b/src/app/(dashboard)/sosyal-medya/page.tsx
+index 3fb55f8..bc3c2d5 100644
+--- a/src/app/(dashboard)/sosyal-medya/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/page.tsx
+@@ -135,7 +135,7 @@ export default function SosyalMedyaPage() {
+       setSocialBotActive(data.social_bot_active !== false);
+       setSystemBotActive(data.is_active !== false);
+     });
+-  }, []);
++  }, [supabase]);
+ 
+   const handleToggleBot = async (value: boolean) => {
+     setSocialBotActive(value);
+diff --git a/src/app/(dashboard)/sosyal-medya/posts/page.tsx b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+index 50e5073..83480f8 100644
+--- a/src/app/(dashboard)/sosyal-medya/posts/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/posts/page.tsx
+@@ -83,7 +83,7 @@ export default function TumGonderilerPage() {
+       if (debounceTimer) clearTimeout(debounceTimer);
+       supabase.removeChannel(channel);
+     };
+-  }, []);
++  }, [supabase]);
+ 
+   const handleDeletePost = (id: string) => {
+     setDeleteModal({ isOpen: true, postId: id, isBulk: false });
+diff --git a/src/app/(dashboard)/sosyal-medya/share/page.tsx b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+index 3d80e54..2ac8d48 100644
+--- a/src/app/(dashboard)/sosyal-medya/share/page.tsx
++++ b/src/app/(dashboard)/sosyal-medya/share/page.tsx
+@@ -144,7 +144,7 @@ export default function SharePage() {
+       }
+     };
+     fetchAccounts();
+-  }, []);
++  }, [supabase]);
+ 
+   const generateCaption = async () => {
+     if (!aiPrompt.trim()) return;
+@@ -393,7 +393,7 @@ export default function SharePage() {
+         
+         // Zernio schedule format: YYYY-MM-DDTHH:mm:00 
+         finalScheduledFor = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}T${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
+-      } catch (err) {
++      } catch {
+         return bail(t("sharePage.errors.invalidDateFormat"));
+       }
+     }
+diff --git a/src/components/chat/AiChatInput.tsx b/src/components/chat/AiChatInput.tsx
+index 508f0e3..a1cfaac 100644
+--- a/src/components/chat/AiChatInput.tsx
++++ b/src/components/chat/AiChatInput.tsx
+@@ -1,7 +1,6 @@
+ "use client";
+ 
+ import React, { useState, useRef, KeyboardEvent } from "react";
+-import Image from "next/image";
+ import { useTranslations } from "next-intl";
+ 
+ interface AiChatInputProps {
+diff --git a/src/components/dashboard/AppointmentNotifications.tsx b/src/components/dashboard/AppointmentNotifications.tsx
+index f7e1390..bbe2213 100644
+--- a/src/components/dashboard/AppointmentNotifications.tsx
++++ b/src/components/dashboard/AppointmentNotifications.tsx
+@@ -81,7 +81,7 @@ const STRINGS: Record<Locale, {
+     clear: "Clear reports",
+     clearConfirm: "Delete the appointment notification reports? This cannot be undone. (Your appointments and customer conversations are not deleted.)",
+     clearFailed: "Couldn't clear the reports. Please try again shortly.",
+-    sentence: (name, when, calendarName) => `Appointment booked for ${name} on ${when}`,
++    sentence: (name, when) => `Appointment booked for ${name} on ${when}`,
+   },
+   de: {
+     title: "Terminbenachrichtigungen",
+@@ -96,7 +96,7 @@ const STRINGS: Record<Locale, {
+     clear: "Berichte löschen",
+     clearConfirm: "Die Terminbenachrichtigungen löschen? Das kann nicht rückgängig gemacht werden. (Ihre Termine und Kundengespräche werden nicht gelöscht.)",
+     clearFailed: "Die Berichte konnten nicht gelöscht werden. Bitte versuchen Sie es gleich noch einmal.",
+-    sentence: (name, when, calendarName) => `Termin für ${name} am ${when} erstellt`,
++    sentence: (name, when) => `Termin für ${name} am ${when} erstellt`,
+   },
+ };
+ 
+@@ -113,7 +113,7 @@ function formatAppointmentTime(meta: NotificationMetadata, locale: Locale): stri
+       hour: "2-digit",
+       minute: "2-digit",
+     });
+-  } catch (e) {
++  } catch {
+     return "";
+   }
+ }
+@@ -122,7 +122,7 @@ function formatAppointmentTime(meta: NotificationMetadata, locale: Locale): stri
+ function localDateParam(meta: NotificationMetadata): string {
+   try {
+     return new Date(meta.starts_at).toLocaleDateString("en-CA", { timeZone: meta.timezone });
+-  } catch(e) {
++  } catch {
+     return "";
+   }
+ }
+diff --git a/src/components/layout/Header.tsx b/src/components/layout/Header.tsx
+index 6a868b9..f73ea9b 100644
+--- a/src/components/layout/Header.tsx
++++ b/src/components/layout/Header.tsx
+@@ -3,9 +3,7 @@
+ import { usePathname, useRouter } from "next/navigation";
+ import { useEffect, useState } from "react";
+ import { useLocale, useTranslations } from "next-intl";
+-import { createClient } from "@/lib/supabase/client";
+ import { useUnreadAppointmentCount } from "@/components/dashboard/AppointmentNotifications";
+-import { useProfile } from "@/providers/ProfileProvider";
+ 
+ export default function Header() {
+   const pathname = usePathname();
+@@ -14,8 +12,6 @@ export default function Header() {
+   const locale = useLocale();
+   const [dateStr, setDateStr] = useState("");
+   const unreadCount = useUnreadAppointmentCount();
+-  const supabase = createClient();
+-  const { organization } = useProfile();
+ 
+   useEffect(() => {
+     // 'tr-TR' hardcode edilmişti — artık kullanıcının seçtiği/algılanan dile
+diff --git a/src/components/settings/MultiCalendarToggle.tsx b/src/components/settings/MultiCalendarToggle.tsx
+index 1e6664d..72aaabb 100644
+--- a/src/components/settings/MultiCalendarToggle.tsx
++++ b/src/components/settings/MultiCalendarToggle.tsx
+@@ -2,14 +2,12 @@
+ 
+ import React, { useState, useEffect } from "react";
+ import { createClient } from "@/lib/supabase/client";
+-import { useTranslations } from "next-intl";
+ import { toggleMultiCalendarMode } from "@/actions/toggleCalendar";
+ 
+ export default function MultiCalendarToggle() {
+   const [isEnabled, setIsEnabled] = useState(false);
+   const [loading, setLoading] = useState(true);
+   const supabase = createClient();
+-  const t = useTranslations();
+ 
+   useEffect(() => {
+     let sub: ReturnType<typeof supabase.channel> | null = null;
+diff --git a/src/i18n/request.ts b/src/i18n/request.ts
+index 3a4af4d..13a82fa 100644
+--- a/src/i18n/request.ts
++++ b/src/i18n/request.ts
+@@ -46,7 +46,7 @@ export async function resolveLocale(): Promise<AppLocale> {
+     if (isSupportedLocale(cookieLocale)) {
+       return cookieLocale;
+     }
+-  } catch (e) {
++  } catch {
+     // Next.js prerendering will throw on cookies(), ignore and fallback
+   }
+ 
+@@ -54,7 +54,7 @@ export async function resolveLocale(): Promise<AppLocale> {
+     const headerStore = await headers();
+     const detected = detectFromAcceptLanguage(headerStore.get("accept-language"));
+     if (detected) return detected;
+-  } catch (e) {
++  } catch {
+     // Ignore and fallback
+   }
+   
+diff --git a/src/lib/supabase/server.ts b/src/lib/supabase/server.ts
+index 061ebb4..831ca03 100644
+--- a/src/lib/supabase/server.ts
++++ b/src/lib/supabase/server.ts
+@@ -17,7 +17,7 @@ export async function createClient() {
+             cookiesToSet.forEach(({ name, value, options }) => {
+               cookieStore.set(name, value, options)
+             })
+-          } catch (error) {
++          } catch {
+             // The `setAll` method was called from a Server Component.
+             // This can be ignored if you have middleware refreshing
+             // user sessions.
+diff --git a/src/proxy.ts b/src/proxy.ts
+index e0900d5..2d9ce8b 100644
+--- a/src/proxy.ts
++++ b/src/proxy.ts
+@@ -15,7 +15,7 @@ export async function proxy(request: NextRequest) {
+           return request.cookies.getAll()
+         },
+         setAll(cookiesToSet) {
+-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
++          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+           supabaseResponse = NextResponse.next({
+             request,
+           })
+-- 
+2.43.0
+
