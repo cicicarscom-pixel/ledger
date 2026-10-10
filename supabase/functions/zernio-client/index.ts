@@ -728,6 +728,41 @@ serve(async (req) => {
            }));
         }
         
+        // Yorumlarda kayitli kimlik cogunlukla Zernio gonderi kimligidir (ornegin 6ac...). Gelen kutusu listesi ise
+        // platformun kendi kimligini (sayfaId_gonderiId, YouTube video kimligi) dondurdugu icin yukaridaki
+        // eslesme bunlari bulamaz. posts kaydi hala olmayan Zernio kimlikleri icin gonderiyi dogrudan Zernio'dan cekeriz.
+        const { data: unlinkedForPosts } = await supabase.from('comments')
+           .select('zernio_post_id')
+           .eq('profile_id', organizationId)
+           .is('post_id', null)
+           .not('zernio_post_id', 'is', null);
+        const unlinkedIds = [...new Set((unlinkedForPosts || []).map((c: any) => c.zernio_post_id))].slice(0, 30);
+        if (unlinkedIds.length > 0) {
+           const { data: haveRows } = await supabase.from('posts').select('zernio_post_id').in('zernio_post_id', unlinkedIds);
+           const have = new Set((haveRows || []).map((r: any) => r.zernio_post_id));
+           const missingIds = unlinkedIds.filter((id: any) => !have.has(id));
+           await Promise.all(missingIds.map(async (zid: any) => {
+              try {
+                 const res: any = await zernio.posts.getPost(zid);
+                 const zp = res?.data?.post;
+                 if (!zp) return;
+                 const media = (zp.mediaItems || []).map((m: any) => m?.url).filter(Boolean);
+                 const { error: zErr } = await supabase.from('posts').upsert({
+                    profile_id: organizationId,
+                    zernio_post_id: zid,
+                    content: zp.content || '',
+                    media_urls: media,
+                    status: 'published',
+                    platforms: (zp.platforms || []).map((t: any) => t.platform).filter(Boolean),
+                    scheduled_for: zp.scheduledFor || zp.createdAt || new Date().toISOString()
+                 }, { onConflict: 'zernio_post_id', ignoreDuplicates: true });
+                 if (zErr) console.error('sync-comments zernio post stub error', zid, JSON.stringify(zErr));
+              } catch (e) {
+                 console.warn('sync-comments getPost failed', zid, String(e));
+              }
+           }));
+        }
+
         const { data: orphanedComments } = await supabase.from('comments').select('id, zernio_post_id').eq('profile_id', organizationId).is('post_id', null).not('zernio_post_id', 'is', null);
         
         if (orphanedComments && orphanedComments.length > 0) {

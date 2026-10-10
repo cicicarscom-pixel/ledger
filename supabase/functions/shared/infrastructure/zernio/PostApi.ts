@@ -8,6 +8,10 @@ export class PostApi {
     return withRetry(() => this.context.sdk.posts.listPosts({ query: { profileId } }));
   }
 
+  async getPost(postId: string): Promise<ZernioResponse> {
+    return withRetry(() => (this.context.sdk.posts.getPost as any)({ path: { postId } }));
+  }
+
   async createPost(payload: CreatePostPayload): Promise<ZernioResponse> {
     return withRetry(() => this.context.sdk.posts.createPost({ body: payload }));
   }
