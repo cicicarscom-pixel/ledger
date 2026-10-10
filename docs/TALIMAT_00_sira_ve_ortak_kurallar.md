@@ -67,6 +67,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 62 | `TALIMAT_62_kalite_faz8_dialog_flowweb.md` (Kalite Faz 8; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 63 | `TALIMAT_63_kalite_faz3c_efektler_flowweb.md` (Kalite Faz 3c; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 64 | `TALIMAT_64_kalite_faz10_bagimliliklar.md` (Kalite Faz 10; iki hazır yama) | flowweb + flow | yok | GEREKLİ |
+| 65 | `TALIMAT_65_acil_vercel_kilit_flowweb.md` (**ACİL** Vercel pnpm hatası; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
