@@ -1,0 +1,135 @@
+From 0aa6646987f20cf718bc0916f9419a825455e186 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 07:56:13 +0000
+Subject: [PATCH] chore(web): kullanilmayan src/actions/social.ts silindi
+ (olmayan inbox_messages tablosuna basvuruyordu)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md             |   1 +
+ src/actions/social.ts | 100 ------------------------------------------
+ 2 files changed, 1 insertion(+), 100 deletions(-)
+ delete mode 100644 src/actions/social.ts
+
+diff --git a/README.md b/README.md
+index 8e59204..b05f70a 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Ölü kod temizliği (web):** `src/actions/social.ts` silindi. Hiçbir yerden çağrılmıyordu ve veritabanında bulunmayan `inbox_messages` tablosuna başvuruyordu (`getPosts`, `createPost`, `deletePost`, `getMessages`, `replyToMessage`, `getSocialAccounts`). Bu işlemlerin gerçek karşılıkları ilgili sayfaların kendi sorgularında.
+ - **[10.10.2026] Analiz: bağlantısı kopmuş hesap artık sorgulanmıyor:** Analiz sayfası hesap listesini `is_active`/`needs_reconnection` süzmeden okuyordu; bağlantısı kopmuş (`is_active=false`, `needs_reconnection=true`) Instagram kaydı için Instagram seçilince `get-instagram-demographics` / `get-instagram-follower-history` istekleri "Forbidden: Account not owned by this organization" uyarısı veriyordu. Diğer sayfalarla (Gelen Kutusu, Paylaşım, Sosyal Medya) aynı süzgeç eklendi.
+ - **[10.10.2026] Analiz: platform filtresi hatası düzeltildi:** Platform seçilince (Instagram/Facebook/YouTube…) gönderi sayacı sorgusu `posts.platform` sütununu arıyordu; tabloda böyle bir sütun yok (`platforms` dizisi var), sorgu 400 dönüyordu ve "Toplam Gönderi" / biçim dağılımı 0 kalıyordu. Sorgu `platforms` dizisine göre filtreleyecek şekilde düzeltildi. (Hata Faz 9A'dan önce de vardı.)
+ - **[10.10.2026] Kalite Faz 9A (Analiz sayfası bölündü, web):** `analiz/page.tsx` 1544 → 168 satır. Taşıma birebirdir, davranış/görünüm değişmedi: `analizConfig.ts` (platform ve zaman aralığı sabitleri), `CustomTooltip.tsx`, `useAnalyticsData.ts` (kendi sayaçları + Zernio çağrıları; veri katmanı), `PostingAnalytics.tsx` ve `InboxAnalytics.tsx` (iki sekme). Sayfa artık yalnız filtreleri/sekmeleri tutar ve verileri alt bileşenlere props ile geçirir. `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+diff --git a/src/actions/social.ts b/src/actions/social.ts
+deleted file mode 100644
+index 14611fe..0000000
+--- a/src/actions/social.ts
++++ /dev/null
+@@ -1,100 +0,0 @@
+-'use server'
+-
+-import { createClient } from '@/lib/supabase/server'
+-import { revalidatePath } from 'next/cache'
+-
+-// Gönderiler (Posts)
+-export async function getPosts(filter?: string) {
+-  const supabase = await createClient()
+-  let query = supabase.from('posts').select('*').order('created_at', { ascending: false })
+-  
+-  if (filter && filter !== 'all') {
+-    query = query.eq('status', filter)
+-  }
+-
+-  const { data, error } = await query
+-
+-  if (error) {
+-    console.error('Error fetching posts:', error)
+-    return []
+-  }
+-  return data
+-}
+-
+-export async function createPost(formData: FormData) {
+-  const supabase = await createClient()
+-  
+-  const content = formData.get('content') as string
+-  const platforms = JSON.parse(formData.get('platforms') as string)
+-  const scheduled_for = formData.get('scheduled_for') as string
+-  const status = scheduled_for ? 'scheduled' : 'published'
+-
+-  const { error } = await supabase.from('posts').insert({
+-    content,
+-    platforms,
+-    scheduled_for,
+-    status
+-  })
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/posts')
+-  return { success: true }
+-}
+-
+-export async function deletePost(id: string) {
+-  const supabase = await createClient()
+-  const { error } = await supabase.from('posts').delete().eq('id', id)
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/posts')
+-  return { success: true }
+-}
+-
+-// Gelen Kutusu (Inbox)
+-export async function getMessages() {
+-  const supabase = await createClient()
+-  const { data, error } = await supabase.from('inbox_messages').select('*').order('created_at', { ascending: false })
+-  
+-  if (error) {
+-    console.error('Error fetching messages:', error)
+-    return []
+-  }
+-  return data
+-}
+-
+-export async function replyToMessage(messageId: string, replyContent: string) {
+-  const supabase = await createClient()
+-  
+-  // Burada ZernioClient veya WAHA API çağrısı da eklenebilir
+-  // Supabase tarafında status 'replied' olarak güncellenir
+-  const { error } = await supabase.from('inbox_messages')
+-    .update({ 
+-      status: 'replied',
+-      ai_response: replyContent 
+-    })
+-    .eq('id', messageId)
+-
+-  if (error) {
+-    return { success: false, message: error.message }
+-  }
+-
+-  revalidatePath('/inbox')
+-  return { success: true }
+-}
+-
+-export async function getSocialAccounts() {
+-  const supabase = await createClient()
+-  const { data, error } = await supabase.schema('integration').from('social_accounts').select('*')
+-
+-  if (error) {
+-    console.error('Error fetching social accounts:', error)
+-    return []
+-  }
+-  return data
+-}
+-- 
+2.43.0
+

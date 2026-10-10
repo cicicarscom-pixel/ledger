@@ -21,7 +21,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 | 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | 6A TAMAM (57); 6B HAZIR (58); 6C/6D HAZIR (59) |
 | 7 (TAMAM) | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 61 | HAZIR (SQL) |
 | 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 62 | HAZIR (web) |
-| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 66+ | **sürüyor** (9A: web Analiz sayfası, Talimat 66) |
+| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 66–72 | 9A web Analiz TAMAM (66); 9B FlowAiHost görünümü TAMAM (68); 9C mobil 6 büyük ekran TAMAM (70, derleme 71); **sunucu işlemleri org kontrolü: DENETLENDİ** (tüm tablolarda RLS açık, 20 tablo politikasız=istemciye kapalı; ölü `social.ts` silindi, 72–73). Kalan: web 3 büyük dosya (9D), mobil katman ihlalleri + React Compiler ref kuralları (mobil toplu pakete) |
 | 10 | **Bağımlılıklar**: `npm audit` düzeltmeleri (web: nanoid/postcss/sharp/source-map-js; mobil: `expo install --fix` ile), `xlsx` kararı | 70+ | sırada |
 
 3–10. fazların talimatları, bir önceki faz ONAYLANDIKÇA yazılır (her biri bir önceki fazın sonucuna ve dosyaların güncel hâline dayanır; yama güncel koddan üretilir).
@@ -30,3 +30,15 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 1. (Vercel'de yapılacak bir şey yok; `zernio.ts` silindiği için Zernio anahtarına Vercel'de gerek yok.)
 2. SQL Editor'de `…000003` migration'ı çalıştır (Talimat 48 §0).
 3. Supabase → Authentication → Sign In / Providers → Password → "Prevent use of leaked passwords" AÇ.
+
+
+## Faz 9 sonrası yol haritası (10.10.2026)
+| Sıra | İş | Derleme gerekir mi |
+|---|---|---|
+| A | **Faz D** — müsaitlik testleri (SQL) + WhatsApp korumasına tarafsız yedek yanıt | hayır (DB/Edge) |
+| B | **`zernio-client` kaynağını depoya al** + `get-inbox-volume`/`get-inbox-performance` eksik işlemleri (Analiz > Gelen Kutusu kartları şimdi boş) | hayır (deploy: kullanıcı onayı) |
+| C | **Faz E** — muhasebeci bağlantısının yaşam döngüsü | kısmen (web/mobil ekran) |
+| D | **Faz 9D (web)** — `gelen-kutusu` (1400), `RandevuClient` (1181), `share` (1065) bölme | hayır (Vercel) |
+| E | **Mobil toplu paket** (kullanıcı kararı: TEK derleme; bekliyor) — Analiz aktif-hesap süzgeci, katman ihlalleri (9), React Compiler `refs` kuralları, `Bot Yönetimi/Randevu/Analiz` sabit metinlerin i18n'i (dosya başı `eslint-disable` borcu) | evet, tek |
+| F | **Faz F** — kimlik anahtarının `organizations.id`'ye taşınması (büyük, planlı) | evet |
+| G | Güvenlik kalanları: sızdıran PAT'ın yenilenmesi (yayından önce), kalan 3 auth kullanıcısı, uzantıların `public`'ten çıkarılması, büyük sürüm bağımlılıkları (Next 16, Tailwind 4) | karışık |
