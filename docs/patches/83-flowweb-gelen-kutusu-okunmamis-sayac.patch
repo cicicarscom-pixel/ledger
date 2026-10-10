@@ -1,0 +1,131 @@
+From abde014fb7395c9f18d52a4074269531d62c43ef Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 10:27:40 +0000
+Subject: [PATCH] fix(gelen-kutusu): sekme sayaclari okunmamis sayisini
+ gosterir, acilan sohbet/gonderi okundu isaretlenir (web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ .../(dashboard)/gelen-kutusu/CommentsTab.tsx  |  2 +-
+ .../(dashboard)/gelen-kutusu/InboxHeader.tsx  |  6 ++--
+ .../(dashboard)/gelen-kutusu/MessagesTab.tsx  |  2 +-
+ src/app/(dashboard)/gelen-kutusu/page.tsx     | 33 ++++++++++++++++---
+ 5 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/README.md b/README.md
+index da84fa8..fe4d317 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Gelen Kutusu sekme sayaçları:** Mesajlar, Yorumlar ve Değerlendirmeler sekmelerindeki rozet artık toplam değil **okunmamış** sayısını gösterir (Mesajlar: okunmamış sohbet; Yorumlar: okunmamış yorum; Değerlendirmeler: yanıtsız; Bildirimler: okunmamış). Bir sohbet ya da gönderi açılınca okundu işaretlenir (`conversations.unread_count = 0`, `comments.is_read = true`). Veritabanı: `comments.is_read` (migration `20261010000003`); sütun yokken sayaç gösterilmez.
+ - **[10.10.2026] Gelen Kutusu › Yorumlar (gönderi başlığı/görseli):** Zernio'dan gelen yorumların bir kısmında `posts` kaydı yoktu (`post_id` boş), bu yüzden her gönderi "Gönderi detayı bulunamadı" ve gri görsel gösteriyordu. `zernio-client` `sync-comments` artık yorum alan gönderiler için eksik `posts` kaydını Zernio'daki metin ve görselle oluşturur, boş kalanları doldurur ve sahipsiz yorumları bağlar; sayfa senkronizasyondan sonra yorumları yeniden yükler.
+ - **[10.10.2026] Kalite Faz 9D (büyük sayfalar bölündü, web):** `gelen-kutusu/page.tsx` 1400 → 827, `RandevuClient.tsx` 1181 → 486, `sosyal-medya/share/page.tsx` 1065 → 641 satır. Başlık, sekme panelleri (Mesajlar/Yorumlar/Değerlendirmeler/Bildirimler), takvim/zaman çizelgesi, modallar, paylaşım bölümleri ve platform ayar formları aynı klasörlerde ayrı bileşen dosyalarına birebir taşındı (toplam 26 yeni dosya); durum ve işleyiciler sayfalarda kalır, bileşenlere tipli props ile geçer (tipler TypeScript denetleyicisinden türetildi). Davranış değişmedi; `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+ - **[10.10.2026] Muhasebeci bağlantı kodu sertleştirme (Faz E2, web tarafı):** Muhasebecim sayfası yeni `RATE_LIMITED` yanıtını gösterir (çok fazla hatalı kod → "15 dakika sonra tekrar deneyin"; `aiMuhasebePage.muhasebecim.rateLimited`, tr/en/de). Veritabanı tarafı (deneme sınırı, sahipsiz firma kodlarının kullanılamaması, harf duyarsız kod) canlıda; ayrıntı: ledger `docs/FAZ_E_PLAN.md`.
+diff --git a/src/app/(dashboard)/gelen-kutusu/CommentsTab.tsx b/src/app/(dashboard)/gelen-kutusu/CommentsTab.tsx
+index 46014e2..cf61446 100644
+--- a/src/app/(dashboard)/gelen-kutusu/CommentsTab.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/CommentsTab.tsx
+@@ -18,7 +18,7 @@ type CommentsTabProps = {
+   selectedPostId: string | null;
+   setReplyText: React.Dispatch<React.SetStateAction<string>>;
+   setReplyingTo: React.Dispatch<React.SetStateAction<string | null>>;
+-  setSelectedPostId: React.Dispatch<React.SetStateAction<string | null>>;
++  setSelectedPostId: (postId: string) => void;
+   t: ReturnType<typeof useTranslations>;
+   toggleSelection: (id: string) => void;
+ };
+diff --git a/src/app/(dashboard)/gelen-kutusu/InboxHeader.tsx b/src/app/(dashboard)/gelen-kutusu/InboxHeader.tsx
+index cf000b7..4eb753a 100644
+--- a/src/app/(dashboard)/gelen-kutusu/InboxHeader.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/InboxHeader.tsx
+@@ -24,9 +24,9 @@ export function InboxHeader({ activeTab, conversations, handleDeleteSelected, ha
+       {/* Tabs */}
+       <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+         {[
+-          { id: 'mesajlar', label: t("gelenKutusuPage.tabs.messages"), count: conversations.length },
+-          { id: 'yorumlar', label: t("gelenKutusuPage.tabs.comments"), count: visibleComments.length },
+-          { id: 'degerlendirmeler', label: t("gelenKutusuPage.tabs.reviews"), count: reviews.length },
++          { id: 'mesajlar', label: t("gelenKutusuPage.tabs.messages"), count: conversations.filter(c => c.unread_count > 0).length },
++          { id: 'yorumlar', label: t("gelenKutusuPage.tabs.comments"), count: visibleComments.filter(c => c.is_read === false).length },
++          { id: 'degerlendirmeler', label: t("gelenKutusuPage.tabs.reviews"), count: reviews.filter(r => !r.reply).length },
+           { id: 'bildirimler', label: t("gelenKutusuPage.tabs.notifications"), count: notifications.filter(n => !n.is_read).length },
+         ].map(tab => {
+           const isActive = activeTab === tab.id;
+diff --git a/src/app/(dashboard)/gelen-kutusu/MessagesTab.tsx b/src/app/(dashboard)/gelen-kutusu/MessagesTab.tsx
+index c81e1fe..9c579b5 100644
+--- a/src/app/(dashboard)/gelen-kutusu/MessagesTab.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/MessagesTab.tsx
+@@ -14,7 +14,7 @@ type MessagesTabProps = {
+   selectedConvId: string | null;
+   selectedItems: string[];
+   setDmText: React.Dispatch<React.SetStateAction<string>>;
+-  setSelectedConvId: React.Dispatch<React.SetStateAction<string | null>>;
++  setSelectedConvId: (convId: string) => void;
+   t: ReturnType<typeof useTranslations>;
+   toggleSelection: (id: string) => void;
+ };
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index e652631..818f95a 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -184,11 +184,36 @@ function GelenKutusuContent() {
+     return Array.from(postMap.values()).sort((a, b) => new Date(b.latestCommentAt).getTime() - new Date(a.latestCommentAt).getTime());
+   }, [visibleComments, t]);
+ 
++  // Açılan gönderinin yorumlarını okundu işaretle (sekme sayacı yalnız okunmamışları sayar).
++  const openPost = (postId: string) => {
++    setSelectedPostId(postId);
++    const ids = comments
++      .filter(c => (c.zernio_post_id || c.post_id || 'unknown') === postId && c.is_read === false)
++      .map(c => c.id);
++    if (ids.length === 0) return;
++    setComments(prev => prev.map(c => ids.includes(c.id) ? { ...c, is_read: true } : c));
++    supabase.from('comments').update({ is_read: true }).in('id', ids).then(({ error }) => {
++      if (error) console.warn('comments read mark failed:', error.message);
++    });
++  };
++
++  // Açılan sohbetin okunmamış sayacını sıfırla.
++  const openConversation = (convId: string) => {
++    setSelectedConvId(convId);
++    const conv = conversations.find(c => c.id === convId);
++    if (!conv || !(conv.unread_count > 0)) return;
++    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c));
++    supabase.from('conversations').update({ unread_count: 0 }).eq('id', convId).then(({ error }) => {
++      if (error) console.warn('conversation read mark failed:', error.message);
++    });
++  };
++  const openPostRef = useLatest(openPost);
++
+   useEffect(() => {
+     if (activeTab === 'yorumlar' && postsWithComments.length > 0 && !selectedPostId) {
+-      setSelectedPostId(postsWithComments[0].postId);
++      openPostRef.current(postsWithComments[0].postId);
+     }
+-  }, [activeTab, postsWithComments, selectedPostId]);
++  }, [activeTab, postsWithComments, selectedPostId, openPostRef]);
+ 
+   // Fetch Data
+   
+@@ -751,11 +776,11 @@ function GelenKutusuContent() {
+ 
+         
+         {/* --- MESAJLAR TAB --- */}
+-        <MessagesTab activeTab={activeTab} conversations={conversations} dmText={dmText} getPlatformIcon={getPlatformIcon} handleSendDM={handleSendDM} isLoading={isLoading} isSelectionMode={isSelectionMode} isSendingDM={isSendingDM} locale={locale} selectedConvId={selectedConvId} selectedItems={selectedItems} setDmText={setDmText} setSelectedConvId={setSelectedConvId} t={t} toggleSelection={toggleSelection} />
++        <MessagesTab activeTab={activeTab} conversations={conversations} dmText={dmText} getPlatformIcon={getPlatformIcon} handleSendDM={handleSendDM} isLoading={isLoading} isSelectionMode={isSelectionMode} isSendingDM={isSendingDM} locale={locale} selectedConvId={selectedConvId} selectedItems={selectedItems} setDmText={setDmText} setSelectedConvId={openConversation} t={t} toggleSelection={toggleSelection} />
+         
+ 
+         {/* --- YORUMLAR TAB --- */}
+-        <CommentsTab activeTab={activeTab} getPlatformIcon={getPlatformIcon} handleDMClick={handleDMClick} handleHideComment={handleHideComment} handleSendReply={handleSendReply} isLoading={isLoading} isSelectionMode={isSelectionMode} isSendingReply={isSendingReply} locale={locale} postsWithComments={postsWithComments} replyText={replyText} replyingTo={replyingTo} selectedItems={selectedItems} selectedPostId={selectedPostId} setReplyText={setReplyText} setReplyingTo={setReplyingTo} setSelectedPostId={setSelectedPostId} t={t} toggleSelection={toggleSelection} />
++        <CommentsTab activeTab={activeTab} getPlatformIcon={getPlatformIcon} handleDMClick={handleDMClick} handleHideComment={handleHideComment} handleSendReply={handleSendReply} isLoading={isLoading} isSelectionMode={isSelectionMode} isSendingReply={isSendingReply} locale={locale} postsWithComments={postsWithComments} replyText={replyText} replyingTo={replyingTo} selectedItems={selectedItems} selectedPostId={selectedPostId} setReplyText={setReplyText} setReplyingTo={setReplyingTo} setSelectedPostId={openPost} t={t} toggleSelection={toggleSelection} />
+ 
+         {/* --- DEĞERLENDİRMELER TAB --- */}
+         <ReviewsTab activeTab={activeTab} isLoading={isLoading} isSelectionMode={isSelectionMode} locale={locale} reviews={reviews} selectedItems={selectedItems} toggleSelection={toggleSelection} />
+-- 
+2.43.0
+

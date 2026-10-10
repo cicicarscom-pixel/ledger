@@ -1,0 +1,27 @@
+From 98172ec16884c9428d236c1eb609d2207221339c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 10:27:40 +0000
+Subject: [PATCH] feat(db): comments.is_read (gelen kutusu okunmamis yorum
+ sayaci)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ supabase/migrations/20261010000003_comments_read_state.sql | 5 +++++
+ 1 file changed, 5 insertions(+)
+ create mode 100644 supabase/migrations/20261010000003_comments_read_state.sql
+
+diff --git a/supabase/migrations/20261010000003_comments_read_state.sql b/supabase/migrations/20261010000003_comments_read_state.sql
+new file mode 100644
+index 0000000..76d825c
+--- /dev/null
++++ b/supabase/migrations/20261010000003_comments_read_state.sql
+@@ -0,0 +1,5 @@
++-- Gelen Kutusu › Yorumlar: okunmamış yorum sayacı için okundu durumu.
++-- Mevcut yorumlar "okundu" sayılır (DEFAULT true ile eklenir); bundan sonra gelenler okunmamış (false) başlar.
++-- webhook INSERT'ü is_read vermez, varsayılan false'tur.
++alter table public.comments add column if not exists is_read boolean not null default true;
++alter table public.comments alter column is_read set default false;
+-- 
+2.43.0
+
