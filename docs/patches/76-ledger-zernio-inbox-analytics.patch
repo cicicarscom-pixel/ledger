@@ -1,0 +1,287 @@
+From ae64c341ed5d8120e268e506189a3e0828f86bc4 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 08:14:50 +0000
+Subject: [PATCH] feat(zernio-client): get-inbox-volume ve
+ get-inbox-performance islemleri eklendi (gelen kutusu analitigi, Kalite Faz
+ B)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |   1 +
+ .../infrastructure/zernio/AnalyticsApi.ts     |  21 ++++
+ .../zernio/analyticsMapping.test.ts           |  58 +++++++++-
+ .../infrastructure/zernio/analyticsMapping.ts | 101 ++++++++++++++++++
+ supabase/functions/zernio-client/index.ts     |  27 +++++
+ 5 files changed, 207 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index b2f4995..3433838 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,5 @@
+ ## 🆕 Son Güncellemeler (Ekim 2026)
++- 10.10.2026 — `zernio-client`: `get-inbox-volume` ve `get-inbox-performance` işlemleri eklendi (web Analiz > Gelen Kutusu Analizi kartları canlıda "Bilinmeyen action" yüzünden boş geliyordu). Zernio `sdk.inboxanalytics` çağrıları (hacim, en çok yazışılan hesaplar, kaynak dağılımı, ısı haritası, yanıt süresi) sunucuda arayüzün beklediği şekle çevrilir (`analyticsMapping.ts`: `mapInboxVolume`, `mapInboxPerformance`; 4 yeni birim test). Kiracı kapsamı/önbellek/sahiplik denetimi mevcut `scopedAnalytics` üzerinden. **Deploy gerekir** (`zernio-client`, tek başına).
+ - 09.10.2026 — Güvenlik (Kalite Faz 1B): tetikleyici olan 8 `SECURITY DEFINER` fonksiyonun REST/RPC erişimi kapatıldı; `get_financial_report_summary` ve `complete_onboarding` yalnız oturum açmış kullanıcıya açık (migration `…000003`).
+ - 09.10.2026 — Randevu bildirimleri randevularla senkron: `get_appointment_notifications(p_limit)` ve `count_unread_appointment_notifications()` silinen/iptal edilen randevunun bildirimini gizler (Anasayfa web + mobil).
+ - 09.10.2026 — `clear_appointment_notifications()` (Anasayfa "Raporları Temizle"): işletmenin randevu bildirimlerini siler; randevular ve konuşma kayıtları silinmez.
+diff --git a/supabase/functions/shared/infrastructure/zernio/AnalyticsApi.ts b/supabase/functions/shared/infrastructure/zernio/AnalyticsApi.ts
+index 4f16174..ebdc670 100644
+--- a/supabase/functions/shared/infrastructure/zernio/AnalyticsApi.ts
++++ b/supabase/functions/shared/infrastructure/zernio/AnalyticsApi.ts
+@@ -76,6 +76,27 @@ export class AnalyticsApi {
+     return withRetry(() => this.context.sdk.analytics.getBestTimeToPost(payload));
+   }
+ 
++  // --- Gelen kutusu analitiği (@zernio/node: sdk.inboxanalytics). Sorgu: { query: { fromDate, toDate?, platform?, profileId | accountId } }
++  async getInboxVolume(payload: AnalyticsPayload): Promise<ZernioResponse> {
++    return withRetry(() => this.context.sdk.inboxanalytics.getInboxVolume(payload));
++  }
++
++  async getInboxHeatmap(payload: AnalyticsPayload): Promise<ZernioResponse> {
++    return withRetry(() => this.context.sdk.inboxanalytics.getInboxHeatmap(payload));
++  }
++
++  async getInboxSourceBreakdown(payload: AnalyticsPayload): Promise<ZernioResponse> {
++    return withRetry(() => this.context.sdk.inboxanalytics.getInboxSourceBreakdown(payload));
++  }
++
++  async getInboxResponseTime(payload: AnalyticsPayload): Promise<ZernioResponse> {
++    return withRetry(() => this.context.sdk.inboxanalytics.getInboxResponseTime(payload));
++  }
++
++  async getInboxTopAccounts(payload: AnalyticsPayload): Promise<ZernioResponse> {
++    return withRetry(() => this.context.sdk.inboxanalytics.getInboxTopAccounts(payload));
++  }
++
+   async getAnalytics(payload: AnalyticsPayload): Promise<ZernioResponse> {
+     return withRetry(() => this.context.sdk.analytics.getAnalytics(payload));
+   }
+diff --git a/supabase/functions/shared/infrastructure/zernio/analyticsMapping.test.ts b/supabase/functions/shared/infrastructure/zernio/analyticsMapping.test.ts
+index 542a6dd..6fe235e 100644
+--- a/supabase/functions/shared/infrastructure/zernio/analyticsMapping.test.ts
++++ b/supabase/functions/shared/infrastructure/zernio/analyticsMapping.test.ts
+@@ -1,5 +1,5 @@
+ import { assertEquals } from "https://deno.land/std@0.177.0/testing/asserts.ts";
+-import { mapFollowerStats, mapInsights, ymdInTimezone } from "./analyticsMapping.ts";
++import { mapFollowerStats, mapInboxPerformance, mapInboxVolume, mapInsights, ymdInTimezone } from "./analyticsMapping.ts";
+ 
+ Deno.test("instagram içgörü eşlemesi", () => {
+   const r = mapInsights("Instagram", { metrics: { views: { total: 100 }, reach: { total: 40 }, total_interactions: { total: 7 } } });
+@@ -33,3 +33,59 @@ Deno.test("yerel gün kuruluşun saat dilimine göre; eksik/geçersiz → UTC",
+   assertEquals(ymdInTimezone(d, null), "2026-10-03");
+   assertEquals(ymdInTimezone(d, "Gecersiz/Zaman"), "2026-10-03");
+ });
++
++Deno.test("gelen kutusu hacmi: dört SDK yanıtı arayüz şekline çevrilir", () => {
++  const vol = {
++    summary: { received: 12, sent: 7, read: 5, failed: 1, uniqueConversations: 4 },
++    timeseries: [{ date: "2026-10-01", received: 2, sent: 1, read: 1, failed: 0 }],
++    byPlatform: [{ platform: "instagram", received: 12, sent: 7, read: 5, failed: 1 }],
++  };
++  const top = { accounts: [
++    { platform: "instagram", displayName: "Atlas", username: "atlas", received: 12, sent: 7, conversations: 4, medianResponseSeconds: 125.4, repliedCount: 3 },
++    { platform: "facebook", username: "klinik", received: 1, sent: 0, conversations: 1, medianResponseSeconds: 0, repliedCount: 0 },
++  ] };
++  const sources = { sources: [{ source: "api", sent: 3 }, { source: "platform", sent: 4 }, { source: "workflow", sent: 0 }, { source: "yeni_kaynak", sent: 2 }] };
++  const heat = { buckets: [{ dow: 1, hour: 9, received: 2, sent: 1 }, { dow: 7, hour: 23, received: 0, sent: 0 }, { dow: 9, hour: 1, received: 5, sent: 0 }] };
++  const r = mapInboxVolume(vol, top, sources, heat);
++  assertEquals(r.summary, { received: 12, sent: 7, read: 5, failed: 1, uniqueConversations: 4 });
++  assertEquals(r.timeseries[0], { date: "2026-10-01", received: 2, sent: 1, read: 1, failed: 0 });
++  assertEquals(r.byPlatform[0].platform, "instagram");
++  assertEquals(r.byAccount[0], { platform: "instagram", name: "Atlas", received: 12, sent: 7, conversations: 4, medianResponseSeconds: 125 });
++  // yanıt yok (repliedCount=0) → 0 sn değil null; ad yoksa kullanıcı adı
++  assertEquals(r.byAccount[1].name, "klinik");
++  assertEquals(r.byAccount[1].medianResponseSeconds, null);
++  // gönderimi 0 olan kaynak listelenmez; bilinmeyen kaynak adıyla görünür
++  assertEquals(r.outboundBySource.map((x) => `${x.name}=${x.value}`), ["API=3", "Native app=4", "yeni_kaynak=2"]);
++  // dow 1=Pazartesi; boş (0) ve geçersiz (9) kovalar atılır
++  assertEquals(r.heatmap, [{ hour: 9, day: "Mon", dow: 1, value: 3 }]);
++});
++
++Deno.test("gelen kutusu hacmi: boş/hatalı yanıtlar çökmez, sıfırlarla döner", () => {
++  const r = mapInboxVolume(undefined, undefined, { error: "x" }, null);
++  assertEquals(r.summary, { received: 0, sent: 0, read: 0, failed: 0, uniqueConversations: 0 });
++  assertEquals([r.timeseries, r.byPlatform, r.byAccount, r.outboundBySource, r.heatmap], [[], [], [], [], []]);
++});
++
++Deno.test("yanıt süresi: medyan, yüzde dilimleri ve dağılım histogramdan hesaplanır", () => {
++  const res = {
++    summary: { sampleSize: 10, medianSeconds: 90.6, p90Seconds: 2000 },
++    histogram: [
++      { bucket: "0-1m", lowerSeconds: 0, upperSeconds: 60, count: 2 },
++      { bucket: "1-5m", lowerSeconds: 60, upperSeconds: 300, count: 3 },
++      { bucket: "5-15m", lowerSeconds: 300, upperSeconds: 900, count: 1 },
++      { bucket: "15-60m", lowerSeconds: 900, upperSeconds: 3600, count: 2 },
++      { bucket: "1d+", lowerSeconds: 86400, upperSeconds: null, count: 2 },
++    ],
++  };
++  const r = mapInboxPerformance(res);
++  assertEquals(r.medianResponseSeconds, 91);
++  assertEquals(r.repliedCount, 10);
++  assertEquals([r.percentUnder5m, r.percentUnder15m, r.percentUnder1h], [50, 60, 80]);
++  assertEquals(r.distribution.map((d) => `${d.name}=${d.value}`), ["0-1m=2", "1-5m=3", "5-15m=1", "15-60m=2", "1d+=2"]);
++});
++
++Deno.test("yanıt süresi: veri yokken sıfır, bölme hatası yok", () => {
++  const r = mapInboxPerformance(undefined);
++  assertEquals([r.medianResponseSeconds, r.repliedCount, r.percentUnder5m, r.percentUnder15m, r.percentUnder1h], [0, 0, 0, 0, 0]);
++  assertEquals(r.distribution, []);
++});
+diff --git a/supabase/functions/shared/infrastructure/zernio/analyticsMapping.ts b/supabase/functions/shared/infrastructure/zernio/analyticsMapping.ts
+index a7ac4d8..fe9e402 100644
+--- a/supabase/functions/shared/infrastructure/zernio/analyticsMapping.ts
++++ b/supabase/functions/shared/infrastructure/zernio/analyticsMapping.ts
+@@ -53,3 +53,104 @@ export function ymdInTimezone(now: Date, tz?: string | null): string {
+     return fmt('UTC');
+   }
+ }
++
++// ---------------------------------------------------------------------------
++// Gelen kutusu analitiği → web "Analiz > Gelen Kutusu Analizi" sekmesinin beklediği şekil.
++// Kaynak yanıtlar @zernio/node `sdk.inboxanalytics.*` tiplerindendir (getInboxVolume, getInboxTopAccounts,
++// getInboxSourceBreakdown, getInboxHeatmap, getInboxResponseTime). Boş/eksik yanıt boş dizi/0 verir.
++// ---------------------------------------------------------------------------
++
++const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
++
++/** Giden mesajın kaynağı (metadata.source) → grafik etiketi ve rengi. */
++const SOURCE_META: Record<string, { name: string; fill: string }> = {
++  platform: { name: 'Native app', fill: '#6B7280' },
++  api: { name: 'API', fill: '#22B573' },
++  human: { name: 'Human', fill: '#3B82F6' },
++  workflow: { name: 'Workflow', fill: '#8B5CF6' },
++  sequence: { name: 'Sequence', fill: '#F59E0B' },
++  broadcast: { name: 'Broadcast', fill: '#F97316' },
++  comment_automation: { name: 'Comment automation', fill: '#F472B6' },
++  contact: { name: 'Contact', fill: '#14B8A6' },
++};
++
++const n0 = (v: unknown): number => {
++  const x = Number(v);
++  return Number.isFinite(x) ? x : 0;
++};
++
++export interface InboxVolumeView {
++  summary: { received: number; sent: number; read: number; failed: number; uniqueConversations: number };
++  timeseries: Array<{ date: string; received: number; sent: number; read: number; failed: number }>;
++  byPlatform: Array<{ platform: string; received: number; sent: number; read: number; failed: number }>;
++  byAccount: Array<{ platform: string; name: string; received: number; sent: number; conversations: number; medianResponseSeconds: number | null }>;
++  outboundBySource: Array<{ name: string; value: number; fill: string }>;
++  heatmap: Array<{ hour: number; day: string; dow: number; value: number }>;
++}
++
++/** vol/top/sources/heat = ilgili SDK yanıtının `data` kısmı (hata aldıysa undefined). */
++export function mapInboxVolume(vol: any, top: any, sources: any, heat: any): InboxVolumeView {
++  const s = vol?.summary ?? {};
++  return {
++    summary: { received: n0(s.received), sent: n0(s.sent), read: n0(s.read), failed: n0(s.failed), uniqueConversations: n0(s.uniqueConversations) },
++    timeseries: (vol?.timeseries ?? []).map((r: any) => ({
++      date: String(r?.date ?? ''), received: n0(r?.received), sent: n0(r?.sent), read: n0(r?.read), failed: n0(r?.failed),
++    })),
++    byPlatform: (vol?.byPlatform ?? []).map((r: any) => ({
++      platform: String(r?.platform ?? ''), received: n0(r?.received), sent: n0(r?.sent), read: n0(r?.read), failed: n0(r?.failed),
++    })),
++    byAccount: (top?.accounts ?? []).map((a: any) => ({
++      platform: String(a?.platform ?? ''),
++      name: String(a?.displayName || a?.username || a?.platform || ''),
++      received: n0(a?.received),
++      sent: n0(a?.sent),
++      conversations: n0(a?.conversations),
++      // repliedCount=0 → "yanıt yok": 0 sn gibi görünmesin (arayüz null'ı "-" gösterir)
++      medianResponseSeconds: n0(a?.repliedCount) > 0 ? Math.round(n0(a?.medianResponseSeconds)) : null,
++    })),
++    outboundBySource: (sources?.sources ?? [])
++      .filter((r: any) => n0(r?.sent) > 0)
++      .map((r: any) => {
++        const key = String(r?.source ?? '');
++        const meta = SOURCE_META[key] ?? { name: key || 'Other', fill: '#9CA3AF' };
++        return { name: meta.name, value: n0(r?.sent), fill: meta.fill };
++      }),
++    // dow: 1 = Pazartesi … 7 = Pazar. Değer = alınan + gönderilen.
++    heatmap: (heat?.buckets ?? [])
++      .map((b: any) => ({ hour: n0(b?.hour), dow: n0(b?.dow), day: DAY_SHORT[n0(b?.dow) - 1] ?? '', value: n0(b?.received) + n0(b?.sent) }))
++      .filter((b: any) => b.day !== '' && b.value > 0),
++  };
++}
++
++const RESPONSE_FILLS = ['#22B573', '#10B981', '#F59E0B', '#F59E0B', '#F97316', '#F43F5E', '#9CA3AF'];
++
++export interface InboxPerformanceView {
++  medianResponseSeconds: number;
++  p90ResponseSeconds: number;
++  repliedCount: number;
++  percentUnder5m: number;
++  percentUnder15m: number;
++  percentUnder1h: number;
++  distribution: Array<{ name: string; value: number; fill: string }>;
++}
++
++/** res = getInboxResponseTime yanıtının `data` kısmı. Yüzdeler histogramın üst sınırlarından hesaplanır. */
++export function mapInboxPerformance(res: any): InboxPerformanceView {
++  const sum = res?.summary ?? {};
++  const hist: any[] = res?.histogram ?? [];
++  const total = hist.reduce((a, h) => a + n0(h?.count), 0);
++  const under = (limitSeconds: number) => {
++    if (total === 0) return 0;
++    const c = hist.reduce((a, h) => (h?.upperSeconds != null && n0(h.upperSeconds) <= limitSeconds ? a + n0(h?.count) : a), 0);
++    return Math.round((c / total) * 100);
++  };
++  return {
++    medianResponseSeconds: Math.round(n0(sum.medianSeconds)),
++    p90ResponseSeconds: Math.round(n0(sum.p90Seconds)),
++    repliedCount: n0(sum.sampleSize),
++    percentUnder5m: under(300),
++    percentUnder15m: under(900),
++    percentUnder1h: under(3600),
++    distribution: hist.map((h, i) => ({ name: String(h?.bucket ?? ''), value: n0(h?.count), fill: RESPONSE_FILLS[i] ?? '#9CA3AF' })),
++  };
++}
+diff --git a/supabase/functions/zernio-client/index.ts b/supabase/functions/zernio-client/index.ts
+index e6658df..7525d29 100644
+--- a/supabase/functions/zernio-client/index.ts
++++ b/supabase/functions/zernio-client/index.ts
+@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+ import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
+ import { ZernioError } from "../shared/infrastructure/zernio/ZernioError.ts";
+ import { buildScopedPayload, cacheKeyFor, cacheMetricFor, sanitizeAnalyticsQuery, scopeIsEmpty } from "../shared/infrastructure/zernio/analyticsScope.ts";
++import { mapInboxPerformance, mapInboxVolume } from "../shared/infrastructure/zernio/analyticsMapping.ts";
+ 
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+@@ -1095,6 +1096,32 @@ serve(async (req) => {
+         result = await scopedAnalytics(payload.query?.platform || 'all', 'best_times', payload, false, (p) => zernio.analytics.getBestTimeToPost(p));
+         break;
+       }
++      // Gelen kutusu analitiği (web Analiz > Gelen Kutusu Analizi). Yanıt şekli arayüzün beklediği biçime
++      // sunucuda çevrilir (analyticsMapping.ts). Beş SDK çağrısından biri hata verirse o bölüm boş döner,
++      // diğerleri gösterilmeye devam eder. Kapsam/önbellek/sahiplik denetimi scopedAnalytics içinde.
++      case 'get-inbox-volume': {
++        result = await scopedAnalytics(payload.query?.platform || 'all', 'inbox_volume', payload, false, async (p) => {
++          const [vol, top, sources, heat] = await Promise.allSettled([
++            zernio.analytics.getInboxVolume(p),
++            zernio.analytics.getInboxTopAccounts(p),
++            zernio.analytics.getInboxSourceBreakdown(p),
++            zernio.analytics.getInboxHeatmap(p),
++          ]);
++          const ok = (r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? (r.value?.data ?? r.value) : undefined);
++          for (const [name, r] of [['volume', vol], ['topAccounts', top], ['sources', sources], ['heatmap', heat]] as const) {
++            if (r.status === 'rejected') console.warn(`[get-inbox-volume] ${name} alınamadı:`, (r.reason as Error)?.message ?? r.reason);
++          }
++          return mapInboxVolume(ok(vol), ok(top), ok(sources), ok(heat));
++        });
++        break;
++      }
++      case 'get-inbox-performance': {
++        result = await scopedAnalytics(payload.query?.platform || 'all', 'inbox_performance', payload, false, async (p) => {
++          const res = await zernio.analytics.getInboxResponseTime(p);
++          return mapInboxPerformance(res?.data ?? res);
++        });
++        break;
++      }
+       case 'get-post-analytics': {
+         result = await scopedAnalytics(payload.query?.platform || 'all', 'post_analytics', payload, false, (p) => zernio.analytics.getAnalytics(p));
+         break;
+-- 
+2.43.0
+

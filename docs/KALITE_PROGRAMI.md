@@ -36,7 +36,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 | Sıra | İş | Derleme gerekir mi |
 |---|---|---|
 | A | **Faz D** — **TAMAM (10.10.2026)**: müsaitlik testi eski sütunlardan kurtarılıp `organizations.id` modeline taşındı, 15 kontrol canlıda yeşil (tüm değişiklikler geri alınır); tarafsız yedek yanıt 01.10.2026'dan beri `AppointmentTurnGuard`'da | hayır |
-| B | **`zernio-client` kaynağını depoya al** + `get-inbox-volume`/`get-inbox-performance` eksik işlemleri (Analiz > Gelen Kutusu kartları şimdi boş) | hayır (deploy: kullanıcı onayı) |
+| B | **`zernio-client`**: kaynak zaten depodaydı (düzeltme: önceki "depoda yok" yanlıştı); eksik `get-inbox-volume`/`get-inbox-performance` işlemleri eklendi (yama 76, Talimat 73; deploy bekliyor) | hayır (tek fonksiyon deploy) |
 | C | **Faz E** — muhasebeci bağlantısının yaşam döngüsü | kısmen (web/mobil ekran) |
 | D | **Faz 9D (web)** — `gelen-kutusu` (1400), `RandevuClient` (1181), `share` (1065) bölme | hayır (Vercel) |
 | E | **Mobil toplu paket** (kullanıcı kararı: TEK derleme; bekliyor) — Analiz aktif-hesap süzgeci, katman ihlalleri (9), React Compiler `refs` kuralları, `Bot Yönetimi/Randevu/Analiz` sabit metinlerin i18n'i (dosya başı `eslint-disable` borcu) | evet, tek |

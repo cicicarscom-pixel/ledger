@@ -75,6 +75,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 70 | `TALIMAT_70_kalite_faz9c_mobil_toplu.md` (Kalite Faz 9C; mobil TOPLU paket, 7 commit, tek derleme) | flow | yok (derleme sonra, kullanıcı ister) | GEREKLİ |
 | 71 | `TALIMAT_71_mobil_eas_derleme_faz9.md` (Mobil EAS Android derlemesi; Faz 9B+9C) | flow | EAS derleme (kullanıcı onayladı) | GEREKLİ |
 | 72 | `TALIMAT_72_analiz_aktif_hesap_flowweb.md` (Analiz: kopuk hesap süzgeci; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
+| 73 | `TALIMAT_73_zernio_inbox_analytics_ledger.md` (zernio-client gelen kutusu analitiği; hazır yama + tek fonksiyon deploy) | ledger | `zernio-client` (K6, tek) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
