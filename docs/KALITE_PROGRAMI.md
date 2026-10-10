@@ -22,7 +22,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 | 7 (TAMAM) | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 61 | HAZIR (SQL) |
 | 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 62 | HAZIR (web) |
 | 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 66–72 | 9A web Analiz TAMAM (66); 9B FlowAiHost görünümü TAMAM (68); 9C mobil 6 büyük ekran TAMAM (70, derleme 71); **sunucu işlemleri org kontrolü: DENETLENDİ** (tüm tablolarda RLS açık, 20 tablo politikasız=istemciye kapalı; ölü `social.ts` silindi, 72–73). Kalan: web 3 büyük dosya (9D), mobil katman ihlalleri + React Compiler ref kuralları (mobil toplu pakete) |
-| 10 | **Bağımlılıklar**: `npm audit` düzeltmeleri (web: nanoid/postcss/sharp/source-map-js; mobil: `expo install --fix` ile), `xlsx` kararı | 70+ | sırada |
+| 10 | **Bağımlılıklar**: `npm audit` düzeltmeleri (web: nanoid/postcss/sharp/source-map-js; mobil: `expo install --fix` ile), `xlsx` kararı | 70+ | web: postcss overrides HAZIR (80, audit 11→9; kalan 9 yalnız dev araç, büyük sürüm); mobil: toplu pakete |
 
 3–10. fazların talimatları, bir önceki faz ONAYLANDIKÇA yazılır (her biri bir önceki fazın sonucuna ve dosyaların güncel hâline dayanır; yama güncel koddan üretilir).
 

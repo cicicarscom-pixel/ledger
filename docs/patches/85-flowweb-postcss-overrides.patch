@@ -1,0 +1,107 @@
+From 8db3992d145f70802adc060900d25f784a64fc7c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 10:51:37 +0000
+Subject: [PATCH] chore(deps): postcss overrides ^8.5.23 (Next icindeki eski
+ postcss guvenlik bulgulari, Faz 10 web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md         |  1 +
+ package-lock.json | 39 +++++----------------------------------
+ package.json      |  3 +++
+ 3 files changed, 9 insertions(+), 34 deletions(-)
+
+diff --git a/README.md b/README.md
+index fe4d317..5c58f83 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Bağımlılık güvenliği (Faz 10, web):** Next.js'in içinde gömülü eski `postcss` (güvenlik bulguları: sourceMappingURL ile dosya okuma, `</style>` XSS) `package.json` `overrides` ile `^8.5.23`'e sabitlendi; `npm audit` bulguları 11 → 9. Kalan 9 bulgu yalnızca geliştirme/derleme aracı bağımlılıkları (Tailwind 3 ve `eslint-config-next` içindeki `braces`/`chokidar`/`micromatch`/`fast-glob`) ve çözümleri büyük sürüm geçişi (Tailwind 4, Next 16) gerektiriyor; üretimde işlenmiyorlar, ayrı bir iş olarak planlanır.
+ - **[10.10.2026] Gelen Kutusu sekme sayaçları:** Mesajlar, Yorumlar ve Değerlendirmeler sekmelerindeki rozet artık toplam değil **okunmamış** sayısını gösterir (Mesajlar: okunmamış sohbet; Yorumlar: okunmamış yorum; Değerlendirmeler: yanıtsız; Bildirimler: okunmamış). Bir sohbet ya da gönderi açılınca okundu işaretlenir (`conversations.unread_count = 0`, `comments.is_read = true`). Veritabanı: `comments.is_read` (migration `20261010000003`); sütun yokken sayaç gösterilmez.
+ - **[10.10.2026] Gelen Kutusu › Yorumlar (gönderi başlığı/görseli):** Zernio'dan gelen yorumların bir kısmında `posts` kaydı yoktu (`post_id` boş), bu yüzden her gönderi "Gönderi detayı bulunamadı" ve gri görsel gösteriyordu. `zernio-client` `sync-comments` artık yorum alan gönderiler için eksik `posts` kaydını Zernio'daki metin ve görselle oluşturur, boş kalanları doldurur ve sahipsiz yorumları bağlar; sayfa senkronizasyondan sonra yorumları yeniden yükler.
+ - **[10.10.2026] Kalite Faz 9D (büyük sayfalar bölündü, web):** `gelen-kutusu/page.tsx` 1400 → 827, `RandevuClient.tsx` 1181 → 486, `sosyal-medya/share/page.tsx` 1065 → 641 satır. Başlık, sekme panelleri (Mesajlar/Yorumlar/Değerlendirmeler/Bildirimler), takvim/zaman çizelgesi, modallar, paylaşım bölümleri ve platform ayar formları aynı klasörlerde ayrı bileşen dosyalarına birebir taşındı (toplam 26 yeni dosya); durum ve işleyiciler sayfalarda kalır, bileşenlere tipli props ile geçer (tipler TypeScript denetleyicisinden türetildi). Davranış değişmedi; `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+diff --git a/package-lock.json b/package-lock.json
+index 2a3f36f..3b02162 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -5657,34 +5657,6 @@
+       "integrity": "sha512-8jAkmDwQJo6RDavBHm9QRl1YTn2WXf+rI4SVhMaZxZcxopnwZic6fKTXOoNIo3kzC+a6vJySkOkXmHTVFLAYtg==",
+       "license": "MIT"
+     },
+-    "node_modules/next/node_modules/postcss": {
+-      "version": "8.4.31",
+-      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.4.31.tgz",
+-      "integrity": "sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==",
+-      "funding": [
+-        {
+-          "type": "opencollective",
+-          "url": "https://opencollective.com/postcss/"
+-        },
+-        {
+-          "type": "tidelift",
+-          "url": "https://tidelift.com/funding/github/npm/postcss"
+-        },
+-        {
+-          "type": "github",
+-          "url": "https://github.com/sponsors/ai"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "nanoid": "^3.3.6",
+-        "picocolors": "^1.0.0",
+-        "source-map-js": "^1.0.2"
+-      },
+-      "engines": {
+-        "node": "^10 || ^12 || >=14"
+-      }
+-    },
+     "node_modules/node-addon-api": {
+       "version": "7.1.1",
+       "resolved": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-7.1.1.tgz",
+@@ -6034,10 +6006,9 @@
+       }
+     },
+     "node_modules/postcss": {
+-      "version": "8.5.23",
+-      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.23.tgz",
+-      "integrity": "sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==",
+-      "dev": true,
++      "version": "8.5.29",
++      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.29.tgz",
++      "integrity": "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==",
+       "funding": [
+         {
+           "type": "opencollective",
+@@ -6054,9 +6025,9 @@
+       ],
+       "license": "MIT",
+       "dependencies": {
+-        "nanoid": "^3.3.16",
++        "nanoid": "^3.3.19",
+         "picocolors": "^1.1.1",
+-        "source-map-js": "^1.2.1"
++        "source-map-js": "^1.2.2"
+       },
+       "engines": {
+         "node": "^10 || ^12 || >=14"
+diff --git a/package.json b/package.json
+index 8c5b9d2..edfbc14 100644
+--- a/package.json
++++ b/package.json
+@@ -32,5 +32,8 @@
+     "postcss": "^8.5.23",
+     "tailwindcss": "^3.4.1",
+     "typescript": "^5"
++  },
++  "overrides": {
++    "postcss": "^8.5.23"
+   }
+ }
+-- 
+2.43.0
+
