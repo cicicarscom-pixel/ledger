@@ -116,5 +116,5 @@ node scripts/ci/check-root-map.mjs
 ## 6. Açık işler (özet)
 
 - **Güvenlik (kullanıcı):** depoları özel (private) yap; WAHA API anahtarı ve panel parolası yenilenmeli (Git geçmişinde açıkta kaldılar); 31.97.37.208 root parolası.
-- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E:** muhasebeci bağlantısının yaşam döngüsü açık.
+- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E: TAMAM** (yaşam döngüsü E1 + kod sertleştirme E2, `docs/FAZ_E_PLAN.md`).
 - Instagram asistanı hizalaması (`zernio-webhook`, `persona-test`, `process-ai-jobs` canlı paketleri eski — **deploy etme**), erteleme akışı, WhatsApp hatırlatmaları.

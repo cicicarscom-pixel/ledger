@@ -25,3 +25,26 @@ Tek migration (`…_accountant_code_hardening.sql`), geri alma dosyası, canlıd
 1. E2-1 + E2-2 + E2-3'ü yap (öneri: EVET).
 2. E2-5 ölü tabloları sil (öneri: önce kod taraması, sonra ayrı onay).
 3. Sahipsiz 10 firma kaydını silmek/etkisizleştirmek ister misin (canlı veri; yalnız onayınla). Öneri: şimdilik DOKUNMA, E2-2 onları zaten kullanılamaz yapar.
+
+
+---
+## E2 UYGULAMA SONUCU (10.10.2026)
+**1) Kod sertleştirme — CANLIDA UYGULANDI.** Migration `20261010000001_accountant_code_hardening.sql` (geri alma: `docs/supabase/20261010000001_geri_alma.sql`).
+- Kullanıcı başına 15 dk'lık pencerede 10 başarısız kod → `RATE_LIMITED` (geçerli kod olsa bile; başarılı çözümler sayılmaz).
+- Üyesi olmayan firmanın kodu → `CODE_NOT_FOUND` (artık yanıtsız istek açılamaz; 10 sahipsiz firma fiilen kullanılamaz oldu).
+- Kod büyük/küçük harf duyarsız.
+- Yardımcı işlevler ve sayaç tablosu istemciye kapalı (anon/authenticated EXECUTE yok; RLS açık, politika yok).
+- **Test:** yeni `supabase/tests/accountant_code_hardening.sql` → 7 kontrol; eski `accountant_connection.sql` → 14 kontrol; ikisi de canlıda yeşil (geri alınır).
+- Web: Muhasebecim sayfası `RATE_LIMITED`'ı çevrili mesajla gösterir (yama 78, Talimat 75). Mobil: bekleme listesi #8.
+- Not (araç): Supabase MCP gövdesinde `delete from`/`drop` geçen SQL'i onaya bağladığı için sayaç tasarımı silme içermez (kullanıcı başına tek satır).
+
+**2) Sahipsiz 10 firma — SİLME BETİĞİ HAZIR, kullanıcı çalıştıracak.** Silmeden önce canlıda sayıldı: bağlı satır 0 (olay, belge, kural, görev, konuşma, karar, denetim). Betik: `supabase/migrations/20261010000002_remove_orphan_accounting_firms.sql` (ID listesi + "üyesi yok" + "bağlantısı yok" koşulları yeniden denetlenir). **Birebir geri yükleme yedeği:** `docs/supabase/20261010000002_sahipsiz_firmalar_yedek.sql`. Araç silmeyi onaya bağlayıp zaman aşımına uğradığı için SQL Editor'den çalıştırılacak (Faz 7'deki gibi). Sonuç beklenen: `DELETE 10`; sonra 13 → 3 firma.
+
+**3) Eski tablolar — KOD TARAMASI: SİLİNMEMELİ.** Dördü de boş ama:
+| Tablo | Kullanım |
+|---|---|
+| `ledger_accounting_firms` | `apps/ledger/modules/auth/application/auth.actions.ts` (firma kaydı/girişi) |
+| `shared_accountant_taxpayer_links` | `apps/ledger/modules/flow-connections/…/connection.repository.ts`, `invitations/application/verify-otp.action.ts` |
+| `ledger_invitations` | `apps/ledger` davet akışı (invitation.repository, cancel-invitation, get-clients) |
+| `accountant_clients` | Canlı **`storage.objects` politikası `accountant_read_access`** (invoices/finance_receipts/documents) buna bakıyor; kodda kullanılmıyor |
+Üçü canlı Ledger kodunun akışlarında; silmek davet/OTP/kayıt akışlarını bozar. `accountant_clients` yalnız bir depolama politikasında; tablo boş olduğundan politika fiilen "kimseye erişim verme" davranıyor, güvenli. Muhasebeci makbuz erişimi zaten `finance-receipt-url` fonksiyonuyla (yeni modelin `active` bağlantısı) yapılıyor. **Karar: dokunulmadı.** İleride: Ledger davet/OTP akışı ürün olarak kaldırılırsa tablolar + politika birlikte temizlenir.
