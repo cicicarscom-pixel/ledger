@@ -1,0 +1,543 @@
+From 8306dc9c0b7e400cdcfb9374550de70440d20eeb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 16:28:54 +0000
+Subject: [PATCH] fix(mobil): aksiyon menuleri gezinme cubugunun ustunde, yorum
+ gonderi kucuk resmi (video ilk kare), Android klavye uyumu (kenardan kenara)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/lib/useSafeActionSheet.js                 | 25 +++++++++++++
+ src/modules/flow_ai/FlowAiHost.js             |  4 +--
+ .../screens/OdemeTakvimiScreen.js             |  2 +-
+ .../screens/MusteriDetayScreen.js             |  4 +--
+ .../presentation/screens/RandevuScreen.js     |  6 ++--
+ .../screens/randevu/AppointmentFormModal.js   |  2 +-
+ .../screens/randevu/ReserveModal.js           |  4 +--
+ .../presentation/screens/AiUretimScreen.js    |  4 +--
+ .../presentation/screens/BotYonetimiScreen.js |  4 +--
+ .../presentation/screens/ChatScreen.js        |  4 +--
+ .../screens/botyonetimi/DangerModal.js        |  4 +--
+ .../screens/botyonetimi/DriveModal.js         |  4 +--
+ .../presentation/screens/inbox/YorumlarTab.js |  7 +++-
+ src/screens/AiAssistantScreen.js              |  4 +--
+ src/screens/AiChatScreen.js                   |  4 +--
+ src/screens/AuthScreen.js                     |  4 +--
+ src/screens/DashboardScreen.js                |  2 +-
+ src/screens/PostCommentsScreen.js             |  9 ++++-
+ src/screens/PostsScreen.js                    | 36 ++-----------------
+ src/screens/ProfilScreen.js                   |  2 +-
+ src/shared/ui/PostVideoThumbnail.js           | 35 ++++++++++++++++++
+ 22 files changed, 106 insertions(+), 65 deletions(-)
+ create mode 100644 src/lib/useSafeActionSheet.js
+ create mode 100644 src/shared/ui/PostVideoThumbnail.js
+
+diff --git a/README.md b/README.md
+index d095a3a..f9fee18 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Cihaz testi düzeltmeleri 2 (mobil): **Aksiyon menüleri** (Randevu'da boş saate dokununca "Randevu oluştur / Rezerve et / İptal", randevu kartı ⋮ menüsü, Ödeme Takvimi, Profil, Anasayfa) Android gezinme çubuğunun altında kalmıyor (`useSafeActionSheet`: menü kabına alt güvenli alan boşluğu); **Gelen Kutusu › Yorumlar** gönderi küçük resmi video gönderilerde (`.mp4`) ilk kareyle gösteriliyor (ortak `PostVideoThumbnail`; Tüm Gönderiler ile aynı bileşen) ve gönderi yorumları başlığında da; **klavye**: SDK 57'de Android kenardan kenara çalıştığı için klavye pencereyi küçültmüyordu — mesaj/sohbet ve form kutuları klavyenin altında kalıyordu; 13 ekran ve pencerede `KeyboardAvoidingView` Android'de de `padding` (Sohbet, AI Sohbet, AI Asistan, Müşteri Detay, AI Üretim, Bot Yönetimi pencereleri, Randevu pencereleri, Flow AI paneli, Giriş).
+ - 10.10.2026 — Randevu düzeltmeleri (mobil): **Yeni randevu / Saati rezerve et / Takvim-Personel yönetimi** pencereleri Android gezinme çubuğunun altında kalmıyor (alt boşluk cihazın alt güvenli alanına göre); **"Yeni Takvim"** girişi pencere ekranın üst bölümünde açılıyor (klavye ve gezinme çubuğu örtmüyor); üstteki belirsiz **"Düzenle" / "+ Yeni Ekle"** düğmeleri **"Takvimleri Düzenle" / "+ Yeni Takvim/Personel"** olarak simgeli ve açık etiketli (kırmızı kaldırıldı, çeviriye alındı); **geçmiş saat** hücresine dokunulunca "Bu saat geçti" bilgisi gösteriliyor (kural aynı: geçmişe yeni randevu açılmaz); Anasayfadaki son fatura kartının tarama düğmesi artık gider girişi sohbetini (`AiChat`) açıyor (eski rota yoktu).
+ - 10.10.2026 — Cihaz testi düzeltmeleri (mobil toplu paket): **İşletmem** uzun başlıklı kayıtlar artık taşmıyor (sol blok `flex-1`, başlık 2 satır) ve ödeme durumu ham `pending` yerine çevrilmiş rozetle gösteriliyor (`pending/paid/partial/unpaid`: Beklemede/Ödendi/Kısmi/Ödenmedi; eski "Devretti" etiketi düzeltildi); **Gelen Kutusu** üst sekmeleri tek satır ("Değerlendirmeler" bölünmüyor) ve "Bildirimler" etiketi çeviriden geliyor; **Mesajlar** profil resmini gösteriyor (`participant_picture`, eksikler `get-inbox-pictures` ile tamamlanır); **sohbet balonu** ekranın ~%88'ine kadar genişliyor; **Tüm Gönderiler** kartlarındaki istatistik satırı (beğeni/yorum/paylaşım/kaydet/tıklama) kaldırıldı (web ile aynı); **Analiz** yalnız aktif ve yeniden bağlantı gerektirmeyen hesapları sorguluyor, `get-youtube-daily-views` çağrısı kaldırıldı (videoId gerektirir); **Muhasebecim** `RATE_LIMITED` yanıtı için çevrilmiş mesaj gösteriyor.
+ - 10.10.2026 — Belgeler: `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+diff --git a/src/lib/useSafeActionSheet.js b/src/lib/useSafeActionSheet.js
+new file mode 100644
+index 0000000..bf5de70
+--- /dev/null
++++ b/src/lib/useSafeActionSheet.js
+@@ -0,0 +1,25 @@
++import { useCallback } from 'react';
++import { useActionSheet } from '@expo/react-native-action-sheet';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
++
++/**
++ * `useActionSheet` ile aynı arayüz. Android'de menü gezinme çubuğunun (alt sistem çubuğu) ALTINDA
++ * kalıyordu: seçenekler çubukla üst üste biniyordu. Menü kabına alt güvenli alan kadar boşluk eklenir
++ * (iOS yerel menüyü kullandığı için `containerStyle` yok sayılır).
++ */
++export function useSafeActionSheet() {
++  const { showActionSheetWithOptions, ...rest } = useActionSheet();
++  const insets = useSafeAreaInsets();
++  const bottom = Math.max(insets.bottom, 16) + 8;
++
++  const showSafe = useCallback(
++    (options, callback) =>
++      showActionSheetWithOptions(
++        { ...options, containerStyle: { paddingBottom: bottom, ...(options && options.containerStyle) } },
++        callback
++      ),
++    [showActionSheetWithOptions, bottom]
++  );
++
++  return { ...rest, showActionSheetWithOptions: showSafe };
++}
+diff --git a/src/modules/flow_ai/FlowAiHost.js b/src/modules/flow_ai/FlowAiHost.js
+index c0fc075..15c42f2 100644
+--- a/src/modules/flow_ai/FlowAiHost.js
++++ b/src/modules/flow_ai/FlowAiHost.js
+@@ -1,6 +1,6 @@
+ import React, { useCallback, useEffect, useRef, useState } from 'react';
+ import {
+-  KeyboardAvoidingView, Platform, Text, TouchableOpacity, View,
++  KeyboardAvoidingView, Text, TouchableOpacity, View,
+   AppState,
+   Animated, PanResponder,
+ } from 'react-native';
+@@ -514,7 +514,7 @@ export default function FlowAiHost({ navigationRef }) {
+   return (
+     <KeyboardAvoidingView
+       pointerEvents="box-none"
+-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++      behavior="padding"
+       style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, justifyContent: 'flex-end' }}
+     >
+       <View
+diff --git a/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js b/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
+index 1537b22..73612d9 100644
+--- a/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
++++ b/src/modules/muhasebe/presentation/screens/OdemeTakvimiScreen.js
+@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
+ import { View, Text, TouchableOpacity, ImageBackground, StyleSheet, FlatList, ActivityIndicator, Dimensions } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { MaterialIcons } from '@expo/vector-icons';
+-import { useActionSheet } from '@expo/react-native-action-sheet';
++import { useSafeActionSheet as useActionSheet } from '../../../../lib/useSafeActionSheet';
+ import { supabase, GlobalAppBar } from '../../../../shared';
+ 
+ const { width } = Dimensions.get('window');
+diff --git a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+index 24e9d62..8230520 100644
+--- a/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
++++ b/src/modules/musteriler/presentation/screens/MusteriDetayScreen.js
+@@ -1,5 +1,5 @@
+ import React, { useState, useEffect } from 'react';
+-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Linking, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
++import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Linking, KeyboardAvoidingView, ScrollView } from 'react-native';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { MaterialIcons } from '@expo/vector-icons';
+ import { useCustomers } from '../hooks/useCustomers';
+@@ -78,7 +78,7 @@ export default function MusteriDetayScreen({ route, navigation }) {
+ 
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: '#131315' }} edges={['top']}>
+-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
++      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+         {/* Header */}
+         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16 }}>
+           <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', marginRight: 8 }}>
+diff --git a/src/modules/randevu/presentation/screens/RandevuScreen.js b/src/modules/randevu/presentation/screens/RandevuScreen.js
+index 91c628b..b3782a3 100644
+--- a/src/modules/randevu/presentation/screens/RandevuScreen.js
++++ b/src/modules/randevu/presentation/screens/RandevuScreen.js
+@@ -1,12 +1,12 @@
+ /* eslint-disable i18next/no-literal-string, no-unused-vars */
+ import React, { useState, useRef, useMemo } from 'react';
+-import { View, Text, ScrollView, TouchableOpacity, Alert, Animated, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, Alert, Animated, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { BlurView } from 'expo-blur';
+ import { useNavigation, useRoute } from '@react-navigation/native';
+ import { useTranslation } from 'react-i18next';
+-import { useActionSheet } from '@expo/react-native-action-sheet';
++import { useSafeActionSheet as useActionSheet } from '../../../../lib/useSafeActionSheet';
+ import { useAppointments } from '../hooks/useAppointments';
+ import { useCalendars } from '../hooks/useCalendars';
+ import { AppointmentStatus } from '@domain/enums/AppointmentStatus';
+@@ -356,7 +356,7 @@ export default function RandevuScreen() {
+         
+         {/* Custom Prompt Modal */}
+         <Modal visible={promptConfig.visible} transparent animationType="fade">
+-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalOverlay, { justifyContent: 'flex-start', paddingTop: insets.top + 90, paddingHorizontal: 16 }]}>
++          <KeyboardAvoidingView behavior="padding" style={[styles.modalOverlay, { justifyContent: 'flex-start', paddingTop: insets.top + 90, paddingHorizontal: 16 }]}>
+             <View style={[styles.modalContent, { borderRadius: 24, paddingBottom: 20 }]}>
+               <Text style={styles.modalTitle}>{promptConfig.title}</Text>
+               <TextInput
+diff --git a/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js b/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
+index 86b4212..f7c6c95 100644
+--- a/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
++++ b/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
+@@ -17,7 +17,7 @@ export function AppointmentFormModal({ availableModalHours, calendars, handleSav
+     >
+     <KeyboardAvoidingView 
+       style={{ flex: 1 }} 
+-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++      behavior="padding"
+     >
+       <View style={styles.modalOverlay}>
+         <View style={[styles.modalContent, { 
+diff --git a/src/modules/randevu/presentation/screens/randevu/ReserveModal.js b/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
+index 5e8de32..5e12080 100644
+--- a/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
++++ b/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Modal, KeyboardAvoidingView, Platform, View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
++import { Modal, KeyboardAvoidingView, View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+ import { styles } from './randevuStyles';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+@@ -8,7 +8,7 @@ export function ReserveModal({ activeCalendarId, add30Mins, calendars, createCal
+   const insets = useSafeAreaInsets();
+   return (
+     <Modal visible={reserveModal.visible} transparent animationType="slide" onRequestClose={() => setReserveModal({ visible: false, time: '', endTime: '' })}>
+-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
++      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+         <View style={styles.modalOverlay}>
+           <View style={[styles.modalContent, { maxHeight: '90%', paddingBottom: 20 + Math.max(insets.bottom, 16) }]}>
+             <View style={styles.modalHeader}>
+diff --git a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+index 1517fb5..646570d 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AiUretimScreen.js
+@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+ import { flowAiShareHandoff } from '../../../flow_ai/flowAiShareHandoff';
+ import { emitFlowEvent } from '../../../flow_ai/flowAiEvents';
+-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Dimensions, ImageBackground, Platform, Alert, ActivityIndicator, KeyboardAvoidingView, Keyboard, Modal } from 'react-native';
++import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Dimensions, ImageBackground, Alert, ActivityIndicator, KeyboardAvoidingView, Keyboard, Modal } from 'react-native';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as FileSystem from 'expo-file-system/legacy';
+ import { useVideoPlayer } from 'expo-video';
+@@ -814,7 +814,7 @@ export default function AiUretimScreen({ route, navigation }) {
+ 
+       <KeyboardAvoidingView 
+         style={{ flex: 1 }} 
+-        behavior={Platform.OS === 'ios' ? 'padding' : (Platform.Version < 30 ? 'padding' : undefined)}
++        behavior="padding"
+       >
+         <ScrollView ref={scrollRef} onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} className="flex-1 px-5 pt-6" contentContainerStyle={{ paddingBottom: 130 }} keyboardShouldPersistTaps="handled">
+         
+diff --git a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+index 06cacd3..993663d 100644
+--- a/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/BotYonetimiScreen.js
+@@ -2,7 +2,7 @@
+ /* eslint-disable i18next/no-literal-string */
+ import React, { useState, useEffect, useRef, useCallback } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, ScrollView, ImageBackground, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
++import { View, ScrollView, ImageBackground, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Animated, Easing } from 'react-native';
+ import { useNavigation, useFocusEffect } from '@react-navigation/native';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+@@ -518,7 +518,7 @@ export default function BotYonetimiScreen() {
+   return (
+     <KeyboardAvoidingView 
+       style={{ flex: 1 }} 
+-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++      behavior="padding"
+     >
+       <View className="flex-1 bg-[#201D24]">
+         <ImageBackground 
+diff --git a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+index 88f6497..6635472 100644
+--- a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+@@ -1,6 +1,6 @@
+ import React, { useState, useRef, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, KeyboardAvoidingView, Platform, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
++import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, KeyboardAvoidingView, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
+ import { Ionicons, Feather } from '@expo/vector-icons';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { supabase , ChatInputBar , GlobalAppBar } from '../../../../shared';
+@@ -331,7 +331,7 @@ export default function ChatScreen({ route, navigation }) {
+       {/* Chat Messages */}
+       <KeyboardAvoidingView 
+         style={{ flex: 1 }} 
+-        behavior={Platform.OS === 'ios' ? 'padding' : (Platform.Version < 30 ? 'padding' : undefined)}
++        behavior="padding"
+       >
+         <FlatList
+           ref={flatListRef}
+diff --git a/src/modules/sosyal_medya/presentation/screens/botyonetimi/DangerModal.js b/src/modules/sosyal_medya/presentation/screens/botyonetimi/DangerModal.js
+index bf962c0..91ec034 100644
+--- a/src/modules/sosyal_medya/presentation/screens/botyonetimi/DangerModal.js
++++ b/src/modules/sosyal_medya/presentation/screens/botyonetimi/DangerModal.js
+@@ -1,6 +1,6 @@
+ /* eslint-disable i18next/no-literal-string */
+ import React from 'react';
+-import { Modal, KeyboardAvoidingView, Platform, View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
++import { Modal, KeyboardAvoidingView, View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+ 
+ export function DangerModal({ RESET_CONFIRM_WORD, dangerConfirmText, dangerLoading, dangerModal, handleDataReset, setDangerConfirmText, setDangerModal }) {
+   return (
+@@ -12,7 +12,7 @@ export function DangerModal({ RESET_CONFIRM_WORD, dangerConfirmText, dangerLoadi
+     >
+       <KeyboardAvoidingView
+         style={{ flex: 1 }}
+-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++        behavior="padding"
+       >
+         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+           <View
+diff --git a/src/modules/sosyal_medya/presentation/screens/botyonetimi/DriveModal.js b/src/modules/sosyal_medya/presentation/screens/botyonetimi/DriveModal.js
+index 94902d9..e6aa803 100644
+--- a/src/modules/sosyal_medya/presentation/screens/botyonetimi/DriveModal.js
++++ b/src/modules/sosyal_medya/presentation/screens/botyonetimi/DriveModal.js
+@@ -1,6 +1,6 @@
+ /* eslint-disable i18next/no-literal-string */
+ import React from 'react';
+-import { Modal, KeyboardAvoidingView, Platform, View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
++import { Modal, KeyboardAvoidingView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+ import { styles } from './botStyles';
+ import { Ionicons } from '@expo/vector-icons';
+ import { CustomInput } from '../../../../../shared';
+@@ -15,7 +15,7 @@ export function DriveModal({ connectedFolderId, disconnectingFolder, driveLink,
+     >
+       <KeyboardAvoidingView
+         style={{ flex: 1 }}
+-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++        behavior="padding"
+       >
+       <View style={styles.modalOverlay}>
+         <View style={styles.modalContent} className="bg-[#2A2631] border border-white/10">
+diff --git a/src/modules/sosyal_medya/presentation/screens/inbox/YorumlarTab.js b/src/modules/sosyal_medya/presentation/screens/inbox/YorumlarTab.js
+index 0397341..e2560a5 100644
+--- a/src/modules/sosyal_medya/presentation/screens/inbox/YorumlarTab.js
++++ b/src/modules/sosyal_medya/presentation/screens/inbox/YorumlarTab.js
+@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import { styles } from './inboxStyles';
+ import { Ionicons, Feather } from '@expo/vector-icons';
+ import { getPlatformIconName } from './inboxShared';
++import { PostVideoThumbnail, isVideoUrl } from '../../../../../shared/ui/PostVideoThumbnail';
+ 
+ export const YorumlarTab = ({ navigation }) => {
+   const { t } = useTranslation();
+@@ -646,7 +647,11 @@ export const YorumlarTab = ({ navigation }) => {
+               className="mb-4 p-4 rounded-xl border border-white/5 flex-row items-center bg-white/5"
+             >
+               <View className="relative">
+-                {item.picture ? (
++                {item.picture && isVideoUrl(item.picture) ? (
++                  <View className="w-16 h-16 rounded-lg overflow-hidden">
++                    <PostVideoThumbnail uri={item.picture} />
++                  </View>
++                ) : item.picture ? (
+                   <Image source={{ uri: item.picture }} className="w-16 h-16 rounded-lg bg-[#201D24]" />
+                 ) : (
+                   <View className="w-16 h-16 rounded-lg bg-[#201D24] items-center justify-center border border-white/5">
+diff --git a/src/screens/AiAssistantScreen.js b/src/screens/AiAssistantScreen.js
+index 2fcc234..b6214ad 100644
+--- a/src/screens/AiAssistantScreen.js
++++ b/src/screens/AiAssistantScreen.js
+@@ -1,6 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, ScrollView, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
++import { View, Text, ScrollView, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import * as Print from 'expo-print';
+ import * as Sharing from 'expo-sharing';
+@@ -183,7 +183,7 @@ export default function AiAssistantScreen({ navigation, route }) {
+ 
+       <KeyboardAvoidingView 
+         style={{ flex: 1 }} 
+-        behavior={Platform.OS === 'ios' ? 'padding' : (Platform.Version < 30 ? 'padding' : undefined)}
++        behavior="padding"
+       >
+         <ScrollView className="flex-1 px-4 pt-4">
+           {messages.map((msg) => (
+diff --git a/src/screens/AiChatScreen.js b/src/screens/AiChatScreen.js
+index 40886b5..9f69ba8 100644
+--- a/src/screens/AiChatScreen.js
++++ b/src/screens/AiChatScreen.js
+@@ -1,6 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, ScrollView, Image, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
++import { View, Text, ScrollView, Image, ActivityIndicator, ImageBackground, StyleSheet, KeyboardAvoidingView } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as DocumentPicker from 'expo-document-picker';
+@@ -153,7 +153,7 @@ export default function AiChatScreen({ route, navigation }) {
+     <SafeAreaView className="flex-1 bg-[#17151A]" edges={['top', 'left', 'right']}>
+       <KeyboardAvoidingView 
+         style={{ flex: 1 }} 
+-        behavior={Platform.OS === 'ios' ? 'padding' : (Platform.Version < 30 ? 'padding' : undefined)}
++        behavior="padding"
+       >
+         <ImageBackground 
+           source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDUpjAKmMNnHDAuGn7KDAmiX4BVuWBLEG-5a7fHFVu_x7Jxrfh8UzY6rM-oy3AiqN0b1h6_K5iobCNsv2B4iHnz_lPjQ6QXfGvJ4UZmCcQLcr6H8o6m3I1JVFmgqk7UubXZx96-wpkV8-ScZZBzzkpl4-_WMzeHLyFljEKugxDZQXZgdkjst86sxa7hU95rBimeOBSnqHbdwH9bj_yj1tbla3T_HPG2xI6XkgTpyJRiDhmg9Po0q7NWy9DKn3JnR0b5tcpUj4Vcxr3w' }}
+diff --git a/src/screens/AuthScreen.js b/src/screens/AuthScreen.js
+index 924f90a..60076f0 100644
+--- a/src/screens/AuthScreen.js
++++ b/src/screens/AuthScreen.js
+@@ -1,6 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import { useTranslation } from 'react-i18next';
+-import { View, Text, TouchableOpacity, Alert, Image, StyleSheet, Dimensions, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
++import { View, Text, TouchableOpacity, Alert, Image, StyleSheet, Dimensions, ScrollView, KeyboardAvoidingView } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { supabase } from '../shared/lib/supabase';
+ import { LinearGradient } from 'expo-linear-gradient';
+@@ -157,7 +157,7 @@ export default function AuthScreen({ onSignUpSuccess, notice, onNeedsVerificatio
+ 
+       <KeyboardAvoidingView 
+         style={{ flex: 1 }} 
+-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
++        behavior="padding"
+       >
+         <ScrollView 
+           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
+diff --git a/src/screens/DashboardScreen.js b/src/screens/DashboardScreen.js
+index 63a32e9..d9bc2bf 100644
+--- a/src/screens/DashboardScreen.js
++++ b/src/screens/DashboardScreen.js
+@@ -10,7 +10,7 @@ import { supabase } from '../shared/lib/supabase';
+ import { container } from '../core/container';
+ import { AppointmentStatus } from '../modules/randevu/domain/enums/AppointmentStatus';
+ import { extractTime } from '../modules/randevu/presentation/hooks/useAppointments';
+-import { useActionSheet } from '@expo/react-native-action-sheet';
++import { useSafeActionSheet as useActionSheet } from '../lib/useSafeActionSheet';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as ImageManipulator from 'expo-image-manipulator';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+diff --git a/src/screens/PostCommentsScreen.js b/src/screens/PostCommentsScreen.js
+index 395719d..faf1c86 100644
+--- a/src/screens/PostCommentsScreen.js
++++ b/src/screens/PostCommentsScreen.js
+@@ -5,6 +5,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import { supabase , GlobalAppBar } from '../shared';
++import { PostVideoThumbnail, isVideoUrl } from '../shared/ui/PostVideoThumbnail';
+ const getPlatformIcon = (platform) => {
+   switch (platform?.toLowerCase()) {
+     case 'instagram': return <Ionicons name="logo-instagram" size={12} color="#E8A8CD" />;
+@@ -590,7 +591,13 @@ export default function PostCommentsScreen({ route, navigation }) {
+         {post && (
+           <View className="px-4 py-4 bg-[#201D24]/80 border-b border-white/10 flex-row items-center">
+             {post.media_urls && post.media_urls[0] && (
+-              <Image source={{ uri: post.media_urls[0] }} className="w-12 h-12 rounded bg-white/10 mr-3" />
++              isVideoUrl(post.media_urls[0]) ? (
++                <View className="w-12 h-12 rounded overflow-hidden mr-3">
++                  <PostVideoThumbnail uri={post.media_urls[0]} />
++                </View>
++              ) : (
++                <Image source={{ uri: post.media_urls[0] }} className="w-12 h-12 rounded bg-white/10 mr-3" />
++              )
+             )}
+             <View className="flex-1">
+               <Text className="text-[#A79E96] text-[12px]" numberOfLines={2} ellipsizeMode="tail">{post.content || post.title || t('postCommentsScreen.noContent')}</Text>
+diff --git a/src/screens/PostsScreen.js b/src/screens/PostsScreen.js
+index 6692e00..6ae74fd 100644
+--- a/src/screens/PostsScreen.js
++++ b/src/screens/PostsScreen.js
+@@ -2,12 +2,12 @@
+ import React, { useState, useRef, useCallback } from 'react';
+ import { useTranslation } from 'react-i18next';
+ import { View, Text, TouchableOpacity, StyleSheet, FlatList, ImageBackground, Animated, Easing, Image, Modal, Alert } from 'react-native';
+-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
++import { Ionicons, Feather } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { useFocusEffect } from '@react-navigation/native';
+-import { useVideoPlayer, VideoView } from 'expo-video';
+ import { supabase , GlobalAppBar , CustomButton } from '../shared';
++import { PostVideoThumbnail } from '../shared/ui/PostVideoThumbnail';
+ 
+ // Glassmorphism Card Wrapper
+ const GlassCard = ({ children, style }) => (
+@@ -16,38 +16,6 @@ const GlassCard = ({ children, style }) => (
+   </View>
+ );
+ 
+-// 17.09.2026: Web tarafında (posts/page.tsx) video gönderilerin küçük resmi
+-// (thumbnail) doğrudan bir <video muted playsInline> etiketiyle gösteriliyor —
+-// tarayıcı otomatik olarak ilk kareyi render ediyor. Mobilde bunun karşılığı
+-// yoktu; önceki kod sadece düz siyah bir kutu + play ikonu gösteriyordu, gerçek
+-// video karesi hiç render edilmiyordu. `AiUretimScreen.js`'de zaten kullanılan
+-// `expo-video`'nun `useVideoPlayer`/`VideoView` çiftiyle (yeni bir bağımlılık
+-// eklemeden) aynı "ilk kareyi göster" davranışı elde ediliyor: player hiç
+-// `.play()` edilmiyor (sessiz/duraklatılmış kalıyor), native video view yine de
+-// 0. saniyedeki kareyi decode edip gösteriyor — web'deki <video> davranışının
+-// mobil eşdeğeri.
+-const PostVideoThumbnail = ({ uri }) => {
+-  const player = useVideoPlayer(uri, (p) => {
+-    p.muted = true;
+-    p.loop = false;
+-  });
+-
+-  return (
+-    <View className="w-full h-full items-center justify-center bg-black border border-white/10 rounded-lg" style={{ overflow: 'hidden' }}>
+-      <VideoView
+-        player={player}
+-        style={{ width: '100%', height: '100%' }}
+-        contentFit="cover"
+-        nativeControls={false}
+-        pointerEvents="none"
+-      />
+-      <View style={StyleSheet.absoluteFillObject} className="items-center justify-center bg-black/20">
+-        <MaterialIcons name="play-arrow" size={24} color="#fff" />
+-      </View>
+-    </View>
+-  );
+-};
+-
+ // Animated Border Card
+ const AnimatedBorderCard = ({ children, style, colors, padding = 16, borderRadius = 12, marginBottom = 0 }) => {
+   const spinValue = useRef(new Animated.Value(0)).current;
+diff --git a/src/screens/ProfilScreen.js b/src/screens/ProfilScreen.js
+index a12e24f..925d45f 100644
+--- a/src/screens/ProfilScreen.js
++++ b/src/screens/ProfilScreen.js
+@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, ImageBackground, Style
+ import { Ionicons } from '@expo/vector-icons';
+ import * as ImagePicker from 'expo-image-picker';
+ import * as ImageManipulator from 'expo-image-manipulator';
+-import { useActionSheet } from '@expo/react-native-action-sheet';
++import { useSafeActionSheet as useActionSheet } from '../lib/useSafeActionSheet';
+ import { decode } from 'base64-arraybuffer';
+ import { GlobalAppBar , supabase , CustomButton , CustomInput } from '../shared';
+ 
+diff --git a/src/shared/ui/PostVideoThumbnail.js b/src/shared/ui/PostVideoThumbnail.js
+new file mode 100644
+index 0000000..e6ac0ce
+--- /dev/null
++++ b/src/shared/ui/PostVideoThumbnail.js
+@@ -0,0 +1,35 @@
++import React from 'react';
++import { View, StyleSheet } from 'react-native';
++import { MaterialIcons } from '@expo/vector-icons';
++import { useVideoPlayer, VideoView } from 'expo-video';
++
++/** Video adresi mi? (Image bileşeni video çizemez; küçük resim için ilk kare gösterilir.) */
++export const isVideoUrl = (url) =>
++  !!url && (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url) || url.includes('blob'));
++
++/**
++ * Web'deki <video muted playsInline> davranışının mobil karşılığı: `expo-video` oynatıcısı hiç
++ * `.play()` edilmez (sessiz/duraklatılmış kalır), native görünüm yine de 0. saniyedeki kareyi gösterir.
++ * Tüm Gönderiler ve Gelen Kutusu > Yorumlar küçük resimleri bunu kullanır.
++ */
++export const PostVideoThumbnail = ({ uri }) => {
++  const player = useVideoPlayer(uri, (p) => {
++    p.muted = true;
++    p.loop = false;
++  });
++
++  return (
++    <View className="w-full h-full items-center justify-center bg-black border border-white/10 rounded-lg" style={{ overflow: 'hidden' }}>
++      <VideoView
++        player={player}
++        style={{ width: '100%', height: '100%' }}
++        contentFit="cover"
++        nativeControls={false}
++        pointerEvents="none"
++      />
++      <View style={StyleSheet.absoluteFillObject} className="items-center justify-center bg-black/20">
++        <MaterialIcons name="play-arrow" size={24} color="#fff" />
++      </View>
++    </View>
++  );
++};
+-- 
+2.43.0
+
