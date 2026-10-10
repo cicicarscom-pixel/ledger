@@ -78,6 +78,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 73 | `TALIMAT_73_zernio_inbox_analytics_ledger.md` (zernio-client gelen kutusu analitiği; hazır yama + tek fonksiyon deploy) | ledger | `zernio-client` (K6, tek) | GEREKLİ |
 | 74 | `TALIMAT_74_analiz_youtube_flowweb.md` (Analiz YouTube: videoId gerektiren çağrı kaldırılır; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 75 | `TALIMAT_75_muhasebecim_rate_limited_flowweb.md` (Muhasebecim `RATE_LIMITED` mesajı; hazır yama 78) | flowweb | yok (Vercel) | GEREKLİ |
+| 76 | `TALIMAT_76_kalite_faz9d_web_sayfa_bolme.md` (Kalite Faz 9D; 3 büyük web sayfası bölme, 4 commit) | flowweb | yok (Vercel) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
