@@ -1,0 +1,61 @@
+From b2d2358ae6cb749b20256dc16666326d4430b28a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 09:56:05 +0000
+Subject: [PATCH] fix(gelen-kutusu): sync-comments sonrasi yorumlar yeniden
+ yuklenir (gonderi basligi/gorseli, web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                 | 1 +
+ src/app/(dashboard)/gelen-kutusu/page.tsx | 8 +++++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 0b1938f..da84fa8 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Gelen Kutusu › Yorumlar (gönderi başlığı/görseli):** Zernio'dan gelen yorumların bir kısmında `posts` kaydı yoktu (`post_id` boş), bu yüzden her gönderi "Gönderi detayı bulunamadı" ve gri görsel gösteriyordu. `zernio-client` `sync-comments` artık yorum alan gönderiler için eksik `posts` kaydını Zernio'daki metin ve görselle oluşturur, boş kalanları doldurur ve sahipsiz yorumları bağlar; sayfa senkronizasyondan sonra yorumları yeniden yükler.
+ - **[10.10.2026] Kalite Faz 9D (büyük sayfalar bölündü, web):** `gelen-kutusu/page.tsx` 1400 → 827, `RandevuClient.tsx` 1181 → 486, `sosyal-medya/share/page.tsx` 1065 → 641 satır. Başlık, sekme panelleri (Mesajlar/Yorumlar/Değerlendirmeler/Bildirimler), takvim/zaman çizelgesi, modallar, paylaşım bölümleri ve platform ayar formları aynı klasörlerde ayrı bileşen dosyalarına birebir taşındı (toplam 26 yeni dosya); durum ve işleyiciler sayfalarda kalır, bileşenlere tipli props ile geçer (tipler TypeScript denetleyicisinden türetildi). Davranış değişmedi; `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+ - **[10.10.2026] Muhasebeci bağlantı kodu sertleştirme (Faz E2, web tarafı):** Muhasebecim sayfası yeni `RATE_LIMITED` yanıtını gösterir (çok fazla hatalı kod → "15 dakika sonra tekrar deneyin"; `aiMuhasebePage.muhasebecim.rateLimited`, tr/en/de). Veritabanı tarafı (deneme sınırı, sahipsiz firma kodlarının kullanılamaması, harf duyarsız kod) canlıda; ayrıntı: ledger `docs/FAZ_E_PLAN.md`.
+ - **[10.10.2026] Analiz (YouTube):** `get-youtube-daily-views` çağrısı kaldırıldı. Zernio'nun bu uç noktası tek bir videoya aittir (`videoId` zorunlu); sayfa videoId vermediği için her YouTube seçiminde konsola "Invalid input: expected string, received undefined" uyarısı düşüyordu ve dönen veri hiç kullanılamıyordu. Kanal zaman serisi `get-daily-metrics`'ten gelmeye devam ediyor (görünüm değişmedi).
+diff --git a/src/app/(dashboard)/gelen-kutusu/page.tsx b/src/app/(dashboard)/gelen-kutusu/page.tsx
+index c874c3e..e652631 100644
+--- a/src/app/(dashboard)/gelen-kutusu/page.tsx
++++ b/src/app/(dashboard)/gelen-kutusu/page.tsx
+@@ -409,7 +409,7 @@ function GelenKutusuContent() {
+ 
+   const fetchComments = async (phase: number = 1) => {
+     try {
+-      if (phase === 1) {
++      if (phase === 1 || phase === 3) {
+         // Faz 1: Local DB + Önbellekteki Resimler
+         const { data, error } = await supabase
+           .from('comments')
+@@ -432,8 +432,8 @@ function GelenKutusuContent() {
+           }));
+           setComments(enhancedData);
+           
+-          // Faz 1.5'i tetikle
+-          setTimeout(() => fetchComments(1.5), 500);
++          // Faz 1.5'i tetikle (Faz 3 yalniz yeniden yukleme yapar, zinciri tekrar baslatmaz)
++          if (phase === 1) setTimeout(() => fetchComments(1.5), 500);
+         }
+       } else if (phase === 1.5) {
+         // Faz 1.5: Eksik resimleri Edge Function'dan çek ve önbellekle
+@@ -471,6 +471,8 @@ function GelenKutusuContent() {
+             await supabase.functions.invoke('zernio-client', {
+               body: { action: 'sync-comments', payload: { organizationId } }
+             });
++            // sync-comments eksik gonderi kayitlarini (baslik/gorsel) olusturur; yorumlari tekrar yukle.
++            await fetchComments(3);
+          }
+       }
+     } catch (err) {
+-- 
+2.43.0
+

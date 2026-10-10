@@ -1,0 +1,83 @@
+From 8b879e848dff9d157409a94300f675c4f18a1b4e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 09:56:05 +0000
+Subject: [PATCH] fix(zernio-client): sync-comments eksik posts kaydini Zernio
+ verisiyle olusturur ve yorumlari baglar
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ supabase/functions/zernio-client/index.ts | 55 +++++++++++++++--------
+ 1 file changed, 36 insertions(+), 19 deletions(-)
+
+diff --git a/supabase/functions/zernio-client/index.ts b/supabase/functions/zernio-client/index.ts
+index 7525d29..b741274 100644
+--- a/supabase/functions/zernio-client/index.ts
++++ b/supabase/functions/zernio-client/index.ts
+@@ -691,27 +691,44 @@ serve(async (req) => {
+            }
+         }));
+         
+-        const postPictures: Record<string, string> = {};
+-        commentedPosts.forEach((post: any) => {
+-           if (post.id && post.picture) postPictures[post.id] = post.picture;
+-        });
+-        
+-        if (Object.keys(postPictures).length > 0) {
+-           const { data: emptyPosts } = await supabase.from('posts').select('id, zernio_post_id, media_urls').in('zernio_post_id', Object.keys(postPictures));
+-           
+-           if (emptyPosts) {
+-              await Promise.all(emptyPosts.map(async (ep) => {
+-                 if (!ep.media_urls || ep.media_urls.length === 0) {
+-                    const pic = postPictures[ep.zernio_post_id];
+-                    if (pic) {
+-                       await supabase.from('posts').update({ media_urls: [pic] }).eq('id', ep.id);
+-                    }
+-                 }
+-              }));
+-           }
++        // Yorum alinan gonderilerin yerel kaydi (posts) yoksa Zernio'daki metin/gorselle olusturulur,
++        // varsa ve bosluk varsa doldurulur. Boylece Gelen Kutusu > Yorumlar baslik ve gorsel gosterebilir.
++        // Reklam satirlari (isAd) atlanir: onlarin content alani reklam adidir, gonderi metni degildir.
++        const backfillPosts = commentedPosts.filter((p: any) => p.id && !p.isAd);
++        if (backfillPosts.length > 0) {
++           const { data: existingPosts } = await supabase
++              .from('posts')
++              .select('id, zernio_post_id, content, media_urls')
++              .in('zernio_post_id', backfillPosts.map((p: any) => p.id));
++           const existingByZid = new Map<string, any>((existingPosts || []).map((ep: any) => [ep.zernio_post_id, ep]));
++
++           await Promise.all(backfillPosts.map(async (post: any) => {
++              const pic = post.picture || post.image || post.thumbnail || null;
++              const text = post.content || '';
++              const ep = existingByZid.get(post.id);
++              if (!ep) {
++                 const { error: stubErr } = await supabase.from('posts').upsert({
++                    profile_id: organizationId,
++                    zernio_post_id: post.id,
++                    content: text,
++                    media_urls: pic ? [pic] : [],
++                    status: 'published',
++                    platforms: [post.platform || 'unknown'],
++                    scheduled_for: post.createdTime || new Date().toISOString()
++                 }, { onConflict: 'zernio_post_id', ignoreDuplicates: true });
++                 if (stubErr) console.error('sync-comments post stub error', post.id, JSON.stringify(stubErr));
++                 return;
++              }
++              const patch: Record<string, any> = {};
++              if (!ep.content && text) patch.content = text;
++              if ((!ep.media_urls || ep.media_urls.length === 0) && pic) patch.media_urls = [pic];
++              if (Object.keys(patch).length > 0) {
++                 await supabase.from('posts').update(patch).eq('id', ep.id);
++              }
++           }));
+         }
+         
+-        const { data: orphanedComments } = await supabase.from('comments').select('id, zernio_post_id').is('post_id', null).not('zernio_post_id', 'is', null);
++        const { data: orphanedComments } = await supabase.from('comments').select('id, zernio_post_id').eq('profile_id', organizationId).is('post_id', null).not('zernio_post_id', 'is', null);
+         
+         if (orphanedComments && orphanedComments.length > 0) {
+            const zPostIds = [...new Set(orphanedComments.map((c: any) => c.zernio_post_id))];
+-- 
+2.43.0
+
