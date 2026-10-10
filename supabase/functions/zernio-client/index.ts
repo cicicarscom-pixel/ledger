@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { ZernioClient } from "../shared/infrastructure/clients/ZernioClient.ts";
 import { ZernioError } from "../shared/infrastructure/zernio/ZernioError.ts";
 import { buildScopedPayload, cacheKeyFor, cacheMetricFor, sanitizeAnalyticsQuery, scopeIsEmpty } from "../shared/infrastructure/zernio/analyticsScope.ts";
+import { mapInboxPerformance, mapInboxVolume } from "../shared/infrastructure/zernio/analyticsMapping.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1093,6 +1094,32 @@ serve(async (req) => {
       }
       case 'get-best-times': {
         result = await scopedAnalytics(payload.query?.platform || 'all', 'best_times', payload, false, (p) => zernio.analytics.getBestTimeToPost(p));
+        break;
+      }
+      // Gelen kutusu analitiği (web Analiz > Gelen Kutusu Analizi). Yanıt şekli arayüzün beklediği biçime
+      // sunucuda çevrilir (analyticsMapping.ts). Beş SDK çağrısından biri hata verirse o bölüm boş döner,
+      // diğerleri gösterilmeye devam eder. Kapsam/önbellek/sahiplik denetimi scopedAnalytics içinde.
+      case 'get-inbox-volume': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'inbox_volume', payload, false, async (p) => {
+          const [vol, top, sources, heat] = await Promise.allSettled([
+            zernio.analytics.getInboxVolume(p),
+            zernio.analytics.getInboxTopAccounts(p),
+            zernio.analytics.getInboxSourceBreakdown(p),
+            zernio.analytics.getInboxHeatmap(p),
+          ]);
+          const ok = (r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? (r.value?.data ?? r.value) : undefined);
+          for (const [name, r] of [['volume', vol], ['topAccounts', top], ['sources', sources], ['heatmap', heat]] as const) {
+            if (r.status === 'rejected') console.warn(`[get-inbox-volume] ${name} alınamadı:`, (r.reason as Error)?.message ?? r.reason);
+          }
+          return mapInboxVolume(ok(vol), ok(top), ok(sources), ok(heat));
+        });
+        break;
+      }
+      case 'get-inbox-performance': {
+        result = await scopedAnalytics(payload.query?.platform || 'all', 'inbox_performance', payload, false, async (p) => {
+          const res = await zernio.analytics.getInboxResponseTime(p);
+          return mapInboxPerformance(res?.data ?? res);
+        });
         break;
       }
       case 'get-post-analytics': {

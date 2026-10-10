@@ -76,6 +76,27 @@ export class AnalyticsApi {
     return withRetry(() => this.context.sdk.analytics.getBestTimeToPost(payload));
   }
 
+  // --- Gelen kutusu analitiği (@zernio/node: sdk.inboxanalytics). Sorgu: { query: { fromDate, toDate?, platform?, profileId | accountId } }
+  async getInboxVolume(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.inboxanalytics.getInboxVolume(payload));
+  }
+
+  async getInboxHeatmap(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.inboxanalytics.getInboxHeatmap(payload));
+  }
+
+  async getInboxSourceBreakdown(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.inboxanalytics.getInboxSourceBreakdown(payload));
+  }
+
+  async getInboxResponseTime(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.inboxanalytics.getInboxResponseTime(payload));
+  }
+
+  async getInboxTopAccounts(payload: AnalyticsPayload): Promise<ZernioResponse> {
+    return withRetry(() => this.context.sdk.inboxanalytics.getInboxTopAccounts(payload));
+  }
+
   async getAnalytics(payload: AnalyticsPayload): Promise<ZernioResponse> {
     return withRetry(() => this.context.sdk.analytics.getAnalytics(payload));
   }
