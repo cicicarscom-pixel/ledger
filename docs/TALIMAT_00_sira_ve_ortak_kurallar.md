@@ -88,6 +88,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 83 | `TALIMAT_83_flow_ai_yardim_katalogu.md` (Flow AI tüm ekranları bilir: 40 konu + test; `flow-ai-agent` deploy) | ledger | `flow-ai-agent` (tek) | GEREKLİ |
 | 84 | `TALIMAT_84_yardim_gecmis_saat_notu.md` (83'ün devamı: geçmiş saat notu; `flow-ai-agent` yeniden deploy) | ledger | `flow-ai-agent` (tek) | GEREKLİ |
 | 85 | `TALIMAT_85_randevu_pencereler_ve_gecmis_saat.md` (Randevu pencereleri, düğme etiketleri, geçmiş saat bilgisi; derleme ayrı) | flow + flowweb | yok | GEREKLİ (derleme sonra) |
+| 86 | `TALIMAT_86_mobil_eas_derleme_randevu.md` (EAS derleme; Talimat 85 mobil düzeltmeleri) | flow | derleme | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
