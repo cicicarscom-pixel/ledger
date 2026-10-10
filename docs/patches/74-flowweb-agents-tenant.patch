@@ -1,0 +1,68 @@
+From 370cc707d49087786454deec84f2d80b3814efa2 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 08:00:21 +0000
+Subject: [PATCH] docs: AGENTS.md kimlik sozlesmesi gercek duruma getirildi
+ (tek tenant kimligi organizations.id), Faz D/F kapali
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ AGENTS.md | 21 ++++++++++++---------
+ README.md |  1 +
+ 2 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index bf2cb2c..05ab7dc 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -61,17 +61,20 @@ Rapor yalnız **gerçekten yapılanı** anlatır. Yapılmamış bir şey "yapıl
+ 
+ ## 3. Kimlik sözleşmesi (tenant)
+ 
+-Veritabanında iki farklı kimlik kullanılıyor. **Varsayma; tabloya bak.**
++Veritabanında **tek tenant kimliği** vardır: `organizations.id` (10.10.2026 canlı veride doğrulandı: veri içeren bütün tablolar bu kimliği taşır; eski "sahibin `auth.users.id`'si" modeli Faz F ile bitti ve eski sütunlar kaldırıldı). **Sütun adı tabloya göre değişir; anlamı aynıdır:**
+ 
+-| Kimlik | Ne | Kullanan tablolar |
+-|---|---|---|
+-| `organizations.id` | İşletme kaydının kimliği (**hedef tenant anahtarı**) | `transactions.profile_id`, `finance_documents.organization_id`, `notifications` / `messages` / `comments`.`profile_id`, sosyal medya ve Ledger tabloları, `accountant_taxpayer_links.taxpayer_organization_id` |
+-| İşletme **sahibinin** `auth.users.id`'si | Eski model (**bilinen borç**, Faz F'de taşınacak) | `appointments.organization_id`, `customers.organization_id`, `calendars.merchant_id`, `business_services.merchant_id`, `calendar_blocks.organization_id` |
++| Sütun adı | Tablolar (örnek) |
++|---|---|
++| `org_id` | `appointments`, `customers`, `calendars`, `calendar_blocks`, `business_services`, `appointment_services`, `bot_settings`, `flow_ai_*`, `waha_sessions`, `ai_communication_logs`… |
++| `organization_id` | `finance_documents`, `organization_*` tabloları, `extraction_schemas`, `organization_members`, `integration.social_accounts` |
++| `profile_id` | `transactions`, `posts`, `comments`, `messages`, `notifications`, `reviews`, `conversations`, `accounting_*`, `company_documents` (**= `organizations.id`**, kullanıcı kimliği DEĞİL) |
++
++Kullanıcı kimliği (`auth.users.id`) ayrı bir kavramdır: `organizations.owner_id`, `organization_members.user_id`, `*.user_id`.
+ 
+ Kurallar:
+-1. **Yeni tablolar `organizations.id` kullanır.**
+-2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır.
+-3. `profile_id` adı tabloya göre farklı anlam taşır (`transactions.profile_id` = `organizations.id`). `session.user.id` ile `organizations.id` karıştırılmaz.
++1. **Yeni tablolar `org_id uuid` (organizations.id) kullanır.**
++2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır. `*_for_owner` ve `_slot_grid(p_owner…)` gibi işlevler yalnız servis tarafı (WhatsApp AI) sarmalayıcılarıdır; motor `*_org(org_id…)` işlevidir.
++3. `profile_id` adı `organizations.id` demektir. `session.user.id` ile `organizations.id` karıştırılmaz.
+ 
+ ## 4. Platform haritası — tek doğru kaynaklar
+ 
+@@ -115,5 +118,5 @@ node scripts/ci/eslint-ratchet.mjs scripts/ci/eslint-baseline.json src
+ ## 6. Açık işler (özet)
+ 
+ - **Güvenlik (kullanıcı):** depoları özel (private) yap; WAHA API anahtarı ve panel parolası yenilenmeli (Git geçmişinde açıkta kaldılar); 31.97.37.208 root parolası.
+-- **Faz D:** müsaitlik testleri (SQL) + WhatsApp korumasına tarafsız yedek yanıt. **Faz E:** muhasebeci bağlantısının yaşam döngüsü. **Faz F:** kimlik anahtarının `organizations.id`'ye taşınma planı.
++- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E:** muhasebeci bağlantısının yaşam döngüsü açık.
+ - Instagram asistanı hizalaması (`zernio-webhook`, `persona-test`, `process-ai-jobs` canlı paketleri eski — **deploy etme**), erteleme akışı, WhatsApp hatırlatmaları.
+diff --git a/README.md b/README.md
+index b05f70a..b12d61d 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Belgeler:** `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - **[10.10.2026] Ölü kod temizliği (web):** `src/actions/social.ts` silindi. Hiçbir yerden çağrılmıyordu ve veritabanında bulunmayan `inbox_messages` tablosuna başvuruyordu (`getPosts`, `createPost`, `deletePost`, `getMessages`, `replyToMessage`, `getSocialAccounts`). Bu işlemlerin gerçek karşılıkları ilgili sayfaların kendi sorgularında.
+ - **[10.10.2026] Analiz: bağlantısı kopmuş hesap artık sorgulanmıyor:** Analiz sayfası hesap listesini `is_active`/`needs_reconnection` süzmeden okuyordu; bağlantısı kopmuş (`is_active=false`, `needs_reconnection=true`) Instagram kaydı için Instagram seçilince `get-instagram-demographics` / `get-instagram-follower-history` istekleri "Forbidden: Account not owned by this organization" uyarısı veriyordu. Diğer sayfalarla (Gelen Kutusu, Paylaşım, Sosyal Medya) aynı süzgeç eklendi.
+ - **[10.10.2026] Analiz: platform filtresi hatası düzeltildi:** Platform seçilince (Instagram/Facebook/YouTube…) gönderi sayacı sorgusu `posts.platform` sütununu arıyordu; tabloda böyle bir sütun yok (`platforms` dizisi var), sorgu 400 dönüyordu ve "Toplam Gönderi" / biçim dağılımı 0 kalıyordu. Sorgu `platforms` dizisine göre filtreleyecek şekilde düzeltildi. (Hata Faz 9A'dan önce de vardı.)
+-- 
+2.43.0
+

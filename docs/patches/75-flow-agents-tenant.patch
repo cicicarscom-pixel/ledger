@@ -1,0 +1,68 @@
+From 5df157d9599852c69bcf62c6899c722c0b3ebe56 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 08:00:21 +0000
+Subject: [PATCH] docs: AGENTS.md kimlik sozlesmesi gercek duruma getirildi
+ (tek tenant kimligi organizations.id), Faz D/F kapali
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ AGENTS.md | 21 ++++++++++++---------
+ README.md |  1 +
+ 2 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index f92c982..ca0ce39 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -61,17 +61,20 @@ Rapor yalnız **gerçekten yapılanı** anlatır. Yapılmamış bir şey "yapıl
+ 
+ ## 3. Kimlik sözleşmesi (tenant)
+ 
+-Veritabanında iki farklı kimlik kullanılıyor. **Varsayma; tabloya bak.**
++Veritabanında **tek tenant kimliği** vardır: `organizations.id` (10.10.2026 canlı veride doğrulandı: veri içeren bütün tablolar bu kimliği taşır; eski "sahibin `auth.users.id`'si" modeli Faz F ile bitti ve eski sütunlar kaldırıldı). **Sütun adı tabloya göre değişir; anlamı aynıdır:**
+ 
+-| Kimlik | Ne | Kullanan tablolar |
+-|---|---|---|
+-| `organizations.id` | İşletme kaydının kimliği (**hedef tenant anahtarı**) | `transactions.profile_id`, `finance_documents.organization_id`, `notifications` / `messages` / `comments`.`profile_id`, sosyal medya ve Ledger tabloları, `accountant_taxpayer_links.taxpayer_organization_id` |
+-| İşletme **sahibinin** `auth.users.id`'si | Eski model (**bilinen borç**, Faz F'de taşınacak) | `appointments.organization_id`, `customers.organization_id`, `calendars.merchant_id`, `business_services.merchant_id`, `calendar_blocks.organization_id` |
++| Sütun adı | Tablolar (örnek) |
++|---|---|
++| `org_id` | `appointments`, `customers`, `calendars`, `calendar_blocks`, `business_services`, `appointment_services`, `bot_settings`, `flow_ai_*`, `waha_sessions`, `ai_communication_logs`… |
++| `organization_id` | `finance_documents`, `organization_*` tabloları, `extraction_schemas`, `organization_members`, `integration.social_accounts` |
++| `profile_id` | `transactions`, `posts`, `comments`, `messages`, `notifications`, `reviews`, `conversations`, `accounting_*`, `company_documents` (**= `organizations.id`**, kullanıcı kimliği DEĞİL) |
++
++Kullanıcı kimliği (`auth.users.id`) ayrı bir kavramdır: `organizations.owner_id`, `organization_members.user_id`, `*.user_id`.
+ 
+ Kurallar:
+-1. **Yeni tablolar `organizations.id` kullanır.**
+-2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır.
+-3. `profile_id` adı tabloya göre farklı anlam taşır (`transactions.profile_id` = `organizations.id`). `session.user.id` ile `organizations.id` karıştırılmaz.
++1. **Yeni tablolar `org_id uuid` (organizations.id) kullanır.**
++2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır. `*_for_owner` ve `_slot_grid(p_owner…)` gibi işlevler yalnız servis tarafı (WhatsApp AI) sarmalayıcılarıdır; motor `*_org(org_id…)` işlevidir.
++3. `profile_id` adı `organizations.id` demektir. `session.user.id` ile `organizations.id` karıştırılmaz.
+ 
+ ## 4. Platform haritası — tek doğru kaynaklar
+ 
+@@ -118,5 +121,5 @@ node scripts/ci/eslint-ratchet.mjs scripts/ci/eslint-baseline.json src App.js
+ ## 6. Açık işler (özet)
+ 
+ - **Güvenlik (kullanıcı):** depoları özel (private) yap; WAHA API anahtarı ve panel parolası yenilenmeli (Git geçmişinde açıkta kaldılar); 31.97.37.208 root parolası.
+-- **Faz D:** müsaitlik testleri (SQL) + WhatsApp korumasına tarafsız yedek yanıt. **Faz E:** muhasebeci bağlantısının yaşam döngüsü. **Faz F:** kimlik anahtarının `organizations.id`'ye taşınma planı.
++- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E:** muhasebeci bağlantısının yaşam döngüsü açık.
+ - Instagram asistanı hizalaması (`zernio-webhook`, `persona-test`, `process-ai-jobs` canlı paketleri eski — **deploy etme**), erteleme akışı, WhatsApp hatırlatmaları.
+diff --git a/README.md b/README.md
+index 9c7ffd8..b30879f 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Belgeler: `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - 10.10.2026 — Kalite Faz 9C (büyük ekranlar bölündü, mobil): `DashboardScreen` 1689 → 594, `AiUretimScreen` 1891 → 1106, `BotYonetimiScreen` 1618 → 606, `AnalyticsScreen` 1257 → 382, `InboxScreen` 1132 → 61, `RandevuScreen` 1211 → 397 satır. Stil blokları, yardımcı bileşenler, platform ayar formları, bölümler ve modallar ekranın yanındaki klasörlere (`dashboard/`, `aiuretim/`, `botyonetimi/`, `analytics/`, `inbox/`, `randevu/`) birebir taşındı; durum/işleyiciler ekranlarda kaldı ve bileşenlere props ile geçer (davranış değişmedi). Dosya başı `eslint-disable` yönergeleri taşınan dosyalara yalnız gerekli olanlarıyla kopyalandı (yeni borç eklenmedi). ESLint çıtası uyarı tabanı 122 → 120. Başarısız yama artıkları `PostsScreen.js.rej` ve `AnalyticsScreen.js.rej` silindi. `expo export --platform android` başarılı; tek derlemeyle cihazda denenecek.
+ - 10.10.2026 — Kalite Faz 9B (Flow AI paneli bölündü, mobil): `FlowAiHost.js` 802 → 604 satır. Panelin görünümü yedi sunum bileşenine taşındı (`src/modules/flow_ai/ui/`: `GuideBanner`, `MessageList`, `PendingActions`, `SharePendingCard`, `PlatformPickCard`, `AttachmentChip`, `Composer`). Taşıma birebirdir; sesli sohbet durum makinesi, onay/paylaşım mantığı ve tüm işleyiciler `FlowAiHost` içinde kaldı (davranış değişmedi). ESLint çıtası eşit (101/122), `tsc` boş, `expo export --platform android` başarılı.
+ - 10.10.2026 — Kalite Faz 10 (bağımlılıklar, mobil): `npm audit` 44 → 32 açık, **kritik 1 → 0** (`shell-quote`), yüksek 28 → 19. `npm audit fix` ile Expo SDK 57 yama sürümleri (`expo` 57.0.27, `expo-modules-core`, `expo-constants` …), `react-navigation`, `postcss`, `js-yaml`, `@xmldom/xmldom`, `node-forge` zincirleri vb. güvenlik sürümlerine çekildi. **`tailwindcss` 3.3.2'ye sabitlendi** (`package.json` artık tam sürüm): NativeWind 2, Tailwind 3.4'ün eşzamansız eklentileriyle uyumsuz ("Use process(css).then(cb)" hatasıyla Android paketlemesi çöküyordu; audit fix'in getirdiği 3.4.19 bunu tetikledi). Doğrulama: `expo export --platform android` başarılı, `tsc` temiz, ESLint çıtası aynı. Kalan 32 açık: Expo/Metro derleme araçları, `nativewind`/`tailwindcss` zinciri (büyük sürüm gerektirir) ve bilinen kabul edilmiş `xlsx` (yalnız dışa aktarma). **Native modül sürümleri değiştiği için yeni bir EAS derlemesi gerekir.**
+-- 
+2.43.0
+

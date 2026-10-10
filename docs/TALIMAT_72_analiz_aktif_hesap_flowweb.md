@@ -1,12 +1,12 @@
-# TALİMAT 72 — Analiz: bağlantısı kopmuş hesap sorgulanıyordu + ölü kod (flowweb, 2 hazır yama)
+# TALİMAT 72 — Analiz: bağlantısı kopmuş hesap + ölü kod + belge düzeltmesi (flowweb, 3 hazır yama)
 
 **Bulgu (kullanıcı konsolu, 10.10.2026):** Analiz → Instagram seçilince `get-instagram-demographics` ve `get-instagram-follower-history` "Forbidden: Account not owned by this organization" uyarısı veriyor. **Neden:** `integration.social_accounts`'ta bağlantısı kopmuş bir Instagram kaydı duruyor (`is_active=false`, `needs_reconnection=true`, `disconnected_at=2026-10-09`). Analiz sayfası hesapları bu alanlara bakmadan okuyup kopuk hesabın kimliğiyle istek atıyordu. Gelen Kutusu, Paylaşım ve Sosyal Medya sayfaları zaten `is_active` süzgeci kullanıyor; Analiz'e aynı süzgeç eklenir (`is_active=true`, `needs_reconnection=false`).
 
 **Depo:** flowweb. **Başlangıç:** `origin/main` = `2e58c42` (K1 çıktıları; tutmazsa DUR).
-**Yamalar (sırayla, tek push):** 1) `docs/patches/72-flowweb-analiz-aktif-hesap.patch` (tek satır + README); 2) `docs/patches/73-flowweb-olu-social-actions.patch` (kullanılmayan `src/actions/social.ts` silinir: hiçbir yerden çağrılmıyor ve olmayan `inbox_messages` tablosuna başvuruyor; `git rm` yamanın içinde).
+**Yamalar (sırayla, tek push):** 1) `docs/patches/72-flowweb-analiz-aktif-hesap.patch` (tek satır + README); 2) `docs/patches/73-flowweb-olu-social-actions.patch` (kullanılmayan `src/actions/social.ts` silinir: hiçbir yerden çağrılmıyor ve olmayan `inbox_messages` tablosuna başvuruyor; `git rm` yamanın içinde); 3) `docs/patches/74-flowweb-agents-tenant.patch` (yalnız `AGENTS.md` §3/§6 + README: tenant kimliği gerçek duruma getirilir, Faz D/F kapanır).
 
 ## Yapılacaklar
-1. K1.  2. `git am --3way docs/patches/72-flowweb-analiz-aktif-hesap.patch`, ardından `git am --3way docs/patches/73-flowweb-olu-social-actions.patch` (içerik değiştirilmez, `--amend` yok; 2 commit).
+1. K1.  2. `git am --3way docs/patches/72-flowweb-analiz-aktif-hesap.patch`, ardından `git am --3way docs/patches/73-flowweb-olu-social-actions.patch`, ardından `git am --3way docs/patches/74-flowweb-agents-tenant.patch` (içerik değiştirilmez, `--amend` yok; 3 commit). Not: yama 74 `AGENTS.md`'yi değiştirir; bu, K2'deki "talimatta olmayan dosyaya dokunulmaz" kuralının istisnasıdır (talimatta açıkça var).
 3. `npm ci --ignore-scripts --no-audit --no-fund` + yedi kontrol AYNEN (ESLint taban değeri **dokunulmaz**).
 4. K4 push; GitHub Actions yeşil; Vercel Ready. 5. Derleme/EAS yapma.
 

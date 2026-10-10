@@ -61,17 +61,20 @@ Rapor yalnız **gerçekten yapılanı** anlatır. Yapılmamış bir şey "yapıl
 
 ## 3. Kimlik sözleşmesi (tenant)
 
-Veritabanında iki farklı kimlik kullanılıyor. **Varsayma; tabloya bak.**
+Veritabanında **tek tenant kimliği** vardır: `organizations.id` (10.10.2026 canlı veride doğrulandı: veri içeren bütün tablolar bu kimliği taşır; eski "sahibin `auth.users.id`'si" modeli Faz F ile bitti ve eski sütunlar kaldırıldı). **Sütun adı tabloya göre değişir; anlamı aynıdır:**
 
-| Kimlik | Ne | Kullanan tablolar |
-|---|---|---|
-| `organizations.id` | İşletme kaydının kimliği (**hedef tenant anahtarı**) | `transactions.profile_id`, `finance_documents.organization_id`, `notifications` / `messages` / `comments`.`profile_id`, sosyal medya ve Ledger tabloları, `accountant_taxpayer_links.taxpayer_organization_id` |
-| İşletme **sahibinin** `auth.users.id`'si | Eski model (**bilinen borç**, Faz F'de taşınacak) | `appointments.organization_id`, `customers.organization_id`, `calendars.merchant_id`, `business_services.merchant_id`, `calendar_blocks.organization_id` |
+| Sütun adı | Tablolar (örnek) |
+|---|---|
+| `org_id` | `appointments`, `customers`, `calendars`, `calendar_blocks`, `business_services`, `appointment_services`, `bot_settings`, `flow_ai_*`, `waha_sessions`, `ai_communication_logs`… |
+| `organization_id` | `finance_documents`, `organization_*` tabloları, `extraction_schemas`, `organization_members`, `integration.social_accounts` |
+| `profile_id` | `transactions`, `posts`, `comments`, `messages`, `notifications`, `reviews`, `conversations`, `accounting_*`, `company_documents` (**= `organizations.id`**, kullanıcı kimliği DEĞİL) |
+
+Kullanıcı kimliği (`auth.users.id`) ayrı bir kavramdır: `organizations.owner_id`, `organization_members.user_id`, `*.user_id`.
 
 Kurallar:
-1. **Yeni tablolar `organizations.id` kullanır.**
-2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır.
-3. `profile_id` adı tabloya göre farklı anlam taşır (`transactions.profile_id` = `organizations.id`). `session.user.id` ile `organizations.id` karıştırılmaz.
+1. **Yeni tablolar `org_id uuid` (organizations.id) kullanır.**
+2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır. `*_for_owner` ve `_slot_grid(p_owner…)` gibi işlevler yalnız servis tarafı (WhatsApp AI) sarmalayıcılarıdır; motor `*_org(org_id…)` işlevidir.
+3. `profile_id` adı `organizations.id` demektir. `session.user.id` ile `organizations.id` karıştırılmaz.
 
 ## 4. Platform haritası — tek doğru kaynaklar
 
@@ -113,5 +116,5 @@ node scripts/ci/check-root-map.mjs
 ## 6. Açık işler (özet)
 
 - **Güvenlik (kullanıcı):** depoları özel (private) yap; WAHA API anahtarı ve panel parolası yenilenmeli (Git geçmişinde açıkta kaldılar); 31.97.37.208 root parolası.
-- **Faz D:** müsaitlik testleri (SQL) + WhatsApp korumasına tarafsız yedek yanıt. **Faz E:** muhasebeci bağlantısının yaşam döngüsü. **Faz F:** kimlik anahtarının `organizations.id`'ye taşınma planı.
+- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E:** muhasebeci bağlantısının yaşam döngüsü açık.
 - Instagram asistanı hizalaması (`zernio-webhook`, `persona-test`, `process-ai-jobs` canlı paketleri eski — **deploy etme**), erteleme akışı, WhatsApp hatırlatmaları.
