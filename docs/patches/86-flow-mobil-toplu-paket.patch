@@ -1,0 +1,455 @@
+From 2f933126cee302819a3014b45eadea0b5b943a55 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 08:00:21 +0000
+Subject: [PATCH 1/2] docs: AGENTS.md kimlik sozlesmesi gercek duruma getirildi
+ (tek tenant kimligi organizations.id), Faz D/F kapali
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ AGENTS.md | 21 ++++++++++++---------
+ README.md |  1 +
+ 2 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index f92c982..ca0ce39 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -61,17 +61,20 @@ Rapor yalnız **gerçekten yapılanı** anlatır. Yapılmamış bir şey "yapıl
+ 
+ ## 3. Kimlik sözleşmesi (tenant)
+ 
+-Veritabanında iki farklı kimlik kullanılıyor. **Varsayma; tabloya bak.**
++Veritabanında **tek tenant kimliği** vardır: `organizations.id` (10.10.2026 canlı veride doğrulandı: veri içeren bütün tablolar bu kimliği taşır; eski "sahibin `auth.users.id`'si" modeli Faz F ile bitti ve eski sütunlar kaldırıldı). **Sütun adı tabloya göre değişir; anlamı aynıdır:**
+ 
+-| Kimlik | Ne | Kullanan tablolar |
+-|---|---|---|
+-| `organizations.id` | İşletme kaydının kimliği (**hedef tenant anahtarı**) | `transactions.profile_id`, `finance_documents.organization_id`, `notifications` / `messages` / `comments`.`profile_id`, sosyal medya ve Ledger tabloları, `accountant_taxpayer_links.taxpayer_organization_id` |
+-| İşletme **sahibinin** `auth.users.id`'si | Eski model (**bilinen borç**, Faz F'de taşınacak) | `appointments.organization_id`, `customers.organization_id`, `calendars.merchant_id`, `business_services.merchant_id`, `calendar_blocks.organization_id` |
++| Sütun adı | Tablolar (örnek) |
++|---|---|
++| `org_id` | `appointments`, `customers`, `calendars`, `calendar_blocks`, `business_services`, `appointment_services`, `bot_settings`, `flow_ai_*`, `waha_sessions`, `ai_communication_logs`… |
++| `organization_id` | `finance_documents`, `organization_*` tabloları, `extraction_schemas`, `organization_members`, `integration.social_accounts` |
++| `profile_id` | `transactions`, `posts`, `comments`, `messages`, `notifications`, `reviews`, `conversations`, `accounting_*`, `company_documents` (**= `organizations.id`**, kullanıcı kimliği DEĞİL) |
++
++Kullanıcı kimliği (`auth.users.id`) ayrı bir kavramdır: `organizations.owner_id`, `organization_members.user_id`, `*.user_id`.
+ 
+ Kurallar:
+-1. **Yeni tablolar `organizations.id` kullanır.**
+-2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır.
+-3. `profile_id` adı tabloya göre farklı anlam taşır (`transactions.profile_id` = `organizations.id`). `session.user.id` ile `organizations.id` karıştırılmaz.
++1. **Yeni tablolar `org_id uuid` (organizations.id) kullanır.**
++2. Kimlik **istemciden gönderilmez**; veritabanında çözülür: `current_org_id()` → `organizations.id`, `current_org_owner_id()` → sahibin `auth.users.id`'si. RPC'ler bunları kullanır. `*_for_owner` ve `_slot_grid(p_owner…)` gibi işlevler yalnız servis tarafı (WhatsApp AI) sarmalayıcılarıdır; motor `*_org(org_id…)` işlevidir.
++3. `profile_id` adı `organizations.id` demektir. `session.user.id` ile `organizations.id` karıştırılmaz.
+ 
+ ## 4. Platform haritası — tek doğru kaynaklar
+ 
+@@ -118,5 +121,5 @@ node scripts/ci/eslint-ratchet.mjs scripts/ci/eslint-baseline.json src App.js
+ ## 6. Açık işler (özet)
+ 
+ - **Güvenlik (kullanıcı):** depoları özel (private) yap; WAHA API anahtarı ve panel parolası yenilenmeli (Git geçmişinde açıkta kaldılar); 31.97.37.208 root parolası.
+-- **Faz D:** müsaitlik testleri (SQL) + WhatsApp korumasına tarafsız yedek yanıt. **Faz E:** muhasebeci bağlantısının yaşam döngüsü. **Faz F:** kimlik anahtarının `organizations.id`'ye taşınma planı.
++- **Faz D: TAMAM** (müsaitlik regresyon testi `supabase/tests/scheduling_core.sql`, 15 kontrol, canlıda yeşil; doğrulanmamış "dolu" iddiası için tarafsız yedek yanıt `AppointmentTurnGuard`'da). **Faz F: TAMAM** (tenant kimliği `organizations.id`; yalnız sütun adları karışık, yeniden adlandırma gerekmez). **Faz E:** muhasebeci bağlantısının yaşam döngüsü açık.
+ - Instagram asistanı hizalaması (`zernio-webhook`, `persona-test`, `process-ai-jobs` canlı paketleri eski — **deploy etme**), erteleme akışı, WhatsApp hatırlatmaları.
+diff --git a/README.md b/README.md
+index 9c7ffd8..b30879f 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Belgeler: `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - 10.10.2026 — Kalite Faz 9C (büyük ekranlar bölündü, mobil): `DashboardScreen` 1689 → 594, `AiUretimScreen` 1891 → 1106, `BotYonetimiScreen` 1618 → 606, `AnalyticsScreen` 1257 → 382, `InboxScreen` 1132 → 61, `RandevuScreen` 1211 → 397 satır. Stil blokları, yardımcı bileşenler, platform ayar formları, bölümler ve modallar ekranın yanındaki klasörlere (`dashboard/`, `aiuretim/`, `botyonetimi/`, `analytics/`, `inbox/`, `randevu/`) birebir taşındı; durum/işleyiciler ekranlarda kaldı ve bileşenlere props ile geçer (davranış değişmedi). Dosya başı `eslint-disable` yönergeleri taşınan dosyalara yalnız gerekli olanlarıyla kopyalandı (yeni borç eklenmedi). ESLint çıtası uyarı tabanı 122 → 120. Başarısız yama artıkları `PostsScreen.js.rej` ve `AnalyticsScreen.js.rej` silindi. `expo export --platform android` başarılı; tek derlemeyle cihazda denenecek.
+ - 10.10.2026 — Kalite Faz 9B (Flow AI paneli bölündü, mobil): `FlowAiHost.js` 802 → 604 satır. Panelin görünümü yedi sunum bileşenine taşındı (`src/modules/flow_ai/ui/`: `GuideBanner`, `MessageList`, `PendingActions`, `SharePendingCard`, `PlatformPickCard`, `AttachmentChip`, `Composer`). Taşıma birebirdir; sesli sohbet durum makinesi, onay/paylaşım mantığı ve tüm işleyiciler `FlowAiHost` içinde kaldı (davranış değişmedi). ESLint çıtası eşit (101/122), `tsc` boş, `expo export --platform android` başarılı.
+ - 10.10.2026 — Kalite Faz 10 (bağımlılıklar, mobil): `npm audit` 44 → 32 açık, **kritik 1 → 0** (`shell-quote`), yüksek 28 → 19. `npm audit fix` ile Expo SDK 57 yama sürümleri (`expo` 57.0.27, `expo-modules-core`, `expo-constants` …), `react-navigation`, `postcss`, `js-yaml`, `@xmldom/xmldom`, `node-forge` zincirleri vb. güvenlik sürümlerine çekildi. **`tailwindcss` 3.3.2'ye sabitlendi** (`package.json` artık tam sürüm): NativeWind 2, Tailwind 3.4'ün eşzamansız eklentileriyle uyumsuz ("Use process(css).then(cb)" hatasıyla Android paketlemesi çöküyordu; audit fix'in getirdiği 3.4.19 bunu tetikledi). Doğrulama: `expo export --platform android` başarılı, `tsc` temiz, ESLint çıtası aynı. Kalan 32 açık: Expo/Metro derleme araçları, `nativewind`/`tailwindcss` zinciri (büyük sürüm gerektirir) ve bilinen kabul edilmiş `xlsx` (yalnız dışa aktarma). **Native modül sürümleri değiştiği için yeni bir EAS derlemesi gerekir.**
+-- 
+2.43.0
+
+
+From 85c54d0a221c626fcc1b3831bf098072ede92796 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 11:48:45 +0000
+Subject: [PATCH 2/2] fix(mobil): cihaz testi duzeltmeleri - Isletmem
+ tasma/durum, Inbox sekmeleri, mesaj profil resmi, sohbet balonu, gonderi
+ istatistikleri, Analiz aktif hesap, RATE_LIMITED
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                     |  1 +
+ src/core/i18n/locales/de.json                 |  9 +++--
+ src/core/i18n/locales/en.json                 |  9 +++--
+ src/core/i18n/locales/tr.json                 |  9 +++--
+ .../presentation/screens/IsletmemScreen.js    |  9 +++--
+ .../presentation/screens/MuhasebecimScreen.js |  4 ++
+ .../presentation/screens/AnalyticsScreen.js   | 12 +-----
+ .../presentation/screens/ChatScreen.js        |  4 +-
+ .../presentation/screens/InboxScreen.js       | 19 ++++++---
+ .../presentation/screens/inbox/MesajlarTab.js | 40 +++++++++++++++++--
+ src/screens/PostsScreen.js                    |  8 +---
+ 11 files changed, 83 insertions(+), 41 deletions(-)
+
+diff --git a/README.md b/README.md
+index b30879f..0667387 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Cihaz testi düzeltmeleri (mobil toplu paket): **İşletmem** uzun başlıklı kayıtlar artık taşmıyor (sol blok `flex-1`, başlık 2 satır) ve ödeme durumu ham `pending` yerine çevrilmiş rozetle gösteriliyor (`pending/paid/partial/unpaid`: Beklemede/Ödendi/Kısmi/Ödenmedi; eski "Devretti" etiketi düzeltildi); **Gelen Kutusu** üst sekmeleri tek satır ("Değerlendirmeler" bölünmüyor) ve "Bildirimler" etiketi çeviriden geliyor; **Mesajlar** profil resmini gösteriyor (`participant_picture`, eksikler `get-inbox-pictures` ile tamamlanır); **sohbet balonu** ekranın ~%88'ine kadar genişliyor; **Tüm Gönderiler** kartlarındaki istatistik satırı (beğeni/yorum/paylaşım/kaydet/tıklama) kaldırıldı (web ile aynı); **Analiz** yalnız aktif ve yeniden bağlantı gerektirmeyen hesapları sorguluyor, `get-youtube-daily-views` çağrısı kaldırıldı (videoId gerektirir); **Muhasebecim** `RATE_LIMITED` yanıtı için çevrilmiş mesaj gösteriyor.
+ - 10.10.2026 — Belgeler: `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - 10.10.2026 — Kalite Faz 9C (büyük ekranlar bölündü, mobil): `DashboardScreen` 1689 → 594, `AiUretimScreen` 1891 → 1106, `BotYonetimiScreen` 1618 → 606, `AnalyticsScreen` 1257 → 382, `InboxScreen` 1132 → 61, `RandevuScreen` 1211 → 397 satır. Stil blokları, yardımcı bileşenler, platform ayar formları, bölümler ve modallar ekranın yanındaki klasörlere (`dashboard/`, `aiuretim/`, `botyonetimi/`, `analytics/`, `inbox/`, `randevu/`) birebir taşındı; durum/işleyiciler ekranlarda kaldı ve bileşenlere props ile geçer (davranış değişmedi). Dosya başı `eslint-disable` yönergeleri taşınan dosyalara yalnız gerekli olanlarıyla kopyalandı (yeni borç eklenmedi). ESLint çıtası uyarı tabanı 122 → 120. Başarısız yama artıkları `PostsScreen.js.rej` ve `AnalyticsScreen.js.rej` silindi. `expo export --platform android` başarılı; tek derlemeyle cihazda denenecek.
+ - 10.10.2026 — Kalite Faz 9B (Flow AI paneli bölündü, mobil): `FlowAiHost.js` 802 → 604 satır. Panelin görünümü yedi sunum bileşenine taşındı (`src/modules/flow_ai/ui/`: `GuideBanner`, `MessageList`, `PendingActions`, `SharePendingCard`, `PlatformPickCard`, `AttachmentChip`, `Composer`). Taşıma birebirdir; sesli sohbet durum makinesi, onay/paylaşım mantığı ve tüm işleyiciler `FlowAiHost` içinde kaldı (davranış değişmedi). ESLint çıtası eşit (101/122), `tsc` boş, `expo export --platform android` başarılı.
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 8c4cdf5..4c7da79 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -79,7 +79,8 @@
+       "tabs": {
+         "messages": "Nachrichten",
+         "comments": "Kommentare",
+-        "reviews": "Bewertungen"
++        "reviews": "Bewertungen",
++        "notifications": "Benachrichtigungen"
+       },
+       "selectAll": "Alle auswählen",
+       "selected": "Ausgewählt"
+@@ -577,8 +578,9 @@
+   "isletmemScreen": {
+     "badges": {
+       "paid": "Bezahlt",
+-      "partial": "Ausstehend",
+-      "unpaid": "Überfällig",
++      "partial": "Teilweise",
++      "unpaid": "Unbezahlt",
++      "pending": "Ausstehend",
+       "unknown": "Unbekannt"
+     },
+     "insights": {
+@@ -663,6 +665,7 @@
+     "disconnectConfirm": "Ihre Verbindung mit {{firm}} wird beendet; Ihr Berater hat keinen Zugriff mehr auf Ihre Dokumente. Sind Sie sicher?",
+     "connectedSince": "Verbunden seit: {{date}}",
+     "codeNotFound": "Für diesen Code wurde kein Berater gefunden.",
++    "rateLimited": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+     "alreadyConnected": "Sie sind bereits mit diesem Berater verbunden.",
+     "actionError": "Ein Fehler ist aufgetreten, bitte erneut versuchen."
+   },
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index c415632..12a87ab 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -79,7 +79,8 @@
+       "tabs": {
+         "messages": "Messages",
+         "comments": "Comments",
+-        "reviews": "Reviews"
++        "reviews": "Reviews",
++        "notifications": "Notifications"
+       },
+       "selectAll": "Select All",
+       "selected": "Selected"
+@@ -577,8 +578,9 @@
+   "isletmemScreen": {
+     "badges": {
+       "paid": "Paid",
+-      "partial": "Pending",
+-      "unpaid": "Overdue",
++      "partial": "Partial",
++      "unpaid": "Unpaid",
++      "pending": "Pending",
+       "unknown": "Unknown"
+     },
+     "insights": {
+@@ -663,6 +665,7 @@
+     "disconnectConfirm": "Your connection with {{firm}} will end and your advisor will no longer access your documents. Are you sure?",
+     "connectedSince": "Connected since: {{date}}",
+     "codeNotFound": "No advisor found for this code.",
++    "rateLimited": "You tried too often. Please wait a moment and try again.",
+     "alreadyConnected": "You are already connected to this advisor.",
+     "actionError": "Something went wrong, please try again."
+   },
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index 737ae65..015d07d 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -79,7 +79,8 @@
+       "tabs": {
+         "messages": "Mesajlar",
+         "comments": "Yorumlar",
+-        "reviews": "Değerlendirmeler"
++        "reviews": "Değerlendirmeler",
++        "notifications": "Bildirimler"
+       },
+       "selectAll": "Tümünü Seç",
+       "selected": "Seçildi"
+@@ -577,8 +578,9 @@
+   "isletmemScreen": {
+     "badges": {
+       "paid": "Ödendi",
+-      "partial": "Bekliyor",
+-      "unpaid": "Devretti",
++      "partial": "Kısmi",
++      "unpaid": "Ödenmedi",
++      "pending": "Beklemede",
+       "unknown": "Bilinmiyor"
+     },
+     "insights": {
+@@ -663,6 +665,7 @@
+     "disconnectConfirm": "{{firm}} ile bağlantınız kesilecek. Müşaviriniz belgelerinize artık erişemeyecek. Emin misiniz?",
+     "connectedSince": "Bağlantı tarihi: {{date}}",
+     "codeNotFound": "Bu koda ait müşavir bulunamadı.",
++    "rateLimited": "Çok sık denediniz. Lütfen biraz bekleyip tekrar deneyin.",
+     "alreadyConnected": "Bu müşavirle zaten bağlısınız.",
+     "actionError": "Bir hata oluştu, lütfen tekrar deneyin."
+   },
+diff --git a/src/modules/muhasebe/presentation/screens/IsletmemScreen.js b/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
+index 1e4696e..4bf9c6a 100644
+--- a/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
++++ b/src/modules/muhasebe/presentation/screens/IsletmemScreen.js
+@@ -11,6 +11,7 @@ const formatCurrency = (amount, locale = 'tr-TR') => formatAmount(amount, locale
+ 
+ const getBadge = (status, t) => {
+   switch (status) {
++    case 'pending': return { bg: 'rgba(255, 255, 255, 0.1)', text: '#E8D5A3', label: t('isletmemScreen.badges.pending') };
+     case 'paid': return { bg: 'rgba(75, 226, 119, 0.2)', text: '#22B573', label: t('isletmemScreen.badges.paid') };
+     case 'partial': return { bg: 'rgba(255, 180, 171, 0.2)', text: '#FCA5A5', label: t('isletmemScreen.badges.partial') };
+     case 'unpaid': return { bg: 'rgba(239, 68, 68, 0.2)', text: '#EF4444', label: t('isletmemScreen.badges.unpaid') };
+@@ -275,12 +276,12 @@ export default function IsletmemScreen({ navigation }) {
+ 
+               return (
+                 <TouchableOpacity key={item.id || idx} className="flex-row items-center justify-between p-3 bg-[#2A2631] rounded-xl mb-2">
+-                  <View className="flex-row items-center gap-3">
++                  <View className="flex-row items-center gap-3 flex-1 mr-3">
+                     <View className="w-10 h-10 rounded-lg bg-[#34303C] flex items-center justify-center">
+                       <MaterialIcons name={item.type === 'income' || item.type === 'sales' ? 'rocket-launch' : 'payments'} size={20} color={item.type === 'income' || item.type === 'sales' ? '#22B573' : '#EF4444'} />
+                     </View>
+-                    <View>
+-                      <Text className="text-[#F6F1EC] text-sm font-semibold">{item.title || (item.type === 'income' || item.type === 'sales' ? t('isletmemScreen.defaultIncomeTitle') : t('isletmemScreen.defaultExpenseTitle'))}</Text>
++                    <View className="flex-1">
++                      <Text className="text-[#F6F1EC] text-sm font-semibold" numberOfLines={2} ellipsizeMode="tail">{item.title || (item.type === 'income' || item.type === 'sales' ? t('isletmemScreen.defaultIncomeTitle') : t('isletmemScreen.defaultExpenseTitle'))}</Text>
+                       <View className="flex-row items-center mt-1">
+                         <Text className="text-[#A79E96] text-[10px] font-['JetBrainsMono-Medium']">{dateStr} • </Text>
+                         <View style={{ backgroundColor: badge.bg, paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4, marginLeft: 2 }}>
+@@ -289,7 +290,7 @@ export default function IsletmemScreen({ navigation }) {
+                       </View>
+                     </View>
+                   </View>
+-                  <View className="items-end">
++                  <View className="items-end shrink-0">
+                     <Text className={`text-xs font-medium font-['JetBrainsMono-Medium'] ${item.type === 'income' || item.type === 'sales' ? 'text-[#22B573]' : 'text-[#EF4444]'}`}>
+                       {item.type === 'income' || item.type === 'sales' ? '+' : '-'} ₺{formatCurrency(amount, i18n.language)}
+                     </Text>
+diff --git a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+index 0921ae0..b0b449f 100644
+--- a/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
++++ b/src/modules/muhasebe/presentation/screens/MuhasebecimScreen.js
+@@ -82,6 +82,8 @@ export default function MuhasebecimScreen({ navigation }) {
+           setStep('verified');
+         } else if (data?.status === 'CODE_NOT_FOUND') {
+           Alert.alert('', t('muhasebecimScreen.codeNotFound'));
++        } else if (data?.status === 'RATE_LIMITED') {
++          Alert.alert('', t('muhasebecimScreen.rateLimited'));
+         } else {
+           Alert.alert('', t('muhasebecimScreen.actionError'));
+         }
+@@ -109,6 +111,8 @@ export default function MuhasebecimScreen({ navigation }) {
+         checkConnection();
+       } else if (data?.status === 'CODE_NOT_FOUND') {
+         Alert.alert('', t('muhasebecimScreen.codeNotFound'));
++      } else if (data?.status === 'RATE_LIMITED') {
++        Alert.alert('', t('muhasebecimScreen.rateLimited'));
+       } else {
+         Alert.alert('', t('muhasebecimScreen.actionError'));
+       }
+diff --git a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+index 2e99e58..56fd243 100644
+--- a/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/AnalyticsScreen.js
+@@ -77,7 +77,7 @@ export default function AnalyticsScreen({ navigation }) {
+         supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('profile_id', organizationId),
+         supabase.from('messages').select('*', { count: 'exact', head: true }).eq('direction', 'incoming').eq('profile_id', organizationId),
+         supabase.from('messages').select('*', { count: 'exact', head: true }).eq('direction', 'outgoing').eq('profile_id', organizationId),
+-        supabase.schema('integration').from('social_accounts').select('zernio_account_id, platform').eq('organization_id', organizationId).eq('is_active', true)
++        supabase.schema('integration').from('social_accounts').select('zernio_account_id, platform').eq('organization_id', organizationId).eq('is_active', true).eq('needs_reconnection', false)
+       ]);
+ 
+       setStats({
+@@ -260,16 +260,6 @@ export default function AnalyticsScreen({ navigation }) {
+             newZernioData.totalFollowers = newZernioData.followerStats[newZernioData.followerStats.length-1]?.value || 0;
+           }
+         }
+-      } else if (selectedPlatform.id === 'youtube') {
+-        if (singleAccountId) {
+-          const actualYt = await invokeZernio('get-youtube-daily-views', accountPayload).catch(() => ({}));
+-          if (actualYt.rows) {
+-             newZernioData.timelineData = actualYt.rows.map(r => ({
+-               value: parseInt(r[1]),
+-               label: r[0]
+-             }));
+-          }
+-        }
+       } else if (selectedPlatform.id === 'tiktok') {
+         if (singleAccountId) {
+           const actualTk = await invokeZernio('get-tiktok-insights', accountPayload).catch(() => ({}));
+diff --git a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+index 928ca60..88f6497 100644
+--- a/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/ChatScreen.js
+@@ -269,7 +269,7 @@ export default function ChatScreen({ route, navigation }) {
+           }}
+           delayLongPress={500}
+           activeOpacity={0.7}
+-          style={{ flexShrink: 1, flexDirection: 'row', ...(isSelectionMode ? { flex: 1 } : {}) }}
++          style={{ flexShrink: 1, maxWidth: '88%', flexDirection: 'row', ...(isSelectionMode ? { flex: 1 } : {}) }}
+         >
+           <GlassBubble isOwn={isOwn} style={selectedItems.includes(item.id) ? { borderColor: '#C2478D', borderWidth: 1 } : {}}>
+             <Text className="text-[#F6F1EC] text-[14px] leading-5">{item.content}</Text>
+@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
+     justifyContent: 'flex-start',
+   },
+   glassBubble: {
+-    maxWidth: '80%',
++    flexShrink: 1,
+     paddingHorizontal: 16,
+     paddingVertical: 12,
+     borderWidth: 1,
+diff --git a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+index 1e97a1c..a12290f 100644
+--- a/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
++++ b/src/modules/sosyal_medya/presentation/screens/InboxScreen.js
+@@ -1,5 +1,5 @@
+ import { useTranslation } from 'react-i18next';
+-import { View, StyleSheet, ImageBackground, DeviceEventEmitter } from 'react-native';
++import { View, Text, StyleSheet, ImageBackground, DeviceEventEmitter } from 'react-native';
+ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { GlobalAppBar } from '../../../../shared';
+@@ -11,6 +11,14 @@ import { YorumlarTab } from './inbox/YorumlarTab';
+ 
+ const Tab = createMaterialTopTabNavigator();
+ 
++// Dört sekme dar ekrana sığsın diye etiket tek satır; gerekirse yazı küçülür.
++const renderTabLabel = (text) => {
++  const TabLabel = ({ color }) => (
++    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color, fontSize: 11, fontWeight: 'bold' }}>{text}</Text>
++  );
++  return TabLabel;
++};
++
+ // MAIN SCREEN
+ 
+ const BildirimlerTab = ({ navigation }) => {
+@@ -47,13 +55,14 @@ export default function InboxScreen({ navigation }) {
+           tabBarActiveTintColor: '#22B573',
+           tabBarInactiveTintColor: '#A79E96',
+           tabBarIndicatorStyle: { backgroundColor: '#22B573', height: 3, borderRadius: 4 },
++          tabBarItemStyle: { paddingHorizontal: 2 },
+           tabBarLabelStyle: { fontSize: 11, fontWeight: 'bold', textTransform: 'none' },
+         }}
+       >
+-        <Tab.Screen name="Mesajlar" component={MesajlarTab} options={{ tabBarLabel: t('sosyalMedya.inbox.tabs.messages') }} />
+-        <Tab.Screen name="Yorumlar" component={YorumlarTab} options={{ tabBarLabel: t('sosyalMedya.inbox.tabs.comments') }} />
+-        <Tab.Screen name="Bildirimler" component={BildirimlerTab} options={{ tabBarLabel: 'Bildirimler' }} />
+-        <Tab.Screen name="Değerlendirmeler" component={DegerlendirmelerTab} options={{ tabBarLabel: t('sosyalMedya.inbox.tabs.reviews') }} />
++        <Tab.Screen name="Mesajlar" component={MesajlarTab} options={{ tabBarLabel: renderTabLabel(t('sosyalMedya.inbox.tabs.messages')) }} />
++        <Tab.Screen name="Yorumlar" component={YorumlarTab} options={{ tabBarLabel: renderTabLabel(t('sosyalMedya.inbox.tabs.comments')) }} />
++        <Tab.Screen name="Bildirimler" component={BildirimlerTab} options={{ tabBarLabel: renderTabLabel(t('sosyalMedya.inbox.tabs.notifications')) }} />
++        <Tab.Screen name="Değerlendirmeler" component={DegerlendirmelerTab} options={{ tabBarLabel: renderTabLabel(t('sosyalMedya.inbox.tabs.reviews')) }} />
+       </Tab.Navigator>
+     </SafeAreaView>
+   );
+diff --git a/src/modules/sosyal_medya/presentation/screens/inbox/MesajlarTab.js b/src/modules/sosyal_medya/presentation/screens/inbox/MesajlarTab.js
+index 7859d43..de7a8f1 100644
+--- a/src/modules/sosyal_medya/presentation/screens/inbox/MesajlarTab.js
++++ b/src/modules/sosyal_medya/presentation/screens/inbox/MesajlarTab.js
+@@ -1,7 +1,7 @@
+ import { useTranslation } from 'react-i18next';
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import { supabase, CustomButton } from '../../../../../shared';
+-import { DeviceEventEmitter, Alert, ActivityIndicator, View, TouchableOpacity, Text, FlatList } from 'react-native';
++import { DeviceEventEmitter, Alert, ActivityIndicator, View, TouchableOpacity, Text, FlatList, Image } from 'react-native';
+ import { styles } from './inboxStyles';
+ import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+ import { GlassCard } from './inboxShared';
+@@ -13,6 +13,7 @@ export const MesajlarTab = ({ navigation }) => {
+   const [loading, setLoading] = useState(true);
+   const [isSelectionMode, setIsSelectionMode] = useState(false);
+   const [selectedItems, setSelectedItems] = useState([]);
++  const picturesFetched = useRef(false);
+ 
+   const fetchConversations = async () => {
+     try {
+@@ -42,6 +43,30 @@ export const MesajlarTab = ({ navigation }) => {
+       });
+       
+       setConversations(enhancedData);
++
++      // Profil resmi olmayan sohbetler için resimleri Zernio'dan bir kez tamamla (web ile aynı kaynak).
++      if (!picturesFetched.current && enhancedData.some(c => !c.participant_picture)) {
++        picturesFetched.current = true;
++        try {
++          const { data: { session } } = await supabase.auth.getSession();
++          if (session) {
++            const { data: orgMember } = await supabase.from('organization_members').select('organization_id').eq('user_id', session.user.id).maybeSingle();
++            const orgId = orgMember?.organization_id || session.user.id;
++            const { data: picRes } = await supabase.functions.invoke('zernio-client', {
++              body: { action: 'get-inbox-pictures', payload: { organizationId: orgId } }
++            });
++            const pictures = picRes?.data?.pictures || picRes?.pictures || {};
++            if (Object.keys(pictures).length > 0) {
++              setConversations(prev => prev.map(c => ({
++                ...c,
++                participant_picture: c.participant_picture || pictures[c.zernio_conversation_id] || pictures[c.id] || null
++              })));
++            }
++          }
++        } catch (picErr) {
++          console.log('Conversation pictures fetch error:', picErr);
++        }
++      }
+     } catch (e) {
+       console.log('Conversations fetch error:', e);
+     } finally {
+@@ -187,7 +212,16 @@ export const MesajlarTab = ({ navigation }) => {
+                   )}
+                   <View className="flex-row items-center flex-1">
+                     <View className="w-12 h-12 rounded-full bg-white/10 items-center justify-center mr-3 relative">
+-                      <Ionicons name={item.platform === 'instagram' ? 'logo-instagram' : 'logo-facebook'} size={24} color={item.platform === 'instagram' ? '#E8A8CD' : '#22B573'} />
++                      {item.participant_picture ? (
++                        <>
++                          <Image source={{ uri: item.participant_picture }} style={{ width: 48, height: 48, borderRadius: 24 }} />
++                          <View className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#17151A] items-center justify-center">
++                            <Ionicons name={item.platform === 'instagram' ? 'logo-instagram' : 'logo-facebook'} size={13} color={item.platform === 'instagram' ? '#E8A8CD' : '#22B573'} />
++                          </View>
++                        </>
++                      ) : (
++                        <Ionicons name={item.platform === 'instagram' ? 'logo-instagram' : 'logo-facebook'} size={24} color={item.platform === 'instagram' ? '#E8A8CD' : '#22B573'} />
++                      )}
+                       {item.unread_count > 0 && (
+                         <View className="absolute -top-1 -right-1 bg-[#C2478D] w-5 h-5 rounded-full items-center justify-center border border-[#17151A]">
+                           <Text className="text-white text-[10px] font-bold">{item.unread_count}</Text>
+diff --git a/src/screens/PostsScreen.js b/src/screens/PostsScreen.js
+index be3734e..6692e00 100644
+--- a/src/screens/PostsScreen.js
++++ b/src/screens/PostsScreen.js
+@@ -375,13 +375,7 @@ export default function PostsScreen({ navigation }) {
+ 
+                 {/* Bottom line: Metrics & Actions */}
+                 <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-white/5">
+-                  <View className="flex-row items-center">
+-                    <View className="flex-row items-center mr-3"><Feather name="heart" size={12} color="#A79E96" /><Text className="text-[#A79E96] text-[10px] ml-1">{item.metrics?.likes ?? item.likes ?? '-'}</Text></View>
+-                    <View className="flex-row items-center mr-3"><Feather name="message-circle" size={12} color="#A79E96" /><Text className="text-[#A79E96] text-[10px] ml-1">{item.metrics?.comments ?? item.comments ?? '-'}</Text></View>
+-                    <View className="flex-row items-center mr-3"><Feather name="share-2" size={12} color="#A79E96" /><Text className="text-[#A79E96] text-[10px] ml-1">{item.metrics?.shares ?? item.shares ?? '-'}</Text></View>
+-                    <View className="flex-row items-center mr-3"><Feather name="bookmark" size={12} color="#A79E96" /><Text className="text-[#A79E96] text-[10px] ml-1">{item.metrics?.saves ?? item.saves ?? '-'}</Text></View>
+-                    <View className="flex-row items-center"><Feather name="mouse-pointer" size={12} color="#A79E96" /><Text className="text-[#A79E96] text-[10px] ml-1">{item.metrics?.clicks ?? item.clicks ?? '-'}</Text></View>
+-                  </View>
++                  <View />
+                   
+                   <View className="flex-row items-center">
+                     {item.status === 'failed' && (
+-- 
+2.43.0
+

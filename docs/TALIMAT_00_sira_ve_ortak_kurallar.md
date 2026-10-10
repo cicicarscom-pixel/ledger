@@ -83,6 +83,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 78 | `TALIMAT_78_yorum_gonderi_baslik_duzeltme2.md` (kimlik uyuşmazlığı: getPost ile stub) | ledger | `zernio-client` (tek) | GEREKLİ |
 | 79 | `TALIMAT_79_gelen_kutusu_okunmamis_sayac.md` (okunmamış rozet: comments.is_read + web) | ledger + flowweb | yok | GEREKLİ |
 | 80 | `TALIMAT_80_faz10_web_postcss.md` (Faz 10 web: postcss overrides, audit 11→9) | flowweb | yok (Vercel) | GEREKLİ |
+| 81 | `TALIMAT_81_mobil_toplu_paket.md` (mobil cihaz testi düzeltmeleri + AGENTS, 2 commit; derleme ayrı) | flow | yok | GEREKLİ (derleme sonra) |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
