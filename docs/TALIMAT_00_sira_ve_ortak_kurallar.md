@@ -84,6 +84,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 79 | `TALIMAT_79_gelen_kutusu_okunmamis_sayac.md` (okunmamış rozet: comments.is_read + web) | ledger + flowweb | yok | GEREKLİ |
 | 80 | `TALIMAT_80_faz10_web_postcss.md` (Faz 10 web: postcss overrides, audit 11→9) | flowweb | yok (Vercel) | GEREKLİ |
 | 81 | `TALIMAT_81_mobil_toplu_paket.md` (mobil cihaz testi düzeltmeleri + AGENTS, 2 commit; derleme ayrı) | flow | yok | GEREKLİ (derleme sonra) |
+| 82 | `TALIMAT_82_mobil_eas_derleme_paket81.md` (EAS derleme; Talimat 81 ONAY'ından SONRA) | flow | derleme | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
