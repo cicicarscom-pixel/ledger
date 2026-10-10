@@ -1,0 +1,22 @@
+From 8eed3c523f51e82d883c62d3bab6bc8d4985bc57 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 06:16:43 +0000
+Subject: [PATCH] fix(ci): ESLint taban degeri 101'e geri alindi (Linux CI
+ olcumu 101; yerel Windows olcumu 100 idi)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ scripts/ci/eslint-baseline.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/ci/eslint-baseline.json b/scripts/ci/eslint-baseline.json
+index 90f85d7..29e9e31 100644
+--- a/scripts/ci/eslint-baseline.json
++++ b/scripts/ci/eslint-baseline.json
+@@ -1 +1 @@
+-{ "errors": 100, "warnings": 122 }
++{ "errors": 101, "warnings": 122 }
+-- 
+2.43.0
+
