@@ -72,6 +72,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 67 | `TALIMAT_67_analiz_platform_filtre_flowweb.md` (Analiz platform filtresi 400 hatası; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 68 | `TALIMAT_68_kalite_faz9b_flowaihost_flow.md` (Kalite Faz 9B; FlowAiHost görünüm bölme, hazır yama) | flow | yok | GEREKLİ |
 | 69 | `TALIMAT_69_flow_ci_eslint_taban_duzelt.md` (**ACİL** flow CI kırmızı: ESLint tabanı; hazır yama) | flow | yok | GEREKLİ |
+| 70 | `TALIMAT_70_kalite_faz9c_mobil_toplu.md` (Kalite Faz 9C; mobil TOPLU paket, 7 commit, tek derleme) | flow | yok (derleme sonra, kullanıcı ister) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
