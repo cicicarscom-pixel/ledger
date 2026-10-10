@@ -1,0 +1,41 @@
+From cfea64e0952768f33d30b5e018a1d152ae9d520e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 07:53:00 +0000
+Subject: [PATCH] fix(analiz): baglantisi kopmus hesaplar sorgulanmiyor
+ (is_active ve needs_reconnection suzgeci)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                      | 1 +
+ src/app/(dashboard)/analiz/useAnalyticsData.ts | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 9056001..8e59204 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Analiz: bağlantısı kopmuş hesap artık sorgulanmıyor:** Analiz sayfası hesap listesini `is_active`/`needs_reconnection` süzmeden okuyordu; bağlantısı kopmuş (`is_active=false`, `needs_reconnection=true`) Instagram kaydı için Instagram seçilince `get-instagram-demographics` / `get-instagram-follower-history` istekleri "Forbidden: Account not owned by this organization" uyarısı veriyordu. Diğer sayfalarla (Gelen Kutusu, Paylaşım, Sosyal Medya) aynı süzgeç eklendi.
+ - **[10.10.2026] Analiz: platform filtresi hatası düzeltildi:** Platform seçilince (Instagram/Facebook/YouTube…) gönderi sayacı sorgusu `posts.platform` sütununu arıyordu; tabloda böyle bir sütun yok (`platforms` dizisi var), sorgu 400 dönüyordu ve "Toplam Gönderi" / biçim dağılımı 0 kalıyordu. Sorgu `platforms` dizisine göre filtreleyecek şekilde düzeltildi. (Hata Faz 9A'dan önce de vardı.)
+ - **[10.10.2026] Kalite Faz 9A (Analiz sayfası bölündü, web):** `analiz/page.tsx` 1544 → 168 satır. Taşıma birebirdir, davranış/görünüm değişmedi: `analizConfig.ts` (platform ve zaman aralığı sabitleri), `CustomTooltip.tsx`, `useAnalyticsData.ts` (kendi sayaçları + Zernio çağrıları; veri katmanı), `PostingAnalytics.tsx` ve `InboxAnalytics.tsx` (iki sekme). Sayfa artık yalnız filtreleri/sekmeleri tutar ve verileri alt bileşenlere props ile geçirir. `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+ - **[10.10.2026] Vercel derleme hatası düzeltildi:** Faz 10 sonrası Vercel `pnpm install` ile çöktü (`ERR_PNPM_OUTDATED_LOCKFILE`: `pnpm-lock.yaml` `next-intl` 4 ile uyumsuzdu; depoda iki kilit dosyası vardı ve Vercel pnpm'i seçiyordu). Eski `pnpm-lock.yaml` ve `pnpm-workspace.yaml` silindi; tek kilit dosyası `package-lock.json` (GitHub CI ile aynı ağaç, `npm ci` ile doğrulanan). Önceki sürüm canlıda çalışmaya devam etti.
+diff --git a/src/app/(dashboard)/analiz/useAnalyticsData.ts b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+index cc01b38..a0ed633 100644
+--- a/src/app/(dashboard)/analiz/useAnalyticsData.ts
++++ b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+@@ -105,7 +105,7 @@ export function useAnalyticsData(selectedPlatform: Platform, selectedTimeRange:
+         qReviews,
+         supabase.from('messages').select('*', { count: 'exact', head: true }).eq('profile_id', orgId).eq('direction', 'incoming'),
+         supabase.from('messages').select('*', { count: 'exact', head: true }).eq('profile_id', orgId).eq('direction', 'outgoing'),
+-        supabase.schema('integration').from('social_accounts').select('zernio_account_id, platform').eq('organization_id', orgId)
++        supabase.schema('integration').from('social_accounts').select('zernio_account_id, platform').eq('organization_id', orgId).eq('is_active', true).eq('needs_reconnection', false)
+       ]);
+ 
+       let videoCount = 0;
+-- 
+2.43.0
+
