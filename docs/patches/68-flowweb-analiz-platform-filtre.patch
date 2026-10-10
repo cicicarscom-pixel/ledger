@@ -1,0 +1,42 @@
+From 3807451e15da7ff43e60a38e1a3e6f6389a0ee1b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 01:56:33 +0000
+Subject: [PATCH] fix(analiz): platform filtresinde posts.platform yerine
+ platforms dizisi kullanildi (400 hatasi)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                      | 1 +
+ src/app/(dashboard)/analiz/useAnalyticsData.ts | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 7f4f66b..9056001 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Analiz: platform filtresi hatası düzeltildi:** Platform seçilince (Instagram/Facebook/YouTube…) gönderi sayacı sorgusu `posts.platform` sütununu arıyordu; tabloda böyle bir sütun yok (`platforms` dizisi var), sorgu 400 dönüyordu ve "Toplam Gönderi" / biçim dağılımı 0 kalıyordu. Sorgu `platforms` dizisine göre filtreleyecek şekilde düzeltildi. (Hata Faz 9A'dan önce de vardı.)
+ - **[10.10.2026] Kalite Faz 9A (Analiz sayfası bölündü, web):** `analiz/page.tsx` 1544 → 168 satır. Taşıma birebirdir, davranış/görünüm değişmedi: `analizConfig.ts` (platform ve zaman aralığı sabitleri), `CustomTooltip.tsx`, `useAnalyticsData.ts` (kendi sayaçları + Zernio çağrıları; veri katmanı), `PostingAnalytics.tsx` ve `InboxAnalytics.tsx` (iki sekme). Sayfa artık yalnız filtreleri/sekmeleri tutar ve verileri alt bileşenlere props ile geçirir. `tsc`, ESLint çıtası (24) ve `next build` doğrulandı.
+ - **[10.10.2026] Vercel derleme hatası düzeltildi:** Faz 10 sonrası Vercel `pnpm install` ile çöktü (`ERR_PNPM_OUTDATED_LOCKFILE`: `pnpm-lock.yaml` `next-intl` 4 ile uyumsuzdu; depoda iki kilit dosyası vardı ve Vercel pnpm'i seçiyordu). Eski `pnpm-lock.yaml` ve `pnpm-workspace.yaml` silindi; tek kilit dosyası `package-lock.json` (GitHub CI ile aynı ağaç, `npm ci` ile doğrulanan). Önceki sürüm canlıda çalışmaya devam etti.
+ - **[10.10.2026] Kalite Faz 10 (bağımlılıklar, web):** `npm audit` 17 → 11 açık (yüksek 13 → 8): `npm audit fix` ile `next` 15.5.27 (önbellek zehirlenmesi), `sharp`, `postcss`, `nanoid`, `js-yaml`, `brace-expansion`, `source-map-js` güvenlik sürümlerine çekildi; `next-intl` 3 → 4.14.9 (açık yönlendirme / prototype pollution; uygulama etkilenen özellikleri kullanmıyordu ama güncel tutuldu). Kalan 11 açık yalnız geliştirme/derleme aracı zincirinde (`eslint-config-next`, `tailwindcss` 3, Next'in iç `postcss`'i) ve çözümü büyük sürüm atlaması istiyor (Next 16, Tailwind 4); üretimde çalışan kod etkilenmiyor, ayrı bir iş olarak planlandı. **Hata düzeltmesi:** ICU mesajlarında `'{ad}'` yazımı parametreyi değiştirmeden `{ad}` olarak gösteriyordu (Randevu takvim silme onayı ve Gelen Kutusu yanıt uyarısı); `''{ad}''` ile düzeltildi ve CI'ya `check-icu.mjs` denetimi eklendi.
+diff --git a/src/app/(dashboard)/analiz/useAnalyticsData.ts b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+index a2d3184..cc01b38 100644
+--- a/src/app/(dashboard)/analiz/useAnalyticsData.ts
++++ b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+@@ -93,7 +93,8 @@ export function useAnalyticsData(selectedPlatform: Platform, selectedTimeRange:
+       
+       if (selectedPlatform.id !== 'all') {
+          const pName = selectedPlatform.id === 'googlebusiness' ? 'google' : selectedPlatform.id;
+-         qPosts = qPosts.eq('platform', pName);
++         // posts tablosunda tekil 'platform' sütunu yok; 'platforms' dizi sütunu var (400 hatası veriyordu)
++         qPosts = qPosts.contains('platforms', [selectedPlatform.id]);
+          qComments = qComments.eq('platform', pName);
+          qReviews = qReviews.eq('platform', pName);
+       }
+-- 
+2.43.0
+
