@@ -1,0 +1,243 @@
+From 1b1aedd94964f33bfc5be85d8c3cdaea0037608e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 14:43:15 +0000
+Subject: [PATCH] fix(randevu): pencereler gezinme cubugunun ustunde, Yeni
+ Takvim ustte, acik dugme etiketleri, gecmis saat bilgisi, Anasayfa fatura
+ tarama rotasi (mobil)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                       |  1 +
+ src/core/i18n/locales/de.json                   |  5 +++++
+ src/core/i18n/locales/en.json                   |  5 +++++
+ src/core/i18n/locales/tr.json                   |  5 +++++
+ .../presentation/screens/RandevuScreen.js       |  4 ++--
+ .../screens/randevu/AppointmentFormModal.js     |  4 +++-
+ .../screens/randevu/CalendarStepperSelector.js  | 17 ++++++++++-------
+ .../screens/randevu/ManageCalendarsModal.js     |  4 +++-
+ .../screens/randevu/ReserveModal.js             |  4 +++-
+ .../screens/randevu/SlotsHeatmapCard.js         |  2 ++
+ .../dashboard/FinanceAndSocialSection.js        |  2 +-
+ 11 files changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/README.md b/README.md
+index 0667387..d095a3a 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Randevu düzeltmeleri (mobil): **Yeni randevu / Saati rezerve et / Takvim-Personel yönetimi** pencereleri Android gezinme çubuğunun altında kalmıyor (alt boşluk cihazın alt güvenli alanına göre); **"Yeni Takvim"** girişi pencere ekranın üst bölümünde açılıyor (klavye ve gezinme çubuğu örtmüyor); üstteki belirsiz **"Düzenle" / "+ Yeni Ekle"** düğmeleri **"Takvimleri Düzenle" / "+ Yeni Takvim/Personel"** olarak simgeli ve açık etiketli (kırmızı kaldırıldı, çeviriye alındı); **geçmiş saat** hücresine dokunulunca "Bu saat geçti" bilgisi gösteriliyor (kural aynı: geçmişe yeni randevu açılmaz); Anasayfadaki son fatura kartının tarama düğmesi artık gider girişi sohbetini (`AiChat`) açıyor (eski rota yoktu).
+ - 10.10.2026 — Cihaz testi düzeltmeleri (mobil toplu paket): **İşletmem** uzun başlıklı kayıtlar artık taşmıyor (sol blok `flex-1`, başlık 2 satır) ve ödeme durumu ham `pending` yerine çevrilmiş rozetle gösteriliyor (`pending/paid/partial/unpaid`: Beklemede/Ödendi/Kısmi/Ödenmedi; eski "Devretti" etiketi düzeltildi); **Gelen Kutusu** üst sekmeleri tek satır ("Değerlendirmeler" bölünmüyor) ve "Bildirimler" etiketi çeviriden geliyor; **Mesajlar** profil resmini gösteriyor (`participant_picture`, eksikler `get-inbox-pictures` ile tamamlanır); **sohbet balonu** ekranın ~%88'ine kadar genişliyor; **Tüm Gönderiler** kartlarındaki istatistik satırı (beğeni/yorum/paylaşım/kaydet/tıklama) kaldırıldı (web ile aynı); **Analiz** yalnız aktif ve yeniden bağlantı gerektirmeyen hesapları sorguluyor, `get-youtube-daily-views` çağrısı kaldırıldı (videoId gerektirir); **Muhasebecim** `RATE_LIMITED` yanıtı için çevrilmiş mesaj gösteriyor.
+ - 10.10.2026 — Belgeler: `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - 10.10.2026 — Kalite Faz 9C (büyük ekranlar bölündü, mobil): `DashboardScreen` 1689 → 594, `AiUretimScreen` 1891 → 1106, `BotYonetimiScreen` 1618 → 606, `AnalyticsScreen` 1257 → 382, `InboxScreen` 1132 → 61, `RandevuScreen` 1211 → 397 satır. Stil blokları, yardımcı bileşenler, platform ayar formları, bölümler ve modallar ekranın yanındaki klasörlere (`dashboard/`, `aiuretim/`, `botyonetimi/`, `analytics/`, `inbox/`, `randevu/`) birebir taşındı; durum/işleyiciler ekranlarda kaldı ve bileşenlere props ile geçer (davranış değişmedi). Dosya başı `eslint-disable` yönergeleri taşınan dosyalara yalnız gerekli olanlarıyla kopyalandı (yeni borç eklenmedi). ESLint çıtası uyarı tabanı 122 → 120. Başarısız yama artıkları `PostsScreen.js.rej` ve `AnalyticsScreen.js.rej` silindi. `expo export --platform android` başarılı; tek derlemeyle cihazda denenecek.
+diff --git a/src/core/i18n/locales/de.json b/src/core/i18n/locales/de.json
+index 4c7da79..d7ff214 100644
+--- a/src/core/i18n/locales/de.json
++++ b/src/core/i18n/locales/de.json
+@@ -381,6 +381,11 @@
+     "randevuScreen": {
+       "monthYear": "November, 2025",
+       "dailyAvailability": "Tägliche Verfügbarkeit",
++      "slotPast": "Diese Zeit ist vorbei. Wähle für einen neuen Termin eine spätere Zeit.",
++      "manageCalendars": "Kalender bearbeiten",
++      "addCalendar": "Neuer Kalender/Mitarbeiter",
++      "newCalendarTitle": "Neuer Kalender",
++      "newCalendarPlaceholder": "Name des neuen Kalenders/Mitarbeiters eingeben",
+       "busy": "Belegt",
+       "free": "Frei",
+       "morning": "Morgen",
+diff --git a/src/core/i18n/locales/en.json b/src/core/i18n/locales/en.json
+index 12a87ab..848a509 100644
+--- a/src/core/i18n/locales/en.json
++++ b/src/core/i18n/locales/en.json
+@@ -381,6 +381,11 @@
+     "randevuScreen": {
+       "monthYear": "November, 2025",
+       "dailyAvailability": "Daily Availability",
++      "slotPast": "This time has passed. Pick a later time for a new appointment.",
++      "manageCalendars": "Edit Calendars",
++      "addCalendar": "New Calendar/Staff",
++      "newCalendarTitle": "New Calendar",
++      "newCalendarPlaceholder": "Enter the new calendar/staff name",
+       "busy": "Busy",
+       "free": "Free",
+       "morning": "Morning",
+diff --git a/src/core/i18n/locales/tr.json b/src/core/i18n/locales/tr.json
+index 015d07d..bc11165 100644
+--- a/src/core/i18n/locales/tr.json
++++ b/src/core/i18n/locales/tr.json
+@@ -381,6 +381,11 @@
+     "randevuScreen": {
+       "monthYear": "Kasım, 2025",
+       "dailyAvailability": "Günlük Müsaitlik",
++      "slotPast": "Bu saat geçti. Yeni randevu için ileri bir saat seç.",
++      "manageCalendars": "Takvimleri Düzenle",
++      "addCalendar": "Yeni Takvim/Personel",
++      "newCalendarTitle": "Yeni Takvim",
++      "newCalendarPlaceholder": "Yeni takvim/personel adını girin",
+       "busy": "Dolu",
+       "free": "Boş",
+       "morning": "Sabah",
+diff --git a/src/modules/randevu/presentation/screens/RandevuScreen.js b/src/modules/randevu/presentation/screens/RandevuScreen.js
+index 4f45850..91c628b 100644
+--- a/src/modules/randevu/presentation/screens/RandevuScreen.js
++++ b/src/modules/randevu/presentation/screens/RandevuScreen.js
+@@ -356,8 +356,8 @@ export default function RandevuScreen() {
+         
+         {/* Custom Prompt Modal */}
+         <Modal visible={promptConfig.visible} transparent animationType="fade">
+-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+-            <View style={styles.modalContent}>
++          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalOverlay, { justifyContent: 'flex-start', paddingTop: insets.top + 90, paddingHorizontal: 16 }]}>
++            <View style={[styles.modalContent, { borderRadius: 24, paddingBottom: 20 }]}>
+               <Text style={styles.modalTitle}>{promptConfig.title}</Text>
+               <TextInput
+                  style={[styles.modalInput, { marginTop: 20 }]}
+diff --git a/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js b/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
+index 309223f..86b4212 100644
+--- a/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
++++ b/src/modules/randevu/presentation/screens/randevu/AppointmentFormModal.js
+@@ -4,8 +4,10 @@ import { Modal, KeyboardAvoidingView, Platform, View, TouchableOpacity, ScrollVi
+ import { styles } from './randevuStyles';
+ import { Ionicons } from '@expo/vector-icons';
+ import DateTimePicker from '@react-native-community/datetimepicker';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
+ export function AppointmentFormModal({ availableModalHours, calendars, handleSaveAppointment, isModalVisible, isSaving, newApptCalendarId, newApptName, newApptNote, newApptPhone, newApptService, newApptTime, selectedDate, services, setIsModalVisible, setNewApptCalendarId, setNewApptName, setNewApptNote, setNewApptPhone, setNewApptService, setNewApptTime, setSelectedDate, setShowCalendarDropdown, setShowDatePicker, showCalendarDropdown, showDatePicker, t }) {
++  const insets = useSafeAreaInsets();
+   return (
+     <Modal
+     visible={isModalVisible}
+@@ -19,7 +21,7 @@ export function AppointmentFormModal({ availableModalHours, calendars, handleSav
+     >
+       <View style={styles.modalOverlay}>
+         <View style={[styles.modalContent, { 
+-          backgroundColor: '#201D24', padding: 32, borderRadius: 32, 
++          backgroundColor: '#201D24', padding: 32, paddingBottom: 32 + Math.max(insets.bottom, 16), borderRadius: 32, 
+           borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+           shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, 
+           shadowOpacity: 0.4, shadowRadius: 48, elevation: 10,
+diff --git a/src/modules/randevu/presentation/screens/randevu/CalendarStepperSelector.js b/src/modules/randevu/presentation/screens/randevu/CalendarStepperSelector.js
+index 9aa5822..582dab2 100644
+--- a/src/modules/randevu/presentation/screens/randevu/CalendarStepperSelector.js
++++ b/src/modules/randevu/presentation/screens/randevu/CalendarStepperSelector.js
+@@ -1,26 +1,28 @@
+-/* eslint-disable i18next/no-literal-string */
+ import React from 'react';
+ import { View, TouchableOpacity, Text, Alert } from 'react-native';
+ import { styles } from './randevuStyles';
+ import { Ionicons } from '@expo/vector-icons';
++import { useTranslation } from 'react-i18next';
+ 
+ export function CalendarStepperSelector({ activeCalendarId, calendars, createCalendar, setActiveCalendarId, setIsManageModalVisible, setPromptConfig }) {
++  const { t } = useTranslation();
+   return (
+     <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
+       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 14, gap: 16, width: '100%' }}>
+         <TouchableOpacity 
+             onPress={() => setIsManageModalVisible(true)}
+-            style={{ width: '45%', maxWidth: 160, alignItems: 'center', paddingVertical: 10, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }}
++            style={{ flex: 1, maxWidth: 200, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 8, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.18)' }}
+           >
+-            <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '500' }}>Düzenle</Text>
++            <Ionicons name="create-outline" size={16} color="#F6F1EC" />
++            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: '#F6F1EC', fontSize: 14, fontWeight: '500', flexShrink: 1 }}>{t('randevu.randevuScreen.manageCalendars')}</Text>
+           </TouchableOpacity>
+         
+         <TouchableOpacity 
+           onPress={() => {
+             setPromptConfig({
+               visible: true,
+-              title: "Yeni Takvim",
+-              placeholder: "Yeni takvim/personel adını girin",
++              title: t('randevu.randevuScreen.newCalendarTitle'),
++              placeholder: t('randevu.randevuScreen.newCalendarPlaceholder'),
+               value: "",
+               onSave: (name) => {
+                 if (name && name.trim()) {
+@@ -29,9 +31,10 @@ export function CalendarStepperSelector({ activeCalendarId, calendars, createCal
+               }
+             });
+           }}
+-          style={{ width: '45%', maxWidth: 160, alignItems: 'center', paddingVertical: 10, backgroundColor: 'rgba(34, 181, 115, 0.1)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34, 181, 115, 0.3)' }}
++          style={{ flex: 1, maxWidth: 200, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 8, backgroundColor: 'rgba(34, 181, 115, 0.1)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34, 181, 115, 0.3)' }}
+         >
+-          <Text style={{ color: '#22B573', fontSize: 14, fontWeight: '500' }}>+ Yeni Ekle</Text>
++          <Ionicons name="add" size={18} color="#22B573" />
++          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: '#22B573', fontSize: 14, fontWeight: '500', flexShrink: 1 }}>{t('randevu.randevuScreen.addCalendar')}</Text>
+         </TouchableOpacity>
+       </View>
+     
+diff --git a/src/modules/randevu/presentation/screens/randevu/ManageCalendarsModal.js b/src/modules/randevu/presentation/screens/randevu/ManageCalendarsModal.js
+index a5d3047..4750504 100644
+--- a/src/modules/randevu/presentation/screens/randevu/ManageCalendarsModal.js
++++ b/src/modules/randevu/presentation/screens/randevu/ManageCalendarsModal.js
+@@ -3,12 +3,14 @@ import React from 'react';
+ import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+ import { styles } from './randevuStyles';
+ import { Ionicons } from '@expo/vector-icons';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
+ export function ManageCalendarsModal({ calendars, deleteCalendar, isManageModalVisible, setIsManageModalVisible, setPromptConfig, updateCalendar }) {
++  const insets = useSafeAreaInsets();
+   return (
+     <Modal visible={isManageModalVisible} transparent animationType="fade">
+       <View style={styles.modalOverlay}>
+-        <View style={styles.modalContent}>
++        <View style={[styles.modalContent, { paddingBottom: 20 + Math.max(insets.bottom, 16) }]}>
+           <View style={styles.modalHeader}>
+             <Text style={styles.modalTitle}>Takvim / Personel Yönetimi</Text>
+             <TouchableOpacity onPress={() => setIsManageModalVisible(false)}>
+diff --git a/src/modules/randevu/presentation/screens/randevu/ReserveModal.js b/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
+index ec3033e..5e8de32 100644
+--- a/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
++++ b/src/modules/randevu/presentation/screens/randevu/ReserveModal.js
+@@ -2,13 +2,15 @@ import React from 'react';
+ import { Modal, KeyboardAvoidingView, Platform, View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+ import { styles } from './randevuStyles';
+ import { Ionicons } from '@expo/vector-icons';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
+ export function ReserveModal({ activeCalendarId, add30Mins, calendars, createCalendarBlock, isSaving, refreshDaySchedule, reserveDurationType, reserveError, reserveModal, reserveNote, reserveReason, reserveScope, selectedDate, setIsSaving, setReserveConflicts, setReserveDurationType, setReserveError, setReserveModal, setReserveNote, setReserveReason, setReserveScope, t }) {
++  const insets = useSafeAreaInsets();
+   return (
+     <Modal visible={reserveModal.visible} transparent animationType="slide" onRequestClose={() => setReserveModal({ visible: false, time: '', endTime: '' })}>
+       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+         <View style={styles.modalOverlay}>
+-          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
++          <View style={[styles.modalContent, { maxHeight: '90%', paddingBottom: 20 + Math.max(insets.bottom, 16) }]}>
+             <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>{t('randevu.block.title', { defaultValue: 'Saati Rezerve Et' })}</Text>
+               <TouchableOpacity onPress={() => setReserveModal({ visible: false, time: '', endTime: '' })}>
+diff --git a/src/modules/randevu/presentation/screens/randevu/SlotsHeatmapCard.js b/src/modules/randevu/presentation/screens/randevu/SlotsHeatmapCard.js
+index 82749f7..0ab21bd 100644
+--- a/src/modules/randevu/presentation/screens/randevu/SlotsHeatmapCard.js
++++ b/src/modules/randevu/presentation/screens/randevu/SlotsHeatmapCard.js
+@@ -106,6 +106,8 @@ export function SlotsHeatmapCard({ activeCalendarId, add30Mins, daySchedule, del
+                           else refreshDaySchedule(activeCalendarId || undefined);
+                         }
+                       });
++                    } else if (status === 'past') {
++                      Alert.alert('', t('randevu.randevuScreen.slotPast'));
+                     }
+                   }}
+                   style={[styles.heatCell, { backgroundColor: bg, borderColor: border, opacity, minWidth: 46, minHeight: 40 }]}
+diff --git a/src/screens/dashboard/FinanceAndSocialSection.js b/src/screens/dashboard/FinanceAndSocialSection.js
+index 40c2b48..3bd91c5 100644
+--- a/src/screens/dashboard/FinanceAndSocialSection.js
++++ b/src/screens/dashboard/FinanceAndSocialSection.js
+@@ -49,7 +49,7 @@ export function FinanceAndSocialSection({ financeStats, formatCurrency, hasSocia
+         <InvoiceSummaryCard
+           invoice={latestInvoice}
+           todayYmd={todayInTimezone(orgTz)}
+-          onScan={() => navigation.navigate('Muhasebe', { screen: 'VeriGirisi' })}
++          onScan={() => navigation.navigate('AiChat', { transactionType: 'expense' })}
+         />
+       </CustomGlassCard>
+       
+-- 
+2.43.0
+

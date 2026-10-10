@@ -1,0 +1,80 @@
+From eaf93713ee53b6746bccb3d8ad6e87b7a3580f4d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 14:40:01 +0000
+Subject: [PATCH] fix(randevu): gecmis saat hucresine dokununca bilgi mesaji
+ (web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                                   | 1 +
+ messages/de.json                                            | 1 +
+ messages/en.json                                            | 1 +
+ messages/tr.json                                            | 1 +
+ src/app/(dashboard)/ai-asistan/randevu/WeekCalendarCard.tsx | 2 ++
+ 5 files changed, 6 insertions(+)
+
+diff --git a/README.md b/README.md
+index 5c58f83..b21f44b 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Randevu: geçmiş saat bildirimi:** Saati geçmiş (soluk) saat hücresine dokunulunca artık sessiz kalmıyor; "Bu saat geçti. Yeni randevu için ileri bir saat seçin." uyarısı çıkıyor (`randevu.block.slotPast`, tr/en/de). Geçmiş saatlere yeni randevu/rezervasyon açılmaz (kural değişmedi).
+ - **[10.10.2026] Bağımlılık güvenliği (Faz 10, web):** Next.js'in içinde gömülü eski `postcss` (güvenlik bulguları: sourceMappingURL ile dosya okuma, `</style>` XSS) `package.json` `overrides` ile `^8.5.23`'e sabitlendi; `npm audit` bulguları 11 → 9. Kalan 9 bulgu yalnızca geliştirme/derleme aracı bağımlılıkları (Tailwind 3 ve `eslint-config-next` içindeki `braces`/`chokidar`/`micromatch`/`fast-glob`) ve çözümleri büyük sürüm geçişi (Tailwind 4, Next 16) gerektiriyor; üretimde işlenmiyorlar, ayrı bir iş olarak planlanır.
+ - **[10.10.2026] Gelen Kutusu sekme sayaçları:** Mesajlar, Yorumlar ve Değerlendirmeler sekmelerindeki rozet artık toplam değil **okunmamış** sayısını gösterir (Mesajlar: okunmamış sohbet; Yorumlar: okunmamış yorum; Değerlendirmeler: yanıtsız; Bildirimler: okunmamış). Bir sohbet ya da gönderi açılınca okundu işaretlenir (`conversations.unread_count = 0`, `comments.is_read = true`). Veritabanı: `comments.is_read` (migration `20261010000003`); sütun yokken sayaç gösterilmez.
+ - **[10.10.2026] Gelen Kutusu › Yorumlar (gönderi başlığı/görseli):** Zernio'dan gelen yorumların bir kısmında `posts` kaydı yoktu (`post_id` boş), bu yüzden her gönderi "Gönderi detayı bulunamadı" ve gri görsel gösteriyordu. `zernio-client` `sync-comments` artık yorum alan gönderiler için eksik `posts` kaydını Zernio'daki metin ve görselle oluşturur, boş kalanları doldurur ve sahipsiz yorumları bağlar; sayfa senkronizasyondan sonra yorumları yeniden yükler.
+diff --git a/messages/de.json b/messages/de.json
+index a8943a9..30fce39 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -1339,6 +1339,7 @@
+       "reserve": "Reservieren",
+       "createAppointment": "Termin erstellen",
+       "removeReservation": "Reservierung entfernen",
++      "slotPast": "Diese Zeit ist vorbei. Wählen Sie für einen neuen Termin eine spätere Zeit.",
+       "title": "Zeit reservieren",
+       "scopeClinic": "Gesamte Praxis",
+       "singleSlot": "Einzelner Slot",
+diff --git a/messages/en.json b/messages/en.json
+index 7982207..f72b7cc 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -1339,6 +1339,7 @@
+       "reserve": "Reserve",
+       "createAppointment": "Create appointment",
+       "removeReservation": "Remove reservation",
++      "slotPast": "This time has passed. Pick a later time for a new appointment.",
+       "title": "Reserve time",
+       "scopeClinic": "Whole clinic",
+       "singleSlot": "Single slot",
+diff --git a/messages/tr.json b/messages/tr.json
+index 1609ade..19d8b24 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -1333,6 +1333,7 @@
+       "reserve": "Rezerve et",
+       "createAppointment": "Randevu oluştur",
+       "removeReservation": "Rezervasyonu kaldır",
++      "slotPast": "Bu saat geçti. Yeni randevu için ileri bir saat seçin.",
+       "title": "Saati rezerve et",
+       "scopeClinic": "Tüm klinik",
+       "singleSlot": "Tek slot",
+diff --git a/src/app/(dashboard)/ai-asistan/randevu/WeekCalendarCard.tsx b/src/app/(dashboard)/ai-asistan/randevu/WeekCalendarCard.tsx
+index dd84185..ff74e52 100644
+--- a/src/app/(dashboard)/ai-asistan/randevu/WeekCalendarCard.tsx
++++ b/src/app/(dashboard)/ai-asistan/randevu/WeekCalendarCard.tsx
+@@ -122,6 +122,8 @@ export function WeekCalendarCard({ activeCalendarId, add30Mins, daySchedule, dia
+                                   }, destructive: true }
+                                 ]
+                               });
++                            } else if (status === 'past') {
++                              dialog.alert(t('randevu.block.slotPast'));
+                             }
+                           }}
+                           onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+-- 
+2.43.0
+
