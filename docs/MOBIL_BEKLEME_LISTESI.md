@@ -11,5 +11,6 @@ Mobilde derleme sayısı az olsun diye aşağıdaki işler **birikir**; kullanı
 | 5 | Sabit Türkçe metinlerin i18n'i: `BotYonetimi`, `Randevu`, `Analytics`, `Inbox`, `AiMuhasebe` (dosya başı `eslint-disable i18next/no-literal-string` borcu; ~140 metin) | Faz 6 kalanı | yok | evet |
 | 6 | `FlowAiHost` sesli sohbet durum makinesi ayrı kancaya; `YorumlarTab` (679 satır) mantık/görünüm ayrımı | Faz 9 kalanı | yok | evet (cihaz testi şart) |
 | 7 | `AiUretimScreen.CaptionSection` (modül düzeyinde `persisted*` değişkenlerine yazıyor) taşınamadı: durum yönetimi yeniden tasarlanmalı | Faz 9C | yok | evet |
+| 8 | `MuhasebecimScreen`: yeni `RATE_LIMITED` durumu (muhasebeci kodu çok deneme) için çeviri + mesaj (Faz E2 onaylanırsa) | Faz E2 | yok | evet |
 
 Kural: bu paket tek `git am` ile giren commit dizisi olarak, `expo export` doğrulamasıyla hazırlanır (Talimat 70 yöntemi).

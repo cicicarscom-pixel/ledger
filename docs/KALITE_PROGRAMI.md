@@ -37,7 +37,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 |---|---|---|
 | A | **Faz D** — **TAMAM (10.10.2026)**: müsaitlik testi eski sütunlardan kurtarılıp `organizations.id` modeline taşındı, 15 kontrol canlıda yeşil (tüm değişiklikler geri alınır); tarafsız yedek yanıt 01.10.2026'dan beri `AppointmentTurnGuard`'da | hayır |
 | B | **`zernio-client`**: kaynak zaten depodaydı (düzeltme: önceki "depoda yok" yanlıştı); eksik `get-inbox-volume`/`get-inbox-performance` işlemleri eklendi (yama 76, Talimat 73; deploy bekliyor) | hayır (tek fonksiyon deploy) |
-| C | **Faz E** — muhasebeci bağlantısının yaşam döngüsü | kısmen (web/mobil ekran) |
+| C | **Faz E** — yaşam döngüsü ZATEN TAMAM (E1, 01.10.2026; canlıda 14 test geçti, web+mobil+Ledger ekranları var). Kalan: **E2 sertleştirme** (kod deneme sınırı, sahipsiz firmalar, büyük/küçük harf) — plan: `docs/FAZ_E_PLAN.md`, karar bekliyor | küçük (web hemen; mobil bekleme listesi) |
 | D | **Faz 9D (web)** — `gelen-kutusu` (1400), `RandevuClient` (1181), `share` (1065) bölme | hayır (Vercel) |
 | E | **Mobil toplu paket** (kullanıcı kararı: TEK derleme; bekliyor) — Analiz aktif-hesap süzgeci, katman ihlalleri (9), React Compiler `refs` kuralları, `Bot Yönetimi/Randevu/Analiz` sabit metinlerin i18n'i (dosya başı `eslint-disable` borcu) | evet, tek |
 | F | **Faz F** — **TAMAM (veri katmanı)**: canlı veride bütün tablolar `organizations.id` taşıyor, eski sahip-kimliği sütunları kaldırılmış; AGENTS.md §3 güncellendi (yama 74/75). Kalan yalnız sütun adı çeşitliliği (`org_id`/`organization_id`/`profile_id`): yeniden adlandırma risk > fayda, yapılmayacak | hayır |
