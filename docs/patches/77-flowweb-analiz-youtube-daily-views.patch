@@ -1,0 +1,68 @@
+From f5166516e08815d57ac39e514d58a70942b39673 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 08:40:37 +0000
+Subject: [PATCH] fix(analiz): YouTube icin videoId gerektiren
+ get-youtube-daily-views cagrisi kaldirildi (konsol uyarisi)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                      |  1 +
+ src/app/(dashboard)/analiz/useAnalyticsData.ts | 15 +++------------
+ 2 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/README.md b/README.md
+index b12d61d..a99bb3f 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Analiz (YouTube):** `get-youtube-daily-views` çağrısı kaldırıldı. Zernio'nun bu uç noktası tek bir videoya aittir (`videoId` zorunlu); sayfa videoId vermediği için her YouTube seçiminde konsola "Invalid input: expected string, received undefined" uyarısı düşüyordu ve dönen veri hiç kullanılamıyordu. Kanal zaman serisi `get-daily-metrics`'ten gelmeye devam ediyor (görünüm değişmedi).
+ - **[10.10.2026] Belgeler:** `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - **[10.10.2026] Ölü kod temizliği (web):** `src/actions/social.ts` silindi. Hiçbir yerden çağrılmıyordu ve veritabanında bulunmayan `inbox_messages` tablosuna başvuruyordu (`getPosts`, `createPost`, `deletePost`, `getMessages`, `replyToMessage`, `getSocialAccounts`). Bu işlemlerin gerçek karşılıkları ilgili sayfaların kendi sorgularında.
+ - **[10.10.2026] Analiz: bağlantısı kopmuş hesap artık sorgulanmıyor:** Analiz sayfası hesap listesini `is_active`/`needs_reconnection` süzmeden okuyordu; bağlantısı kopmuş (`is_active=false`, `needs_reconnection=true`) Instagram kaydı için Instagram seçilince `get-instagram-demographics` / `get-instagram-follower-history` istekleri "Forbidden: Account not owned by this organization" uyarısı veriyordu. Diğer sayfalarla (Gelen Kutusu, Paylaşım, Sosyal Medya) aynı süzgeç eklendi.
+diff --git a/src/app/(dashboard)/analiz/useAnalyticsData.ts b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+index a0ed633..d5e8f02 100644
+--- a/src/app/(dashboard)/analiz/useAnalyticsData.ts
++++ b/src/app/(dashboard)/analiz/useAnalyticsData.ts
+@@ -231,7 +231,6 @@ export function useAnalyticsData(selectedPlatform: Platform, selectedTimeRange:
+       type PlatformResult =
+         | { kind: 'all'; follow: any }
+         | { kind: 'instagram'; demo: any; follow: any }
+-        | { kind: 'youtube'; yt: any }
+         | { kind: 'tiktok'; tk: any }
+         | { kind: 'none' };
+ 
+@@ -245,9 +244,9 @@ export function useAnalyticsData(selectedPlatform: Platform, selectedTimeRange:
+             invokeZernio('get-instagram-follower-history', accountPayload)
+           ]).then(([demo, follow]) => ({ kind: 'instagram' as const, demo, follow }));
+         }
+-        if (selectedPlatform.id === 'youtube' && singleAccountId) {
+-          return invokeZernio('get-youtube-daily-views', accountPayload).then(yt => ({ kind: 'youtube' as const, yt }));
+-        }
++        // YouTube: Zernio'nun getYouTubeDailyViews uç noktası VİDEO bazlıdır (videoId zorunlu); kanal geneli için
++        // kullanılamaz ve eskiden her seferinde "Invalid input: expected string" uyarısı veriyordu. Kanal zaman serisi
++        // zaten get-daily-metrics'ten geliyor; bu çağrı kaldırıldı.
+         if (selectedPlatform.id === 'tiktok' && singleAccountId) {
+           return invokeZernio('get-tiktok-insights', accountPayload).then(tk => ({ kind: 'tiktok' as const, tk }));
+         }
+@@ -383,14 +382,6 @@ export function useAnalyticsData(selectedPlatform: Platform, selectedTimeRange:
+           }));
+           newZernioData.totalFollowers = newZernioData.followerStats[newZernioData.followerStats.length-1]?.followers || 0;
+         }
+-      } else if (platformResult.kind === 'youtube') {
+-        if (platformResult.yt.rows) {
+-           newZernioData.timelineData = platformResult.yt.rows.map((r: any) => ({
+-             views: parseInt(r[1]),
+-             likes: 0,
+-             date: r[0]
+-           }));
+-        }
+       } else if (platformResult.kind === 'tiktok') {
+         if (platformResult.tk.data?.stats) {
+            newZernioData.platformInsights = platformResult.tk.data.stats;
+-- 
+2.43.0
+
