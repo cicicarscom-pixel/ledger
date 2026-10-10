@@ -80,6 +80,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 75 | `TALIMAT_75_muhasebecim_rate_limited_flowweb.md` (Muhasebecim `RATE_LIMITED` mesajı; hazır yama 78) | flowweb | yok (Vercel) | GEREKLİ |
 | 76 | `TALIMAT_76_kalite_faz9d_web_sayfa_bolme.md` (Kalite Faz 9D; 3 büyük web sayfası bölme, 4 commit) | flowweb | yok (Vercel) | GEREKLİ |
 | 77 | `TALIMAT_77_gelen_kutusu_yorum_gonderi_basligi.md` (yorum gönderi başlığı/görseli: sync-comments + web yeniden yükleme) | ledger + flowweb | `zernio-client` (tek) | GEREKLİ |
+| 78 | `TALIMAT_78_yorum_gonderi_baslik_duzeltme2.md` (kimlik uyuşmazlığı: getPost ile stub) | ledger | `zernio-client` (tek) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

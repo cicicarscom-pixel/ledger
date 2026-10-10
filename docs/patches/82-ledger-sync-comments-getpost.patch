@@ -1,0 +1,79 @@
+From de66b65a6eb630819d333c5b1b853df91016eb11 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 10:11:58 +0000
+Subject: [PATCH] fix(zernio-client): sync-comments Zernio gonderi kimligiyle
+ posts kaydi olusturur (getPost)
+
+Gelen kutusu listesi platform kimligi dondurdugu icin yorumlardaki Zernio kimligiyle eslesmiyordu.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ .../shared/infrastructure/zernio/PostApi.ts   |  4 +++
+ supabase/functions/zernio-client/index.ts     | 35 +++++++++++++++++++
+ 2 files changed, 39 insertions(+)
+
+diff --git a/supabase/functions/shared/infrastructure/zernio/PostApi.ts b/supabase/functions/shared/infrastructure/zernio/PostApi.ts
+index 5ca001e..d02aab4 100644
+--- a/supabase/functions/shared/infrastructure/zernio/PostApi.ts
++++ b/supabase/functions/shared/infrastructure/zernio/PostApi.ts
+@@ -8,6 +8,10 @@ export class PostApi {
+     return withRetry(() => this.context.sdk.posts.listPosts({ query: { profileId } }));
+   }
+ 
++  async getPost(postId: string): Promise<ZernioResponse> {
++    return withRetry(() => (this.context.sdk.posts.getPost as any)({ path: { postId } }));
++  }
++
+   async createPost(payload: CreatePostPayload): Promise<ZernioResponse> {
+     return withRetry(() => this.context.sdk.posts.createPost({ body: payload }));
+   }
+diff --git a/supabase/functions/zernio-client/index.ts b/supabase/functions/zernio-client/index.ts
+index b741274..7333547 100644
+--- a/supabase/functions/zernio-client/index.ts
++++ b/supabase/functions/zernio-client/index.ts
+@@ -728,6 +728,41 @@ serve(async (req) => {
+            }));
+         }
+         
++        // Yorumlarda kayitli kimlik cogunlukla Zernio gonderi kimligidir (ornegin 6ac...). Gelen kutusu listesi ise
++        // platformun kendi kimligini (sayfaId_gonderiId, YouTube video kimligi) dondurdugu icin yukaridaki
++        // eslesme bunlari bulamaz. posts kaydi hala olmayan Zernio kimlikleri icin gonderiyi dogrudan Zernio'dan cekeriz.
++        const { data: unlinkedForPosts } = await supabase.from('comments')
++           .select('zernio_post_id')
++           .eq('profile_id', organizationId)
++           .is('post_id', null)
++           .not('zernio_post_id', 'is', null);
++        const unlinkedIds = [...new Set((unlinkedForPosts || []).map((c: any) => c.zernio_post_id))].slice(0, 30);
++        if (unlinkedIds.length > 0) {
++           const { data: haveRows } = await supabase.from('posts').select('zernio_post_id').in('zernio_post_id', unlinkedIds);
++           const have = new Set((haveRows || []).map((r: any) => r.zernio_post_id));
++           const missingIds = unlinkedIds.filter((id: any) => !have.has(id));
++           await Promise.all(missingIds.map(async (zid: any) => {
++              try {
++                 const res: any = await zernio.posts.getPost(zid);
++                 const zp = res?.data?.post;
++                 if (!zp) return;
++                 const media = (zp.mediaItems || []).map((m: any) => m?.url).filter(Boolean);
++                 const { error: zErr } = await supabase.from('posts').upsert({
++                    profile_id: organizationId,
++                    zernio_post_id: zid,
++                    content: zp.content || '',
++                    media_urls: media,
++                    status: 'published',
++                    platforms: (zp.platforms || []).map((t: any) => t.platform).filter(Boolean),
++                    scheduled_for: zp.scheduledFor || zp.createdAt || new Date().toISOString()
++                 }, { onConflict: 'zernio_post_id', ignoreDuplicates: true });
++                 if (zErr) console.error('sync-comments zernio post stub error', zid, JSON.stringify(zErr));
++              } catch (e) {
++                 console.warn('sync-comments getPost failed', zid, String(e));
++              }
++           }));
++        }
++
+         const { data: orphanedComments } = await supabase.from('comments').select('id, zernio_post_id').eq('profile_id', organizationId).is('post_id', null).not('zernio_post_id', 'is', null);
+         
+         if (orphanedComments && orphanedComments.length > 0) {
+-- 
+2.43.0
+
