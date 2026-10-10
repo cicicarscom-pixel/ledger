@@ -4,7 +4,7 @@ Mobilde derleme sayısı az olsun diye aşağıdaki işler **birikir**; kullanı
 
 | # | İş | Kaynak | Hazır yama | Derleme gerekir mi |
 |---|---|---|---|---|
-| 1 | `AnalyticsScreen` hesap sorgusuna `is_active=true` ve `needs_reconnection=false` süzgeci (web'deki Talimat 72 ile aynı hata) | konsol uyarısı | yok (üretilecek) | evet |
+| 1 | `AnalyticsScreen`: (a) hesap sorgusuna `is_active=true` ve `needs_reconnection=false` süzgeci (web Talimat 72 ile aynı hata); (b) `get-youtube-daily-views` çağrısı kaldırılır (videoId gerektirir; web Talimat 74 ile aynı, `AnalyticsScreen.js:265`) | konsol uyarıları | yok (üretilecek) | evet |
 | 2 | `AGENTS.md` §3/§6 gerçek duruma getirme + README satırı (yalnız belge) | Faz D/F kapanışı | `75-flow-agents-tenant.patch` | hayır (kod yok; pakete eşlik eder) |
 | 3 | Katman ihlalleri: `no-restricted-imports` 9 hata (relative `../../domain` vb. → takma ad) | Faz 9 kalanı | yok | evet |
 | 4 | React Compiler `react-hooks/refs` (34) ve `set-state-in-effect` (18) | Faz 9 kalanı | yok | evet |
