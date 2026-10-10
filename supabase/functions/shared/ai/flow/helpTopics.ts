@@ -100,6 +100,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
       'Altta o günün randevu listesi görünür; takvim/personel seçicisindeki oklarla "Tümü" ya da tek bir takvimin randevularına bakarsın.',
       'Doluluk özetini bana "yarın randevular nasıl?" diye sorarak da alabilirsin.',
     ],
+    notes: ['Saati geçmiş hücreler soluktur ve dokunulamaz; boş hücreye (bugün şu andan sonrası ya da ileri günler) dokununca "Randevu oluştur" / "Rezerve et" menüsü açılır. Dolu (yeşil) hücrede randevu zaten vardır; rezerveli hücrede "Rezervasyonu kaldır" çıkar.'],
   },
   randevu_olusturma: {
     title: 'Yeni randevu oluşturma',
@@ -111,6 +112,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
       '"Yeni Randevu Ekle" formunda Tarih, Saat, Müşteri Adı, Telefon Numarası, Takvim, Hizmet Tipi ve Açıklama / Not alanlarını doldur.',
       '"Randevu Oluştur"a bas.',
     ],
+    notes: ['Saati geçmiş (soluk görünen) hücrelere dokunulunca menü açılmaz; yeni randevu yalnız şu andan sonraki boş saatlere ve ileri günlere oluşturulur. Geçmiş günler ve bugünün geçen saatleri tamamen soluk görünür.'],
   },
   randevu_iptal_silme: {
     title: 'Randevuyu iptal etme veya silme',
@@ -132,6 +134,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
       'Aralıkta randevu varsa uyarı çıkar; önce o randevuları taşı ya da iptal et.',
       'Rezervasyonu kaldırmak için rezerveli saat hücresine dokunup "Rezervasyonu kaldır"ı seç.',
     ],
+    notes: ['Saati geçmiş hücreler rezerve edilemez; yalnız şu andan sonraki saatler.'],
   },
   randevu_takvim_ekleme: {
     title: 'Yeni takvim / personel ekleme',
