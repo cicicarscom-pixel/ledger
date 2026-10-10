@@ -1,7 +1,7 @@
 import type { AIContext } from '../../types.ts';
 import type { ITool, ToolResult } from '../../tools/types.ts';
 import { FLOW_GUIDES, FLOW_HIGHLIGHT_TARGETS, FLOW_SCREENS } from '../flowUiCatalog.ts';
-import { HELP_TOPICS, findHelpTopic } from '../helpTopics.ts';
+import { HELP_TOPICS, findHelpTopics } from '../helpTopics.ts';
 import type { CaptionService } from '../CaptionService.ts';
 import { PublishPostTool, type ZernioPublishCaller } from './PublishTools.ts';
 import { PrepareVideoShareTool } from './VideoShareTools.ts';
@@ -248,19 +248,31 @@ export class GenerateCaptionTool implements ITool {
 
 export class GetHelpTopicTool implements ITool {
   readonly name = 'get_help_topic';
-  readonly description = 'Uygulamanın nasıl kullanılacağına dair doğrulanmış yardım adımlarını getirir. Bilmediğin kullanım sorularında uydurma, bunu çağır.';
+  readonly description = 'Uygulamadaki HER ekranın, düğmenin ve işlemin nasıl kullanıldığını anlatan doğrulanmış yardım içeriğini getirir. Kullanıcı uygulamada bir şeyin nasıl yapıldığını, bir düğmenin ne işe yaradığını ya da bir özelliğin nerede olduğunu sorduğunda MUTLAKA bunu çağır.';
   readonly riskLevel = 'READ' as const;
   readonly schema = {
     type: 'object',
-    properties: { topic: { type: 'string', description: 'Konu anahtarı ya da kullanıcının sorusu/anahtar kelimeler.' } },
+    properties: { topic: { type: 'string', description: 'Kullanıcının sorusu ya da anahtar kelimeler (ör. "yeni takvim nasıl eklenir").' } },
     required: ['topic'],
   };
   async execute(_context: AIContext, args: Record<string, unknown>): Promise<ToolResult> {
-    const found = findHelpTopic(String(args.topic ?? ''));
-    if (!found) {
-      return { status: 'NOT_FOUND', message: 'Bu konuda doğrulanmış yardım içeriği yok; uydurma, bilmediğini söyle.', data: { availableTopics: Object.entries(HELP_TOPICS).map(([k, t]) => ({ key: k, title: t.title })) } };
+    const matches = findHelpTopics(String(args.topic ?? ''));
+    if (matches.length === 0) {
+      // Eşleşme yok: "bilmiyorum" demek yerine bütün kataloğu ver; model en yakın konuyu seçer ya da ekranı açıp ana işlevleri sıralar.
+      return {
+        status: 'NOT_FOUND',
+        message: 'Tam eşleşen konu bulunamadı. KATALOĞU incele: soru uygulamadaki bir özellikle ilgiliyse en yakın konunun adımlarıyla yanıtla ya da ilgili ekranı açıp o ekrandaki işlevleri anlat. "Bilmiyorum" deme; katalogda gerçekten olmayan bir şeyi UYDURMA, "şu an uygulamada böyle bir düğme/özellik göremiyorum, ama X ekranında şunlar var" de.',
+        data: { catalog: Object.entries(HELP_TOPICS).map(([k, t]) => ({ key: k, title: t.title, screen: t.screen, steps: t.steps, notes: t.notes })) },
+      };
     }
-    return { status: 'SUCCESS', data: { key: found.key, title: found.topic.title, screen: found.topic.screen, steps: found.topic.steps } };
+    const [first, ...rest] = matches;
+    return {
+      status: 'SUCCESS',
+      data: {
+        key: first.key, title: first.topic.title, screen: first.topic.screen, steps: first.topic.steps, notes: first.topic.notes,
+        relatedTopics: rest.map((m) => ({ key: m.key, title: m.topic.title, screen: m.topic.screen, steps: m.topic.steps, notes: m.topic.notes })),
+      },
+    };
   }
 }
 
