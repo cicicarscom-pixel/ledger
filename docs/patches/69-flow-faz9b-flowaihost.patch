@@ -1,0 +1,742 @@
+From fd399de6667500a1497df1834054dae4633fcb55 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 02:13:17 +0000
+Subject: [PATCH] refactor(flow-ai): FlowAiHost gorunumu yedi sunum bilesenine
+ bolundu, 802 -> 604 satir (Kalite Faz 9B, mobil)
+
+Birebir tasima; mantik ve islemciler FlowAiHost icinde kaldi.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                  |   1 +
+ src/modules/flow_ai/FlowAiHost.js          | 302 ++++-----------------
+ src/modules/flow_ai/ui/AttachmentChip.js   |  16 ++
+ src/modules/flow_ai/ui/Composer.js         |  68 +++++
+ src/modules/flow_ai/ui/GuideBanner.js      |  31 +++
+ src/modules/flow_ai/ui/MessageList.js      |  59 ++++
+ src/modules/flow_ai/ui/PendingActions.js   |  44 +++
+ src/modules/flow_ai/ui/PlatformPickCard.js |  53 ++++
+ src/modules/flow_ai/ui/SharePendingCard.js |  30 ++
+ 9 files changed, 354 insertions(+), 250 deletions(-)
+ create mode 100644 src/modules/flow_ai/ui/AttachmentChip.js
+ create mode 100644 src/modules/flow_ai/ui/Composer.js
+ create mode 100644 src/modules/flow_ai/ui/GuideBanner.js
+ create mode 100644 src/modules/flow_ai/ui/MessageList.js
+ create mode 100644 src/modules/flow_ai/ui/PendingActions.js
+ create mode 100644 src/modules/flow_ai/ui/PlatformPickCard.js
+ create mode 100644 src/modules/flow_ai/ui/SharePendingCard.js
+
+diff --git a/README.md b/README.md
+index 58f688a..0af998e 100644
+--- a/README.md
++++ b/README.md
+@@ -302,6 +302,7 @@ Kullanıcıların sosyal medya (Facebook, Instagram vb.) hesaplarını Workigom
+ ---
+ 
+ ## 🆕 Son Güncellemeler (09.10.2026 - Sesli sohbet)
++- 10.10.2026 — Kalite Faz 9B (Flow AI paneli bölündü, mobil): `FlowAiHost.js` 802 → 604 satır. Panelin görünümü yedi sunum bileşenine taşındı (`src/modules/flow_ai/ui/`: `GuideBanner`, `MessageList`, `PendingActions`, `SharePendingCard`, `PlatformPickCard`, `AttachmentChip`, `Composer`). Taşıma birebirdir; sesli sohbet durum makinesi, onay/paylaşım mantığı ve tüm işleyiciler `FlowAiHost` içinde kaldı (davranış değişmedi). ESLint çıtası eşit (101/122), `tsc` boş, `expo export --platform android` başarılı.
+ - 10.10.2026 — Kalite Faz 10 (bağımlılıklar, mobil): `npm audit` 44 → 32 açık, **kritik 1 → 0** (`shell-quote`), yüksek 28 → 19. `npm audit fix` ile Expo SDK 57 yama sürümleri (`expo` 57.0.27, `expo-modules-core`, `expo-constants` …), `react-navigation`, `postcss`, `js-yaml`, `@xmldom/xmldom`, `node-forge` zincirleri vb. güvenlik sürümlerine çekildi. **`tailwindcss` 3.3.2'ye sabitlendi** (`package.json` artık tam sürüm): NativeWind 2, Tailwind 3.4'ün eşzamansız eklentileriyle uyumsuz ("Use process(css).then(cb)" hatasıyla Android paketlemesi çöküyordu; audit fix'in getirdiği 3.4.19 bunu tetikledi). Doğrulama: `expo export --platform android` başarılı, `tsc` temiz, ESLint çıtası aynı. Kalan 32 açık: Expo/Metro derleme araçları, `nativewind`/`tailwindcss` zinciri (büyük sürüm gerektirir) ve bilinen kabul edilmiş `xlsx` (yalnız dışa aktarma). **Native modül sürümleri değiştiği için yeni bir EAS derlemesi gerekir.**
+ - 09.10.2026 — Eksik çeviri anahtarları (mobil): kodda çağrılıp tr/en/de dosyalarında bulunmayan 31 anahtar eklendi. En görünür hata: Muhasebecim "bağlı" ekranında başlık ve hızlı eylem düğmeleri ham anahtar adıyla görünüyordu (`muhasebecimScreen.connected.title` vb.); Sosyal Medya hesap bağlantısını kesme uyarısı, bağlı/bağlı değil etiketleri, Sohbet menüsü, Randevu rezervasyon penceresi ve AI Muhasebe kartları artık seçili dilde. Bağlantıyı kes onayı platform adını parametre olarak alır.
+ - 09.10.2026 — Kalite Faz 6C/6D (i18n, mobil): `AiUretimScreen` (platform formları, ipuçları, zamanlama), `AnalyticsScreen` (kart başlıkları, tablo sütunları), Müşteri detayı ve listesi, Sohbet/Gelen Kutusu/Sosyal Medya ekranlarındaki ~110 sabit metin tr/en/de anahtarlarına taşındı (79 yeni anahtar). ESLint sabit-metin hataları 110 azaldı (211 → 101); çıta tabanı güncellendi. Marka adları (YouTube, Instagram…) ve para simgesi bilerek sabit bırakıldı.
+diff --git a/src/modules/flow_ai/FlowAiHost.js b/src/modules/flow_ai/FlowAiHost.js
+index e8fd9b3..c0fc075 100644
+--- a/src/modules/flow_ai/FlowAiHost.js
++++ b/src/modules/flow_ai/FlowAiHost.js
+@@ -1,6 +1,6 @@
+ import React, { useCallback, useEffect, useRef, useState } from 'react';
+ import {
+-  FlatList, KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View,
++  KeyboardAvoidingView, Platform, Text, TouchableOpacity, View,
+   AppState,
+   Animated, PanResponder,
+ } from 'react-native';
+@@ -8,7 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { useTranslation } from 'react-i18next';
+ import FlowAiSuggestions from './FlowAiSuggestions';
+-import TypingDots from './TypingDots';
++import GuideBanner from './ui/GuideBanner';
++import MessageList from './ui/MessageList';
++import PendingActions from './ui/PendingActions';
++import SharePendingCard from './ui/SharePendingCard';
++import PlatformPickCard from './ui/PlatformPickCard';
++import AttachmentChip from './ui/AttachmentChip';
++import Composer from './ui/Composer';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import FlowAiOrb from './FlowAiOrb';
+ import { FlowAiService } from './FlowAiService';
+@@ -32,14 +38,6 @@ const PUBLISH_ERRORS = {
+   SCHEDULE_IN_PAST: 'flowAi.publish.past',
+ };
+ 
+-function formatWhen(preview) {
+-  try {
+-    return new Date(preview.scheduledFor).toLocaleString(undefined, { timeZone: preview.timezone, dateStyle: 'medium', timeStyle: 'short' });
+-  } catch {
+-    return String(preview.scheduledFor || '');
+-  }
+-}
+-
+ export default function FlowAiHost({ navigationRef }) {
+   const { t } = useTranslation();
+   const insets = useSafeAreaInsets();
+@@ -492,29 +490,7 @@ export default function FlowAiHost({ navigationRef }) {
+   handleSilenceRef.current = handleSilence;
+ 
+   if (guide) {
+-    const def = FLOW_GUIDES[guide.key];
+-    const isLast = guide.step === def.steps.length - 1;
+-    return (
+-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
+-        <View testID="flow_ai_guide" style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, backgroundColor: '#12151C', borderRadius: 18, padding: 12, borderWidth: 1, borderColor: 'rgba(0,162,255,0.55)', shadowColor: '#00a2ff', shadowOpacity: 0.45, shadowRadius: 12, elevation: 10 }}>
+-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+-            <Ionicons name="sparkles" size={16} color="#00DAF3" />
+-            <Text style={{ color: '#00DAF3', fontWeight: '700', marginLeft: 6, flex: 1 }}>{t('flowAi.guide.title', { step: guide.step + 1, total: def.steps.length })}</Text>
+-          </View>
+-          <Text style={{ color: '#fff' }}>{t(def.steps[guide.step].textKey)}</Text>
+-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+-            {!isLast && (
+-              <TouchableOpacity onPress={advanceGuide} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', marginRight: 8 }}>
+-                <Text style={{ color: '#fff', fontWeight: '600' }}>{t('flowAi.guide.skip')}</Text>
+-              </TouchableOpacity>
+-            )}
+-            <TouchableOpacity onPress={() => finishGuide(isLast)} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}>
+-              <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isLast ? 'flowAi.guide.finish' : 'flowAi.guide.cancel')}</Text>
+-            </TouchableOpacity>
+-          </View>
+-        </View>
+-      </View>
+-    );
++    return <GuideBanner guide={guide} insets={insets} t={t} onAdvance={advanceGuide} onFinish={finishGuide} />;
+   }
+ 
+   if (!open) {
+@@ -564,238 +540,64 @@ export default function FlowAiHost({ navigationRef }) {
+           </TouchableOpacity>
+         </View>
+ 
+-        <FlatList
+-          ref={listRef}
+-          data={messages}
+-          keyExtractor={(m) => m.id}
+-          scrollEventThrottle={100}
+-          onScroll={(e) => {
+-            const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+-            atBottomRef.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
+-          }}
+-          onContentSizeChange={() => {
+-            if (atBottomRef.current) listRef.current?.scrollToEnd?.({ animated: true });
+-          }}
+-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10 }}
+-          ListEmptyComponent={
+-            <View>
+-              <Text style={{ color: '#8B949E', textAlign: 'center', marginVertical: 14 }}>{t('flowAi.empty')}</Text>
+-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+-                {['chipAppointments', 'chipPost', 'chipAccounts'].map((k) => (
+-                  <TouchableOpacity key={k} onPress={() => send(t(`flowAi.${k}`))} style={{ margin: 4, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+-                    <Text style={{ color: '#8B949E', fontSize: 12 }}>{t(`flowAi.${k}`)}</Text>
+-                  </TouchableOpacity>
+-                ))}
+-              </View>
+-            </View>
+-          }
+-          ListFooterComponent={busy && messages.length > 0 ? (
+-            <View testID="flow_ai_typing" style={{ alignSelf: 'flex-start', marginVertical: 4, borderRadius: 18, borderTopLeftRadius: 6, paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.04)' }}>
+-              <TypingDots color="#9D5CFF" size={7} />
+-            </View>
+-          ) : null}
+-          renderItem={({ item }) => {
+-            const mine = item.role === 'user';
+-            const bubble = { maxWidth: '85%', marginVertical: 4, borderRadius: 18, overflow: 'hidden' };
+-            if (mine) {
+-              return (
+-                <View style={[bubble, { alignSelf: 'flex-end', borderTopRightRadius: 6 }]}>
+-                  <LinearGradient colors={['#3B82F6', '#9D5CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ padding: 11 }}>
+-                    <Text style={{ color: '#fff', fontSize: 14 }}>{item.text}</Text>
+-                  </LinearGradient>
+-                </View>
+-              );
+-            }
+-            return (
+-              <View style={[bubble, { alignSelf: 'flex-start', borderTopLeftRadius: 6, padding: 11, borderWidth: 1, borderColor: item.role === 'error' ? 'rgba(248,81,73,0.35)' : 'rgba(255,255,255,0.05)', backgroundColor: item.role === 'error' ? 'rgba(248,81,73,0.10)' : 'rgba(255,255,255,0.04)' }]}>
+-                <Text style={{ color: '#D7DEE7', fontSize: 14 }}>{item.text}</Text>
+-              </View>
+-            );
+-          }}
+-        />
++        <MessageList messages={messages} busy={busy} send={send} listRef={listRef} atBottomRef={atBottomRef} t={t} />
+ 
+         {messages.length === 0 && pending.length === 0 && (
+           <FlowAiSuggestions cards={cards} onPrompt={cardPrompt} onNavigate={cardNavigate} onDismiss={dismissCard} />
+         )}
+ 
+-        {pending.map((p) => {
+-          const isPublish = p.toolName === 'publish_post' && p.preview?.text;
+-          return (
+-            <View key={p.id} style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
+-              <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12 }}>{t(isPublish ? 'flowAi.publish.title' : 'flowAi.pendingTitle')}</Text>
+-              {isPublish ? (
+-                <>
+-                  <Text style={{ color: '#9FB0C3', marginTop: 4, fontSize: 12 }}>
+-                    {(p.preview.platforms || []).join(', ')} · {p.preview.mode === 'schedule' ? t('flowAi.publish.at', { when: formatWhen(p.preview) }) : t('flowAi.publish.now')}
+-                  </Text>
+-                  <Text style={{ color: '#D7DEE7', marginTop: 6 }} numberOfLines={8}>{p.preview.text}</Text>
+-                </>
+-              ) : (
+-                <Text style={{ color: '#D7DEE7', marginTop: 2 }} numberOfLines={3}>{p.preview?.description || p.toolName}</Text>
+-              )}
+-              <View style={{ flexDirection: 'row', marginTop: 8 }}>
+-                <TouchableOpacity disabled={busy} onPress={() => decide(p, true)} style={{ flex: 1, backgroundColor: '#238636', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6 }}>
+-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isPublish ? (p.preview.mode === 'schedule' ? 'flowAi.publish.approveSchedule' : 'flowAi.publish.approveNow') : 'flowAi.approve')}</Text>
+-                </TouchableOpacity>
+-                <TouchableOpacity disabled={busy} onPress={() => decide(p, false)} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}>
+-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isPublish ? 'flowAi.publish.cancel' : 'flowAi.reject')}</Text>
+-                </TouchableOpacity>
+-              </View>
+-            </View>
+-          );
+-        })}
++        <PendingActions pending={pending} busy={busy} decide={decide} t={t} />
+ 
+         {shareJobPending && (
+-          <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
+-            <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12 }}>{t('flowAi.share.title')}</Text>
+-            <Text style={{ color: '#9FB0C3', marginTop: 4, fontSize: 12 }}>
+-              {shareJobPending.platforms.join(', ')} · {shareJobPending.scheduledLocal ? shareJobPending.scheduledLocal : t('flowAi.publish.now')}
+-            </Text>
+-            <Text style={{ color: '#D7DEE7', marginTop: 6 }} numberOfLines={8}>{shareJobPending.caption}</Text>
+-            
+-            {shareConfirmState === 'STARTED' ? (
+-              <Text style={{ color: '#3FB950', marginTop: 12, textAlign: 'center', fontWeight: '500' }}>{t('flowAi.share.starting')}</Text>
+-            ) : shareConfirmState === 'NOT_READY' ? (
+-              <Text style={{ color: '#E3B341', marginTop: 12, textAlign: 'center', fontWeight: '500' }}>{t('flowAi.share.wait')}</Text>
+-            ) : null}
+-
+-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+-              <TouchableOpacity disabled={busy || shareConfirmState === 'STARTED'} onPress={async () => {
+-                const res = await flowAiShareHandoff.confirm();
+-                setShareConfirmState(res);
+-              }} style={{ flex: 1, backgroundColor: '#238636', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6 }}>
+-                <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.confirm')}</Text>
+-              </TouchableOpacity>
+-              <TouchableOpacity disabled={busy || shareConfirmState === 'STARTED'} onPress={() => {
+-                setShareJobPending(null);
+-                flowAiShareHandoff.clear();
+-                setAttachmentMeta(null);
+-                setShareConfirmState('IDLE');
+-              }} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}>
+-                <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.cancel')}</Text>
+-              </TouchableOpacity>
+-            </View>
+-          </View>
++          <SharePendingCard
++            shareJobPending={shareJobPending}
++            shareConfirmState={shareConfirmState}
++            busy={busy}
++            onConfirm={async () => {
++              const res = await flowAiShareHandoff.confirm();
++              setShareConfirmState(res);
++            }}
++            onCancel={() => {
++              setShareJobPending(null);
++              flowAiShareHandoff.clear();
++              setAttachmentMeta(null);
++              setShareConfirmState('IDLE');
++            }}
++            t={t}
++          />
+         )}
+ 
+         {platformPick && (
+-          <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
+-            <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12, marginBottom: 8 }}>{t('flowAi.share.pickTitle')}</Text>
+-            
+-            <View style={{ gap: 6, marginBottom: 12 }}>
+-              {platformPick.map((o, i) => (
+-                <TouchableOpacity
+-                  key={i}
+-                  disabled={!o.eligible}
+-                  onPress={() => setPickSel(s => ({ ...s, [o.platform]: !s[o.platform] }))}
+-                  style={{
+-                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+-                    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+-                    backgroundColor: pickSel[o.platform] ? 'rgba(0,218,243,0.1)' : 'rgba(255,255,255,0.03)',
+-                    opacity: o.eligible ? 1 : 0.5
+-                  }}
+-                >
+-                  <View style={{ flexDirection: 'column' }}>
+-                    <Text style={{ fontWeight: '600', fontSize: 13, color: o.eligible ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+-                      {o.platform.charAt(0).toUpperCase() + o.platform.slice(1)} {o.handle ? <Text style={{ opacity: 0.6, fontWeight: '400' }}>@{o.handle}</Text> : null}
+-                    </Text>
+-                    {!o.eligible && o.reason && (
+-                      <Text style={{ fontSize: 11, color: '#FF7A59', marginTop: 2 }}>{o.reason}</Text>
+-                    )}
+-                  </View>
+-                  {pickSel[o.platform] && <Text style={{ color: '#00DAF3', fontSize: 16 }}>✓</Text>}
+-                </TouchableOpacity>
+-              ))}
+-            </View>
+-
+-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+-              <TouchableOpacity
+-                disabled={!Object.values(pickSel).some(Boolean)}
+-                onPress={() => {
+-                  const names = Object.keys(pickSel).filter((k) => pickSel[k]);
+-                  setPlatformPick(null);
+-                  send(`${t('flowAi.share.pickedPrefix')}: ${names.join(', ')}`);
+-                }}
+-                style={{ flex: 1, backgroundColor: '#00DAF3', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6, opacity: Object.values(pickSel).some(Boolean) ? 1 : 0.5 }}
+-              >
+-                <Text style={{ color: '#000', fontWeight: '700' }}>{t('flowAi.share.pickContinue')}</Text>
+-              </TouchableOpacity>
+-              <TouchableOpacity
+-                onPress={() => setPlatformPick(null)}
+-                style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
+-              >
+-                <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.cancel')}</Text>
+-              </TouchableOpacity>
+-            </View>
+-          </View>
++          <PlatformPickCard
++            platformPick={platformPick}
++            pickSel={pickSel}
++            onToggle={(platform) => setPickSel(s => ({ ...s, [platform]: !s[platform] }))}
++            onContinue={() => {
++              const names = Object.keys(pickSel).filter((k) => pickSel[k]);
++              setPlatformPick(null);
++              send(`${t('flowAi.share.pickedPrefix')}: ${names.join(', ')}`);
++            }}
++            onCancel={() => setPlatformPick(null)}
++            t={t}
++          />
+         )}
+ 
+         {attachmentMeta && (
+-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 6, marginHorizontal: 12, marginBottom: 8, alignSelf: 'flex-start' }}>
+-            <Ionicons name="videocam" size={14} color="#8B949E" />
+-            <Text style={{ color: '#D7DEE7', fontSize: 12, marginLeft: 4 }}>{attachmentMeta.fileName} ({Math.round(attachmentMeta.durationSec)}s)</Text>
+-            <TouchableOpacity onPress={() => { setAttachmentMeta(null); flowAiShareHandoff.clear(); }} style={{ marginLeft: 6, padding: 2 }}>
+-              <Ionicons name="close-circle" size={14} color="#F85149" />
+-            </TouchableOpacity>
+-          </View>
++          <AttachmentChip attachmentMeta={attachmentMeta} onRemove={() => { setAttachmentMeta(null); flowAiShareHandoff.clear(); }} />
+         )}
+ 
+-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+-          {voiceChat ? (
+-          <>
+-          <TouchableOpacity testID="flow_ai_attach_voice" onPress={handleAttach} disabled={busy} style={{ marginRight: 8, padding: 4, opacity: busy ? 0.5 : 1 }}>
+-            <Ionicons name="add-circle-outline" size={24} color="#8B949E" />
+-          </TouchableOpacity>
+-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}>
+-            <Animated.View style={{ opacity: voicePhase === 'LISTENING' ? 1 : 0.5, marginRight: 8 }}>
+-              <Ionicons name="mic" size={16} color={voicePhase === 'LISTENING' ? "#F85149" : "#8B949E"} />
+-            </Animated.View>
+-            <View style={{ flex: 1, justifyContent: 'center' }}>
+-              <Text style={{ color: '#8B949E', fontSize: 13, marginBottom: 2 }}>
+-                {voicePhase === 'LISTENING' ? t('flowAi.voice.chat.listening') : 
+-                 voicePhase === 'PROCESSING' ? t('flowAi.voice.chat.thinking') :
+-                 voicePhase === 'SPEAKING' ? t('flowAi.voice.chat.speaking') : ''}
+-              </Text>
+-              {voicePhase === 'LISTENING' && input ? <Text style={{ color: '#fff', fontSize: 14 }} numberOfLines={1}>{input}</Text> : null}
+-            </View>
+-            <TouchableOpacity onPress={() => exitVoiceChatRef.current?.('bitir-dugmesi')} style={{ backgroundColor: 'rgba(248,81,73,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+-              <Text style={{ color: '#F85149', fontWeight: '600', fontSize: 12 }}>{t('flowAi.voice.chat.end')}</Text>
+-            </TouchableOpacity>
+-          </View>
+-          </>
+-        ) : (
+-          <>
+-            <TouchableOpacity onPress={handleAttach} disabled={busy} style={{ marginRight: 8, padding: 4 }}>
+-              <Ionicons name="add-circle-outline" size={24} color="#8B949E" />
+-            </TouchableOpacity>
+-            <TouchableOpacity 
+-              onPress={enterVoiceChat} 
+-              disabled={busy} 
+-              style={{ marginRight: 8, padding: 4 }}
+-            >
+-              <Ionicons name="mic" size={24} color="#8B949E" />
+-            </TouchableOpacity>
+-            
+-            <TextInput
+-              testID="flow_ai_input"
+-              value={input}
+-              onChangeText={setInput}
+-              onSubmitEditing={() => send()}
+-              editable={!busy}
+-              placeholder={t('flowAi.placeholder')}
+-              placeholderTextColor="#65707D"
+-              maxLength={4000}
+-              style={{ flex: 1, color: '#fff', backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+-            />
+-            
+-            <TouchableOpacity testID="flow_ai_send" onPress={() => send()} disabled={busy || !input.trim()} style={{ marginLeft: 8, opacity: busy || !input.trim() ? 0.5 : 1 }}>
+-              <LinearGradient colors={['#3B82F6', '#9D5CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+-                <Ionicons name="send" size={17} color="#fff" />
+-              </LinearGradient>
+-            </TouchableOpacity>
+-          </>
+-        )}
+-        </View>
++        <Composer
++          voiceChat={voiceChat}
++          voicePhase={voicePhase}
++          input={input}
++          setInput={setInput}
++          busy={busy}
++          send={send}
++          handleAttach={handleAttach}
++          enterVoiceChat={enterVoiceChat}
++          onEndVoice={() => exitVoiceChatRef.current?.('bitir-dugmesi')}
++          t={t}
++        />
+       </View>
+     </KeyboardAvoidingView>
+   );
+diff --git a/src/modules/flow_ai/ui/AttachmentChip.js b/src/modules/flow_ai/ui/AttachmentChip.js
+new file mode 100644
+index 0000000..05ee822
+--- /dev/null
++++ b/src/modules/flow_ai/ui/AttachmentChip.js
+@@ -0,0 +1,16 @@
++import React from 'react';
++import { Text, TouchableOpacity, View } from 'react-native';
++import { Ionicons } from '@expo/vector-icons';
++
++// Eklenen video rozeti (FlowAiHost'tan birebir taşındı).
++export default function AttachmentChip({ attachmentMeta, onRemove }) {
++  return (
++    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 6, marginHorizontal: 12, marginBottom: 8, alignSelf: 'flex-start' }}>
++      <Ionicons name="videocam" size={14} color="#8B949E" />
++      <Text style={{ color: '#D7DEE7', fontSize: 12, marginLeft: 4 }}>{attachmentMeta.fileName} ({Math.round(attachmentMeta.durationSec)}s)</Text>
++      <TouchableOpacity onPress={onRemove} style={{ marginLeft: 6, padding: 2 }}>
++        <Ionicons name="close-circle" size={14} color="#F85149" />
++      </TouchableOpacity>
++    </View>
++  );
++}
+diff --git a/src/modules/flow_ai/ui/Composer.js b/src/modules/flow_ai/ui/Composer.js
+new file mode 100644
+index 0000000..6f2f20d
+--- /dev/null
++++ b/src/modules/flow_ai/ui/Composer.js
+@@ -0,0 +1,68 @@
++import React from 'react';
++import { Animated, Text, TextInput, TouchableOpacity, View } from 'react-native';
++import { Ionicons } from '@expo/vector-icons';
++import { LinearGradient } from 'expo-linear-gradient';
++
++// Mesaj yazma / sesli sohbet çubuğu (FlowAiHost'tan birebir taşındı).
++export default function Composer({
++  voiceChat, voicePhase, input, setInput, busy, send, handleAttach, enterVoiceChat, onEndVoice, t,
++}) {
++  return (
++      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
++        {voiceChat ? (
++        <>
++        <TouchableOpacity testID="flow_ai_attach_voice" onPress={handleAttach} disabled={busy} style={{ marginRight: 8, padding: 4, opacity: busy ? 0.5 : 1 }}>
++          <Ionicons name="add-circle-outline" size={24} color="#8B949E" />
++        </TouchableOpacity>
++        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}>
++          <Animated.View style={{ opacity: voicePhase === 'LISTENING' ? 1 : 0.5, marginRight: 8 }}>
++            <Ionicons name="mic" size={16} color={voicePhase === 'LISTENING' ? "#F85149" : "#8B949E"} />
++          </Animated.View>
++          <View style={{ flex: 1, justifyContent: 'center' }}>
++            <Text style={{ color: '#8B949E', fontSize: 13, marginBottom: 2 }}>
++              {voicePhase === 'LISTENING' ? t('flowAi.voice.chat.listening') : 
++               voicePhase === 'PROCESSING' ? t('flowAi.voice.chat.thinking') :
++               voicePhase === 'SPEAKING' ? t('flowAi.voice.chat.speaking') : ''}
++            </Text>
++            {voicePhase === 'LISTENING' && input ? <Text style={{ color: '#fff', fontSize: 14 }} numberOfLines={1}>{input}</Text> : null}
++          </View>
++          <TouchableOpacity onPress={() => onEndVoice()} style={{ backgroundColor: 'rgba(248,81,73,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
++            <Text style={{ color: '#F85149', fontWeight: '600', fontSize: 12 }}>{t('flowAi.voice.chat.end')}</Text>
++          </TouchableOpacity>
++        </View>
++        </>
++      ) : (
++        <>
++          <TouchableOpacity onPress={handleAttach} disabled={busy} style={{ marginRight: 8, padding: 4 }}>
++            <Ionicons name="add-circle-outline" size={24} color="#8B949E" />
++          </TouchableOpacity>
++          <TouchableOpacity 
++            onPress={enterVoiceChat} 
++            disabled={busy} 
++            style={{ marginRight: 8, padding: 4 }}
++          >
++            <Ionicons name="mic" size={24} color="#8B949E" />
++          </TouchableOpacity>
++
++          <TextInput
++            testID="flow_ai_input"
++            value={input}
++            onChangeText={setInput}
++            onSubmitEditing={() => send()}
++            editable={!busy}
++            placeholder={t('flowAi.placeholder')}
++            placeholderTextColor="#65707D"
++            maxLength={4000}
++            style={{ flex: 1, color: '#fff', backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
++          />
++
++          <TouchableOpacity testID="flow_ai_send" onPress={() => send()} disabled={busy || !input.trim()} style={{ marginLeft: 8, opacity: busy || !input.trim() ? 0.5 : 1 }}>
++            <LinearGradient colors={['#3B82F6', '#9D5CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
++              <Ionicons name="send" size={17} color="#fff" />
++            </LinearGradient>
++          </TouchableOpacity>
++        </>
++      )}
++      </View>
++  );
++}
+diff --git a/src/modules/flow_ai/ui/GuideBanner.js b/src/modules/flow_ai/ui/GuideBanner.js
+new file mode 100644
+index 0000000..c429fe0
+--- /dev/null
++++ b/src/modules/flow_ai/ui/GuideBanner.js
+@@ -0,0 +1,31 @@
++import React from 'react';
++import { Text, TouchableOpacity, View } from 'react-native';
++import { Ionicons } from '@expo/vector-icons';
++import { FLOW_GUIDES } from '../flowAiGuides';
++
++// Rehber modu: ekranın üstünde adım kartı (FlowAiHost'tan birebir taşındı).
++export default function GuideBanner({ guide, insets, t, onAdvance, onFinish }) {
++  const def = FLOW_GUIDES[guide.key];
++  const isLast = guide.step === def.steps.length - 1;
++  return (
++      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
++        <View testID="flow_ai_guide" style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, backgroundColor: '#12151C', borderRadius: 18, padding: 12, borderWidth: 1, borderColor: 'rgba(0,162,255,0.55)', shadowColor: '#00a2ff', shadowOpacity: 0.45, shadowRadius: 12, elevation: 10 }}>
++          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
++            <Ionicons name="sparkles" size={16} color="#00DAF3" />
++            <Text style={{ color: '#00DAF3', fontWeight: '700', marginLeft: 6, flex: 1 }}>{t('flowAi.guide.title', { step: guide.step + 1, total: def.steps.length })}</Text>
++          </View>
++          <Text style={{ color: '#fff' }}>{t(def.steps[guide.step].textKey)}</Text>
++          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
++            {!isLast && (
++              <TouchableOpacity onPress={onAdvance} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', marginRight: 8 }}>
++                <Text style={{ color: '#fff', fontWeight: '600' }}>{t('flowAi.guide.skip')}</Text>
++              </TouchableOpacity>
++            )}
++            <TouchableOpacity onPress={() => onFinish(isLast)} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}>
++              <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isLast ? 'flowAi.guide.finish' : 'flowAi.guide.cancel')}</Text>
++            </TouchableOpacity>
++          </View>
++        </View>
++      </View>
++  );
++}
+diff --git a/src/modules/flow_ai/ui/MessageList.js b/src/modules/flow_ai/ui/MessageList.js
+new file mode 100644
+index 0000000..6d3209e
+--- /dev/null
++++ b/src/modules/flow_ai/ui/MessageList.js
+@@ -0,0 +1,59 @@
++import React from 'react';
++import { FlatList, Text, TouchableOpacity, View } from 'react-native';
++import { LinearGradient } from 'expo-linear-gradient';
++import TypingDots from '../TypingDots';
++
++// Sohbet baloncukları + boş durum önerileri + yazıyor göstergesi (FlowAiHost'tan birebir taşındı).
++export default function MessageList({ messages, busy, send, listRef, atBottomRef, t }) {
++  return (
++    <FlatList
++      ref={listRef}
++      data={messages}
++      keyExtractor={(m) => m.id}
++      scrollEventThrottle={100}
++      onScroll={(e) => {
++        const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
++        atBottomRef.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
++      }}
++      onContentSizeChange={() => {
++        if (atBottomRef.current) listRef.current?.scrollToEnd?.({ animated: true });
++      }}
++      contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10 }}
++      ListEmptyComponent={
++        <View>
++          <Text style={{ color: '#8B949E', textAlign: 'center', marginVertical: 14 }}>{t('flowAi.empty')}</Text>
++          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
++            {['chipAppointments', 'chipPost', 'chipAccounts'].map((k) => (
++              <TouchableOpacity key={k} onPress={() => send(t(`flowAi.${k}`))} style={{ margin: 4, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
++                <Text style={{ color: '#8B949E', fontSize: 12 }}>{t(`flowAi.${k}`)}</Text>
++              </TouchableOpacity>
++            ))}
++          </View>
++        </View>
++      }
++      ListFooterComponent={busy && messages.length > 0 ? (
++        <View testID="flow_ai_typing" style={{ alignSelf: 'flex-start', marginVertical: 4, borderRadius: 18, borderTopLeftRadius: 6, paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.04)' }}>
++          <TypingDots color="#9D5CFF" size={7} />
++        </View>
++      ) : null}
++      renderItem={({ item }) => {
++        const mine = item.role === 'user';
++        const bubble = { maxWidth: '85%', marginVertical: 4, borderRadius: 18, overflow: 'hidden' };
++        if (mine) {
++          return (
++            <View style={[bubble, { alignSelf: 'flex-end', borderTopRightRadius: 6 }]}>
++              <LinearGradient colors={['#3B82F6', '#9D5CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ padding: 11 }}>
++                <Text style={{ color: '#fff', fontSize: 14 }}>{item.text}</Text>
++              </LinearGradient>
++            </View>
++          );
++        }
++        return (
++          <View style={[bubble, { alignSelf: 'flex-start', borderTopLeftRadius: 6, padding: 11, borderWidth: 1, borderColor: item.role === 'error' ? 'rgba(248,81,73,0.35)' : 'rgba(255,255,255,0.05)', backgroundColor: item.role === 'error' ? 'rgba(248,81,73,0.10)' : 'rgba(255,255,255,0.04)' }]}>
++            <Text style={{ color: '#D7DEE7', fontSize: 14 }}>{item.text}</Text>
++          </View>
++        );
++      }}
++    />
++  );
++}
+diff --git a/src/modules/flow_ai/ui/PendingActions.js b/src/modules/flow_ai/ui/PendingActions.js
+new file mode 100644
+index 0000000..e055346
+--- /dev/null
++++ b/src/modules/flow_ai/ui/PendingActions.js
+@@ -0,0 +1,44 @@
++import React from 'react';
++import { Text, TouchableOpacity, View } from 'react-native';
++
++function formatWhen(preview) {
++  try {
++    return new Date(preview.scheduledFor).toLocaleString(undefined, { timeZone: preview.timezone, dateStyle: 'medium', timeStyle: 'short' });
++  } catch {
++    return String(preview.scheduledFor || '');
++  }
++}
++
++// Onay bekleyen eylemler ve yayın önizlemesi (FlowAiHost'tan birebir taşındı).
++export default function PendingActions({ pending, busy, decide, t }) {
++  return (
++    <>
++    {pending.map((p) => {
++      const isPublish = p.toolName === 'publish_post' && p.preview?.text;
++      return (
++        <View key={p.id} style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
++          <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12 }}>{t(isPublish ? 'flowAi.publish.title' : 'flowAi.pendingTitle')}</Text>
++          {isPublish ? (
++            <>
++              <Text style={{ color: '#9FB0C3', marginTop: 4, fontSize: 12 }}>
++                {(p.preview.platforms || []).join(', ')} · {p.preview.mode === 'schedule' ? t('flowAi.publish.at', { when: formatWhen(p.preview) }) : t('flowAi.publish.now')}
++              </Text>
++              <Text style={{ color: '#D7DEE7', marginTop: 6 }} numberOfLines={8}>{p.preview.text}</Text>
++            </>
++          ) : (
++            <Text style={{ color: '#D7DEE7', marginTop: 2 }} numberOfLines={3}>{p.preview?.description || p.toolName}</Text>
++          )}
++          <View style={{ flexDirection: 'row', marginTop: 8 }}>
++            <TouchableOpacity disabled={busy} onPress={() => decide(p, true)} style={{ flex: 1, backgroundColor: '#238636', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6 }}>
++              <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isPublish ? (p.preview.mode === 'schedule' ? 'flowAi.publish.approveSchedule' : 'flowAi.publish.approveNow') : 'flowAi.approve')}</Text>
++            </TouchableOpacity>
++            <TouchableOpacity disabled={busy} onPress={() => decide(p, false)} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}>
++              <Text style={{ color: '#fff', fontWeight: '700' }}>{t(isPublish ? 'flowAi.publish.cancel' : 'flowAi.reject')}</Text>
++            </TouchableOpacity>
++          </View>
++        </View>
++      );
++    })}
++    </>
++  );
++}
+diff --git a/src/modules/flow_ai/ui/PlatformPickCard.js b/src/modules/flow_ai/ui/PlatformPickCard.js
+new file mode 100644
+index 0000000..3eed6ca
+--- /dev/null
++++ b/src/modules/flow_ai/ui/PlatformPickCard.js
+@@ -0,0 +1,53 @@
++import React from 'react';
++import { Text, TouchableOpacity, View } from 'react-native';
++
++// Paylaşım platformu seçimi (FlowAiHost'tan birebir taşındı; işleyiciler üst bileşende kalır).
++export default function PlatformPickCard({ platformPick, pickSel, onToggle, onContinue, onCancel, t }) {
++  return (
++    <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
++      <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12, marginBottom: 8 }}>{t('flowAi.share.pickTitle')}</Text>
++
++      <View style={{ gap: 6, marginBottom: 12 }}>
++        {platformPick.map((o, i) => (
++          <TouchableOpacity
++            key={i}
++            disabled={!o.eligible}
++            onPress={() => onToggle(o.platform)}
++            style={{
++              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
++              paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
++              backgroundColor: pickSel[o.platform] ? 'rgba(0,218,243,0.1)' : 'rgba(255,255,255,0.03)',
++              opacity: o.eligible ? 1 : 0.5
++            }}
++          >
++            <View style={{ flexDirection: 'column' }}>
++              <Text style={{ fontWeight: '600', fontSize: 13, color: o.eligible ? '#fff' : 'rgba(255,255,255,0.3)' }}>
++                {o.platform.charAt(0).toUpperCase() + o.platform.slice(1)} {o.handle ? <Text style={{ opacity: 0.6, fontWeight: '400' }}>@{o.handle}</Text> : null}
++              </Text>
++              {!o.eligible && o.reason && (
++                <Text style={{ fontSize: 11, color: '#FF7A59', marginTop: 2 }}>{o.reason}</Text>
++              )}
++            </View>
++            {pickSel[o.platform] && <Text style={{ color: '#00DAF3', fontSize: 16 }}>✓</Text>}
++          </TouchableOpacity>
++        ))}
++      </View>
++
++      <View style={{ flexDirection: 'row', marginTop: 8 }}>
++        <TouchableOpacity
++          disabled={!Object.values(pickSel).some(Boolean)}
++          onPress={onContinue}
++          style={{ flex: 1, backgroundColor: '#00DAF3', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6, opacity: Object.values(pickSel).some(Boolean) ? 1 : 0.5 }}
++        >
++          <Text style={{ color: '#000', fontWeight: '700' }}>{t('flowAi.share.pickContinue')}</Text>
++        </TouchableOpacity>
++        <TouchableOpacity
++          onPress={onCancel}
++          style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
++        >
++          <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.cancel')}</Text>
++        </TouchableOpacity>
++      </View>
++    </View>
++  );
++}
+diff --git a/src/modules/flow_ai/ui/SharePendingCard.js b/src/modules/flow_ai/ui/SharePendingCard.js
+new file mode 100644
+index 0000000..d211454
+--- /dev/null
++++ b/src/modules/flow_ai/ui/SharePendingCard.js
+@@ -0,0 +1,30 @@
++import React from 'react';
++import { Text, TouchableOpacity, View } from 'react-native';
++
++// Paylaşım devri onay kartı (FlowAiHost'tan birebir taşındı; işleyiciler üst bileşende kalır).
++export default function SharePendingCard({ shareJobPending, shareConfirmState, busy, onConfirm, onCancel, t }) {
++  return (
++    <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,218,243,0.15)' }}>
++      <Text style={{ color: '#00DAF3', fontWeight: '600', fontSize: 12 }}>{t('flowAi.share.title')}</Text>
++      <Text style={{ color: '#9FB0C3', marginTop: 4, fontSize: 12 }}>
++        {shareJobPending.platforms.join(', ')} · {shareJobPending.scheduledLocal ? shareJobPending.scheduledLocal : t('flowAi.publish.now')}
++      </Text>
++      <Text style={{ color: '#D7DEE7', marginTop: 6 }} numberOfLines={8}>{shareJobPending.caption}</Text>
++
++      {shareConfirmState === 'STARTED' ? (
++        <Text style={{ color: '#3FB950', marginTop: 12, textAlign: 'center', fontWeight: '500' }}>{t('flowAi.share.starting')}</Text>
++      ) : shareConfirmState === 'NOT_READY' ? (
++        <Text style={{ color: '#E3B341', marginTop: 12, textAlign: 'center', fontWeight: '500' }}>{t('flowAi.share.wait')}</Text>
++      ) : null}
++
++      <View style={{ flexDirection: 'row', marginTop: 8 }}>
++        <TouchableOpacity disabled={busy || shareConfirmState === 'STARTED'} onPress={onConfirm} style={{ flex: 1, backgroundColor: '#238636', paddingVertical: 10, borderRadius: 12, alignItems: 'center', marginRight: 6 }}>
++          <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.confirm')}</Text>
++        </TouchableOpacity>
++        <TouchableOpacity disabled={busy || shareConfirmState === 'STARTED'} onPress={onCancel} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}>
++          <Text style={{ color: '#fff', fontWeight: '700' }}>{t('flowAi.share.cancel')}</Text>
++        </TouchableOpacity>
++      </View>
++    </View>
++  );
++}
+-- 
+2.43.0
+

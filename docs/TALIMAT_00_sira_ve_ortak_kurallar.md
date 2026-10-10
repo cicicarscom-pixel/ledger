@@ -70,6 +70,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 65 | `TALIMAT_65_acil_vercel_kilit_flowweb.md` (**ACİL** Vercel pnpm hatası; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 66 | `TALIMAT_66_kalite_faz9a_analiz_flowweb.md` (Kalite Faz 9A; Analiz sayfası bölme, hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
 | 67 | `TALIMAT_67_analiz_platform_filtre_flowweb.md` (Analiz platform filtresi 400 hatası; hazır yama) | flowweb | yok (Vercel) | GEREKLİ |
+| 68 | `TALIMAT_68_kalite_faz9b_flowaihost_flow.md` (Kalite Faz 9B; FlowAiHost görünüm bölme, hazır yama) | flow | yok | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 
