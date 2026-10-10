@@ -86,6 +86,7 @@ Hazırlayan: Claude, 06.10.2026. Her talimat **ayrı bir iştir**; sırayla, bir
 | 81 | `TALIMAT_81_mobil_toplu_paket.md` (mobil cihaz testi düzeltmeleri + AGENTS, 2 commit; derleme ayrı) | flow | yok | GEREKLİ (derleme sonra) |
 | 82 | `TALIMAT_82_mobil_eas_derleme_paket81.md` (EAS derleme; Talimat 81 ONAY'ından SONRA) | flow | derleme | GEREKLİ |
 | 83 | `TALIMAT_83_flow_ai_yardim_katalogu.md` (Flow AI tüm ekranları bilir: 40 konu + test; `flow-ai-agent` deploy) | ledger | `flow-ai-agent` (tek) | GEREKLİ |
+| 84 | `TALIMAT_84_yardim_gecmis_saat_notu.md` (83'ün devamı: geçmiş saat notu; `flow-ai-agent` yeniden deploy) | ledger | `flow-ai-agent` (tek) | GEREKLİ |
 
 **Kontrol isteği biçimi:** `KONTROL <no> — <repo> <commit>` (+ deploy edilen fonksiyon adı).
 

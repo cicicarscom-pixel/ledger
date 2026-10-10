@@ -1,0 +1,43 @@
+From 69e0b3f56718fe8130936bee5abd56b007b2986c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 14:30:47 +0000
+Subject: [PATCH] fix(flow-ai): yardim katalogu gecmis saat hucrelerinin
+ dokunulamaz oldugunu belirtir
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ supabase/functions/shared/ai/flow/helpTopics.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/supabase/functions/shared/ai/flow/helpTopics.ts b/supabase/functions/shared/ai/flow/helpTopics.ts
+index 155de56..5dab18a 100644
+--- a/supabase/functions/shared/ai/flow/helpTopics.ts
++++ b/supabase/functions/shared/ai/flow/helpTopics.ts
+@@ -100,6 +100,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
+       'Altta o günün randevu listesi görünür; takvim/personel seçicisindeki oklarla "Tümü" ya da tek bir takvimin randevularına bakarsın.',
+       'Doluluk özetini bana "yarın randevular nasıl?" diye sorarak da alabilirsin.',
+     ],
++    notes: ['Saati geçmiş hücreler soluktur ve dokunulamaz; boş hücreye (bugün şu andan sonrası ya da ileri günler) dokununca "Randevu oluştur" / "Rezerve et" menüsü açılır. Dolu (yeşil) hücrede randevu zaten vardır; rezerveli hücrede "Rezervasyonu kaldır" çıkar.'],
+   },
+   randevu_olusturma: {
+     title: 'Yeni randevu oluşturma',
+@@ -111,6 +112,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
+       '"Yeni Randevu Ekle" formunda Tarih, Saat, Müşteri Adı, Telefon Numarası, Takvim, Hizmet Tipi ve Açıklama / Not alanlarını doldur.',
+       '"Randevu Oluştur"a bas.',
+     ],
++    notes: ['Saati geçmiş (soluk görünen) hücrelere dokunulunca menü açılmaz; yeni randevu yalnız şu andan sonraki boş saatlere ve ileri günlere oluşturulur. Geçmiş günler ve bugünün geçen saatleri tamamen soluk görünür.'],
+   },
+   randevu_iptal_silme: {
+     title: 'Randevuyu iptal etme veya silme',
+@@ -132,6 +134,7 @@ export const HELP_TOPICS: Record<string, HelpTopic> = {
+       'Aralıkta randevu varsa uyarı çıkar; önce o randevuları taşı ya da iptal et.',
+       'Rezervasyonu kaldırmak için rezerveli saat hücresine dokunup "Rezervasyonu kaldır"ı seç.',
+     ],
++    notes: ['Saati geçmiş hücreler rezerve edilemez; yalnız şu andan sonraki saatler.'],
+   },
+   randevu_takvim_ekleme: {
+     title: 'Yeni takvim / personel ekleme',
+-- 
+2.43.0
+
