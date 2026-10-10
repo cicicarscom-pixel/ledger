@@ -1,0 +1,89 @@
+From 49eb561c21559614b90e1ab5a9cf25f77be5a4b5 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 10 Oct 2026 09:08:41 +0000
+Subject: [PATCH] feat(muhasebecim): RATE_LIMITED yaniti icin cevrili mesaj
+ (Faz E2, web)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VN2Sq5aLfvJyscmA18x5pi
+---
+ README.md                                            | 1 +
+ messages/de.json                                     | 1 +
+ messages/en.json                                     | 1 +
+ messages/tr.json                                     | 1 +
+ src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx | 4 ++++
+ 5 files changed, 8 insertions(+)
+
+diff --git a/README.md b/README.md
+index a99bb3f..60d51db 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ Yeni sayfa ekleneceği zaman uyulması gereken temel kurallar:
+ 
+ ## 📌 Son Güncellemeler
+ 
++- **[10.10.2026] Muhasebeci bağlantı kodu sertleştirme (Faz E2, web tarafı):** Muhasebecim sayfası yeni `RATE_LIMITED` yanıtını gösterir (çok fazla hatalı kod → "15 dakika sonra tekrar deneyin"; `aiMuhasebePage.muhasebecim.rateLimited`, tr/en/de). Veritabanı tarafı (deneme sınırı, sahipsiz firma kodlarının kullanılamaması, harf duyarsız kod) canlıda; ayrıntı: ledger `docs/FAZ_E_PLAN.md`.
+ - **[10.10.2026] Analiz (YouTube):** `get-youtube-daily-views` çağrısı kaldırıldı. Zernio'nun bu uç noktası tek bir videoya aittir (`videoId` zorunlu); sayfa videoId vermediği için her YouTube seçiminde konsola "Invalid input: expected string, received undefined" uyarısı düşüyordu ve dönen veri hiç kullanılamıyordu. Kanal zaman serisi `get-daily-metrics`'ten gelmeye devam ediyor (görünüm değişmedi).
+ - **[10.10.2026] Belgeler:** `AGENTS.md` §3 gerçek duruma getirildi — veritabanında tek tenant kimliği `organizations.id` (eski "sahibin kullanıcı kimliği" modeli Faz F ile bitti); Faz D ve F kapalı.
+ - **[10.10.2026] Ölü kod temizliği (web):** `src/actions/social.ts` silindi. Hiçbir yerden çağrılmıyordu ve veritabanında bulunmayan `inbox_messages` tablosuna başvuruyordu (`getPosts`, `createPost`, `deletePost`, `getMessages`, `replyToMessage`, `getSocialAccounts`). Bu işlemlerin gerçek karşılıkları ilgili sayfaların kendi sorgularında.
+diff --git a/messages/de.json b/messages/de.json
+index 7250151..a8943a9 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -511,6 +511,7 @@
+       "disconnectConfirm": "Ihre Verbindung mit {firm} wird beendet; Ihr Berater hat keinen Zugriff mehr auf Ihre Dokumente. Sind Sie sicher?",
+       "connectedSince": "Verbunden seit: {date}",
+       "codeNotFound": "Für diesen Code wurde kein Berater gefunden.",
++      "rateLimited": "Zu viele falsche Codes eingegeben. Bitte versuchen Sie es aus Sicherheitsgründen in 15 Minuten erneut.",
+       "alreadyConnected": "Sie sind bereits mit diesem Berater verbunden.",
+       "actionError": "Ein Fehler ist aufgetreten, bitte erneut versuchen."
+     },
+diff --git a/messages/en.json b/messages/en.json
+index 93a6b80..7982207 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -511,6 +511,7 @@
+       "disconnectConfirm": "Your connection with {firm} will end and your advisor will no longer access your documents. Are you sure?",
+       "connectedSince": "Connected since: {date}",
+       "codeNotFound": "No advisor found for this code.",
++      "rateLimited": "Too many incorrect codes were entered. For your security, please try again in 15 minutes.",
+       "alreadyConnected": "You are already connected to this advisor.",
+       "actionError": "Something went wrong, please try again."
+     },
+diff --git a/messages/tr.json b/messages/tr.json
+index 4ced153..1609ade 100644
+--- a/messages/tr.json
++++ b/messages/tr.json
+@@ -511,6 +511,7 @@
+       "disconnectConfirm": "{firm} ile bağlantınız kesilecek. Müşaviriniz belgelerinize artık erişemeyecek. Emin misiniz?",
+       "connectedSince": "Bağlantı tarihi: {date}",
+       "codeNotFound": "Bu koda ait müşavir bulunamadı.",
++      "rateLimited": "Çok fazla hatalı kod denediniz. Güvenliğiniz için lütfen 15 dakika sonra tekrar deneyin.",
+       "alreadyConnected": "Bu müşavirle zaten bağlısınız.",
+       "actionError": "Bir hata oluştu, lütfen tekrar deneyin."
+     },
+diff --git a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+index 471a5f7..c1ca630 100644
+--- a/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
++++ b/src/app/(dashboard)/ai-muhasebe/muhasebecim/page.tsx
+@@ -64,6 +64,8 @@ export default function MuhasebecimPage() {
+           setStep('verified');
+         } else if (data?.status === 'CODE_NOT_FOUND') {
+           dialog.alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
++        } else if (data?.status === 'RATE_LIMITED') {
++          dialog.alert(t("aiMuhasebePage.muhasebecim.rateLimited"));
+         } else {
+           dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+         }
+@@ -90,6 +92,8 @@ export default function MuhasebecimPage() {
+         checkConnection();
+       } else if (data?.status === 'CODE_NOT_FOUND') {
+         dialog.alert(t("aiMuhasebePage.muhasebecim.codeNotFound"));
++      } else if (data?.status === 'RATE_LIMITED') {
++        dialog.alert(t("aiMuhasebePage.muhasebecim.rateLimited"));
+       } else {
+         dialog.alert(t("aiMuhasebePage.muhasebecim.actionError"));
+       }
+-- 
+2.43.0
+
