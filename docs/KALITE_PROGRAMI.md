@@ -21,7 +21,7 @@ Hazırlayan: Claude, 09.10.2026. Kaynak: `docs/KOD_TARAMA_2026-10-09.md` (bulgul
 | 6 | **i18n süpürmesi** (çok parçalı): 6A flowweb `analiz`; 6B flowweb `AICharacterPanel`+`RandevuClient`+diğerleri; 6C flow `AiUretimScreen`; 6D flow `AnalyticsScreen`+kalanlar | 57–60 | 6A TAMAM (57); 6B HAZIR (58); 6C/6D HAZIR (59) |
 | 7 (TAMAM) | **DB sertleştirme**: 21 fonksiyonda `search_path`, `anon` EXECUTE kalanları, eklentiler (testli, tek tek) | 61 | HAZIR (SQL) |
 | 8 | **Ortak bileşenler**: `alert/confirm` yerine çevirili iletişim bileşeni (web + mobil), 69 çağrı | 62 | HAZIR (web) |
-| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 64+ | sırada |
+| 9 | **Mimari/refaktör**: `FlowAiHost.js` bölme + React Compiler ref kuralları, katman ihlalleri (10), sunucu işlemlerinde açık org kontrolü | 66+ | **sürüyor** (9A: web Analiz sayfası, Talimat 66) |
 | 10 | **Bağımlılıklar**: `npm audit` düzeltmeleri (web: nanoid/postcss/sharp/source-map-js; mobil: `expo install --fix` ile), `xlsx` kararı | 70+ | sırada |
 
 3–10. fazların talimatları, bir önceki faz ONAYLANDIKÇA yazılır (her biri bir önceki fazın sonucuna ve dosyaların güncel hâline dayanır; yama güncel koddan üretilir).
